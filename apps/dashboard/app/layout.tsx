@@ -1,29 +1,35 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Providers } from "../lib/providers";
+import "./globals.css";
+import { Nav } from "./nav";
 
 export const metadata: Metadata = {
   title: "ArtGene Dashboard",
-  description: "Bioinformatics sequence analysis platform",
+  description: "TINSEL bioinformatics sequence registry platform",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <body style={{ margin: 0, fontFamily: "system-ui, sans-serif" }}>
-        <header
-          style={{
-            background: "#0f172a",
-            color: "#f8fafc",
-            padding: "1rem 2rem",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.75rem",
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Prevent FOUC: apply dark class before first paint */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var m=localStorage.getItem('theme');if(m==='dark'||(!m&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})()`,
           }}
-        >
-          <span style={{ fontSize: "1.5rem" }}>🧬</span>
-          <strong style={{ fontSize: "1.25rem" }}>ArtGene</strong>
-        </header>
-        <main style={{ padding: "2rem" }}>{children}</main>
+        />
+      </head>
+      <body className="min-h-screen flex flex-col">
+        <Providers>
+          <Nav />
+          <main className="flex-1 container mx-auto px-4 py-8 max-w-7xl">
+            {children}
+          </main>
+          <footer className="border-t border-slate-200 dark:border-slate-700 py-4 text-center text-xs text-slate-500 dark:text-slate-400">
+            ArtGene · TINSEL Registry v1.0
+          </footer>
+        </Providers>
       </body>
     </html>
   );

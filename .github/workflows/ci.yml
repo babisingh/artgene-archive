@@ -7,22 +7,65 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  # ── Python tests (tinsel-core + tinsel-gates + tinsel-api) ──────────────
+  test-python:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install dependencies
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install workspace packages
         run: |
-          pip install uv
-          uv pip install -e packages/tinsel-core[test] --system
-      - name: Lint
-        run: ruff check packages/tinsel-core/
-      - name: Type check
-        run: mypy packages/tinsel-core/tinsel/
+          uv pip install \
+            -e packages/tinsel-core[test] \
+            -e packages/tinsel-gates[test] \
+            -e packages/tinsel-api[dev] \
+            --system
+
+      - name: Lint (ruff)
+        run: ruff check packages/
+
+      - name: Type check (mypy)
+        run: mypy packages/tinsel-core/tinsel/ packages/tinsel-gates/tinsel_gates/
+
       - name: Test
-        run: pytest packages/tinsel-core/tests/ -v --cov=tinsel --cov-report=xml
+        run: |
+          pytest \
+            packages/tinsel-core/tests/ \
+            packages/tinsel-gates/tests/ \
+            -v --import-mode=importlib --cov=tinsel --cov=tinsel_gates --cov-report=xml
         env:
           SENTINEL_ENV: test
+
+  # ── Dashboard: type-check + build ───────────────────────────────────────
+  build-dashboard:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/dashboard
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
