@@ -1,0 +1,49 @@
+{
+  "meta": {
+    "seq_id": "01",
+    "label": "GLP-1 agonist variant — all gates PASS",
+    "fasta": "01_glp1_pass.fasta",
+    "seq_type": "protein",
+    "header": "NB-GLP1-047 Glucagon-like peptide-1 receptor agonist variant | organism:synthetic | host:ecoli | ethics:ETHICS-GLP1-2026-001"
+  },
+  "pipeline": {
+    "overall_status": "pass",
+    "gate1": {
+      "status": "pass",
+      "plddt_mean": 87.3,
+      "plddt_low_fraction": 0.05,
+      "delta_mfe": 0.4,
+      "message": "pLDDT mean 87.3, low fraction 0.05, ΔMFE 0.40 kcal/mol"
+    },
+    "gate2": {
+      "status": "pass",
+      "blast_hits": 0,
+      "toxin_probability": 0.07,
+      "allergen_probability": 0.12,
+      "message": "BLAST hits 0, toxin 0.070, allergen 0.120"
+    },
+    "gate3": {
+      "status": "pass",
+      "pathogen_hits": 0,
+      "hgt_score": 3.2,
+      "escape_probability": 0.04,
+      "message": "Pathogen hits 0, HGT score 3.2/100, escape 0.040 (MOCK)"
+    },
+    "skipped_gates": [],
+    "run_gates": [
+      1,
+      2,
+      3
+    ]
+  },
+  "certificate": {
+    "status": "CERTIFIED"
+  },
+  "watermark": {
+    "tier": "STANDARD",
+    "carrier_positions": 500,
+    "chi_squared": 50.477803,
+    "sequence_hash": "1dff6c1bbb47257fd719e7c760545fb054d76922f578e04687c649fbd0730470",
+    "watermark_id": "DEMO-01-GLP1-PASS"
+  }
+}

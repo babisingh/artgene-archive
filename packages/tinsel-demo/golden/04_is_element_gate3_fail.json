@@ -1,0 +1,43 @@
+{
+  "meta": {
+    "seq_id": "04",
+    "label": "IS element — Gate 3 FAIL (HGT score 74)",
+    "fasta": "04_is_element_gate3_fail.fasta",
+    "seq_type": "dna",
+    "header": "IS1-TPASE-FRAG-001 IS1 transposase domain fragment — high horizontal gene transfer risk | organism:e.coli_IS1 | ethics:ETHICS-HGT-2026-004"
+  },
+  "pipeline": {
+    "overall_status": "fail",
+    "gate1": {
+      "status": "pass",
+      "plddt_mean": 87.3,
+      "plddt_low_fraction": 0.05,
+      "delta_mfe": 0.4,
+      "message": "pLDDT mean 87.3, low fraction 0.05, ΔMFE 0.40 kcal/mol"
+    },
+    "gate2": {
+      "status": "pass",
+      "blast_hits": 0,
+      "toxin_probability": 0.07,
+      "allergen_probability": 0.12,
+      "message": "BLAST hits 0, toxin 0.070, allergen 0.120"
+    },
+    "gate3": {
+      "status": "fail",
+      "pathogen_hits": 0,
+      "hgt_score": 74.0,
+      "escape_probability": 0.04,
+      "message": "HGT score 74.0/100 >= 50.0 threshold (MOCK)"
+    },
+    "skipped_gates": [],
+    "run_gates": [
+      1,
+      2,
+      3
+    ]
+  },
+  "certificate": {
+    "status": "FAILED"
+  },
+  "watermark": null
+}

@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tinsel-demo"
+version = "1.0.0"
+description = "Six-sequence TINSEL demonstration covering every system state"
+requires-python = ">=3.12"
+dependencies = [
+    "tinsel-core",
+    "tinsel-gates",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["tinsel_demo"]

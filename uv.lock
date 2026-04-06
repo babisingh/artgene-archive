@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 members = [
     "tinsel-api",
     "tinsel-core",
+    "tinsel-demo",
     "tinsel-gates",
 ]
 
@@ -965,6 +966,21 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=5.0" },
 ]
 provides-extras = ["test"]
+
+[[package]]
+name = "tinsel-demo"
+version = "1.0.0"
+source = { editable = "packages/tinsel-demo" }
+dependencies = [
+    { name = "tinsel-core" },
+    { name = "tinsel-gates" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "tinsel-core", editable = "packages/tinsel-core" },
+    { name = "tinsel-gates", editable = "packages/tinsel-gates" },
+]
 
 [[package]]
 name = "tinsel-gates"

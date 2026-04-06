@@ -3,12 +3,14 @@ members = [
     "packages/tinsel-core",
     "packages/tinsel-gates",
     "packages/tinsel-api",
+    "packages/tinsel-demo",
 ]
 
 [tool.uv.sources]
 tinsel-core = { workspace = true }
 tinsel-gates = { workspace = true }
 tinsel-api = { workspace = true }
+tinsel-demo = { workspace = true }
 
 [tool.ruff]
 line-length = 100
