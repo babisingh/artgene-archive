@@ -5,6 +5,11 @@ members = [
     "packages/tinsel-api",
 ]
 
+[tool.uv.sources]
+tinsel-core = { workspace = true }
+tinsel-gates = { workspace = true }
+tinsel-api = { workspace = true }
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"
