@@ -2,17 +2,22 @@ version: "3.9"
 services:
   api:
     build:
-      context: packages/tinsel-api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: packages/tinsel-api/Dockerfile
     ports:
       - "8000:8000"
     environment:
       - SENTINEL_ENV=development
-      - DATABASE_URL=${DATABASE_URL}
-      - SPREADING_KEY_ID=${SPREADING_KEY_ID}
-      - SPREADING_KEY=${SPREADING_KEY}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:tinsel_local_password@db:5432/artgene}
+      - SPREADING_KEY_ID=${SPREADING_KEY_ID:-local-dev-key}
+      - SPREADING_KEY=${SPREADING_KEY:-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "cd /app &&
+             alembic -c packages/tinsel-api/alembic.ini upgrade head &&
+             uvicorn sentinel_api.main:app --host 0.0.0.0 --port 8000"
 
   db:
     image: supabase/postgres:15.1.0.147
@@ -23,6 +28,11 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d artgene"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   pgdata:

@@ -22,6 +22,7 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+addopts = "--import-mode=importlib"
 testpaths = [
     "packages/tinsel-core/tests",
     "packages/tinsel-gates/tests",
