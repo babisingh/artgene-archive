@@ -7,6 +7,8 @@ import { useApiKey } from "../lib/providers";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
+  { href: "/register", label: "Register" },
+  { href: "/registry", label: "Registry" },
   { href: "/sequences", label: "Sequences" },
 ];
 

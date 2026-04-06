@@ -60,12 +60,23 @@ export interface CertificateSummary {
   timestamp: string;
 }
 
+/** Typed EncodeResult from TINSELEncoder.encode() stored as JSONB */
+export interface WatermarkMetadata {
+  original_protein: string;
+  watermarked_dna: string;
+  watermark_id: string;
+  carrier_positions: number;
+  chi_squared: number;
+  tier: string;
+  spreading_key_id: string;
+}
+
 export interface Certificate extends CertificateSummary {
   org_id: string;
   ethics_code: string;
   sequence_type: string;
   certificate_hash: string;
-  watermark_metadata: Record<string, unknown> | null;
+  watermark_metadata: WatermarkMetadata | null;
   consequence_report: ConsequenceReport | null;
 }
 

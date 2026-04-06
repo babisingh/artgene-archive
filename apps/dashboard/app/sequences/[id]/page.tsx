@@ -13,8 +13,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { CodonBiasChart } from "../../../components/CodonBiasChart";
 import { useApiKey } from "../../../lib/providers";
-import type { Gate1Result, Gate2Result, Gate3Result, GateStatus } from "../../../lib/api";
+import type { Gate1Result, Gate2Result, Gate3Result, GateStatus, WatermarkMetadata } from "../../../lib/api";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -389,6 +390,13 @@ export default function CertificatePage({
       ) : (
         <div className="card p-6 text-slate-500 dark:text-slate-400 text-sm">
           No biosafety report available.
+        </div>
+      )}
+
+      {/* CodonBiasChart — watermark visualisation */}
+      {cert.watermark_metadata && (
+        <div className="card p-6">
+          <CodonBiasChart watermark={cert.watermark_metadata as WatermarkMetadata} />
         </div>
       )}
 
