@@ -1,138 +1,142 @@
 "use client";
 
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { useApiKey } from "../lib/providers";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
-interface GateResult {
-  gate_name: string;
-  status: "pass" | "fail" | "warn" | "skip";
-  score: number | null;
-  message: string | null;
-}
-
-interface PipelineResult {
-  sequence_id: string;
-  overall_status: "pass" | "fail" | "warn" | "skip";
-  gates: GateResult[];
-  passed_gates: number;
-  failed_gates: number;
-  warned_gates: number;
-}
-
-const STATUS_COLOR: Record<string, string> = {
-  pass: "#16a34a",
-  fail: "#dc2626",
-  warn: "#d97706",
-  skip: "#6b7280",
-};
-
-export default function HomePage() {
-  const [sequenceId, setSequenceId] = useState("seq-001");
-  const [sequence, setSequence] = useState("MAEQKLISEEDLNFPSTEKIQLLKEELDLFLQ");
-  const [result, setResult] = useState<PipelineResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function runGates() {
-    setLoading(true);
-    setError(null);
-    setResult(null);
-    try {
-      const res = await fetch(`${API_URL}/gates/run`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sequence_id: sequenceId, sequence }),
-      });
-      if (!res.ok) throw new Error(`API error: ${res.status}`);
-      setResult(await res.json());
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setLoading(false);
-    }
-  }
+function StatCard({
+  label,
+  value,
+  sub,
+  color = "blue",
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  color?: "blue" | "green" | "amber" | "violet";
+}) {
+  const accent = {
+    blue: "border-blue-500 dark:border-blue-400",
+    green: "border-emerald-500 dark:border-emerald-400",
+    amber: "border-amber-500 dark:border-amber-400",
+    violet: "border-violet-500 dark:border-violet-400",
+  }[color];
 
   return (
-    <div style={{ maxWidth: 720 }}>
-      <h1 style={{ marginTop: 0 }}>Sequence Gate Analysis</h1>
+    <div className={`card p-5 border-l-4 ${accent}`}>
+      <div className="text-3xl font-bold text-slate-900 dark:text-white">{value}</div>
+      <div className="text-sm font-medium text-slate-700 dark:text-slate-300 mt-1">{label}</div>
+      {sub && <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{sub}</div>}
+    </div>
+  );
+}
 
-      <label style={{ display: "block", marginBottom: "0.25rem", fontWeight: 600 }}>
-        Sequence ID
-      </label>
-      <input
-        value={sequenceId}
-        onChange={(e) => setSequenceId(e.target.value)}
-        style={{ width: "100%", padding: "0.5rem", marginBottom: "1rem", boxSizing: "border-box" }}
-      />
+export default function HomePage() {
+  const { client, apiKey } = useApiKey();
 
-      <label style={{ display: "block", marginBottom: "0.25rem", fontWeight: 600 }}>
-        Protein Sequence
-      </label>
-      <textarea
-        rows={4}
-        value={sequence}
-        onChange={(e) => setSequence(e.target.value)}
-        style={{ width: "100%", padding: "0.5rem", fontFamily: "monospace", boxSizing: "border-box" }}
-      />
+  const { data: health } = useQuery({
+    queryKey: ["health"],
+    queryFn: () => client.health(),
+    retry: false,
+  });
 
-      <button
-        onClick={runGates}
-        disabled={loading || !sequence.trim()}
-        style={{
-          marginTop: "1rem",
-          padding: "0.6rem 1.5rem",
-          background: "#2563eb",
-          color: "#fff",
-          border: "none",
-          borderRadius: 4,
-          cursor: loading ? "not-allowed" : "pointer",
-          fontSize: "1rem",
-        }}
-      >
-        {loading ? "Running…" : "Run Gates"}
-      </button>
+  const { data: certs } = useQuery({
+    queryKey: ["certificates"],
+    queryFn: () => client.listCertificates(100, 0),
+    enabled: Boolean(apiKey),
+  });
 
-      {error && (
-        <p style={{ color: "#dc2626", marginTop: "1rem" }}>Error: {error}</p>
-      )}
+  const totalCerts = certs?.count ?? 0;
+  const certified = certs?.items.filter((c) => c.status === "CERTIFIED").length ?? 0;
+  const failed = certs?.items.filter((c) => c.status === "FAILED").length ?? 0;
+  const tiers = certs
+    ? Object.entries(
+        certs.items.reduce<Record<string, number>>((acc, c) => {
+          acc[c.tier] = (acc[c.tier] ?? 0) + 1;
+          return acc;
+        }, {})
+      )
+    : [];
 
-      {result && (
-        <div style={{ marginTop: "1.5rem" }}>
-          <h2 style={{ marginBottom: "0.5rem" }}>
-            Result:{" "}
-            <span style={{ color: STATUS_COLOR[result.overall_status] }}>
-              {result.overall_status.toUpperCase()}
+  return (
+    <div className="space-y-8">
+      {/* Hero */}
+      <div className="card p-8 bg-gradient-to-br from-blue-600 to-violet-600 dark:from-blue-700 dark:to-violet-700 text-white border-0">
+        <h1 className="text-3xl font-bold mb-2">ArtGene TINSEL Registry</h1>
+        <p className="text-blue-100 max-w-xl">
+          Traceable Identity Notation for Sequence Encryption + Ledger. Watermark,
+          certify, and audit synthetic gene sequences with cryptographic provenance.
+        </p>
+        <div className="mt-6 flex gap-3">
+          <Link href="/sequences" className="btn bg-white text-blue-700 hover:bg-blue-50">
+            View Registry →
+          </Link>
+          {!apiKey && (
+            <p className="text-xs text-blue-200 self-center">
+              Set your API key in the top navigation to get started.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Service status */}
+      <div className="flex items-center gap-4 text-sm">
+        <span className="text-slate-500 dark:text-slate-400">Service status:</span>
+        {health ? (
+          <>
+            <span
+              className={`badge ${health.db === "connected" ? "badge-pass" : "badge-fail"}`}
+            >
+              DB {health.db}
             </span>
-          </h2>
-          <p style={{ color: "#64748b", margin: "0 0 1rem" }}>
-            {result.passed_gates} passed · {result.warned_gates} warned ·{" "}
-            {result.failed_gates} failed
-          </p>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "#f1f5f9" }}>
-                <th style={{ textAlign: "left", padding: "0.5rem" }}>Gate</th>
-                <th style={{ textAlign: "left", padding: "0.5rem" }}>Status</th>
-                <th style={{ textAlign: "left", padding: "0.5rem" }}>Message</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.gates.map((g) => (
-                <tr key={g.gate_name} style={{ borderTop: "1px solid #e2e8f0" }}>
-                  <td style={{ padding: "0.5rem", fontFamily: "monospace" }}>{g.gate_name}</td>
-                  <td style={{ padding: "0.5rem", color: STATUS_COLOR[g.status], fontWeight: 600 }}>
-                    {g.status.toUpperCase()}
-                  </td>
-                  <td style={{ padding: "0.5rem", fontSize: "0.875rem", color: "#475569" }}>
-                    {g.message ?? "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            <span
+              className={`badge ${health.vault === "connected" ? "badge-pass" : "badge-fail"}`}
+            >
+              Vault {health.vault}
+            </span>
+            <span className="badge badge-skip">{health.env}</span>
+          </>
+        ) : (
+          <span className="badge badge-skip">Connecting…</span>
+        )}
+      </div>
+
+      {/* Stats */}
+      {apiKey && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <StatCard label="Total Certificates" value={totalCerts} color="blue" />
+          <StatCard label="Certified" value={certified} color="green" />
+          <StatCard label="Failed" value={failed} color="amber" />
+          <StatCard
+            label="Top Tier"
+            value={tiers[0]?.[0] ?? "—"}
+            sub={tiers[0] ? `${tiers[0][1]} sequences` : undefined}
+            color="violet"
+          />
         </div>
       )}
+
+      {/* Quick links */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Link href="/sequences" className="card p-5 hover:border-blue-400 transition-colors group">
+          <div className="text-2xl mb-2">🧬</div>
+          <div className="font-semibold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400">
+            Sequence Registry
+          </div>
+          <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Browse and register TINSEL-certified gene sequences.
+          </div>
+        </Link>
+        <div className="card p-5 opacity-60 cursor-not-allowed">
+          <div className="text-2xl mb-2">🗺️</div>
+          <div className="font-semibold text-slate-900 dark:text-white">
+            Pathway Bundles
+          </div>
+          <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Multi-gene Merkle bundles — coming in Phase 5.
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

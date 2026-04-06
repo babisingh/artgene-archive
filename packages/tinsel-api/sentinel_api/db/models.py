@@ -1,0 +1,228 @@
+"""SQLAlchemy 2.0 ORM models — five append-friendly tables.
+
+Tables
+------
+organisations       — registered organisations with hashed API credentials
+certificates        — issued TINSEL certificates (one per sequence+owner pair)
+registry_audit_log  — tamper-evident append-only log (blockchain-style)
+pathways            — multi-gene Merkle pathway bundles
+api_keys            — per-organisation API key records
+
+CRITICAL: registry_audit_log must NEVER be updated or deleted.
+          The AppendOnlyMixin enforces this at the ORM layer.
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timezone
+from typing import Any
+
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+# ---------------------------------------------------------------------------
+# Append-only guard mixin
+# ---------------------------------------------------------------------------
+
+class AppendOnlyMixin:
+    """Raise RuntimeError if any attribute is mutated after the record is
+    marked as committed.  Call ``_mark_committed()`` after the first flush."""
+
+    _committed: bool = False
+
+    def _mark_committed(self) -> None:
+        object.__setattr__(self, "_committed", True)
+
+    def __setattr__(self, key: str, value: Any) -> None:
+        if key != "_committed" and getattr(self, "_committed", False):
+            raise RuntimeError(
+                f"{type(self).__name__} is append-only — "
+                f"cannot update field '{key}' after commit."
+            )
+        super().__setattr__(key, value)
+
+
+# ---------------------------------------------------------------------------
+# organisations
+# ---------------------------------------------------------------------------
+
+class Organisation(Base):
+    __tablename__ = "organisations"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    api_key_hash: Mapped[str] = mapped_column(
+        String(64), nullable=False, comment="SHA3-256 hex of the raw API key"
+    )
+    tier: Mapped[str] = mapped_column(String(20), nullable=False, default="standard")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    api_keys: Mapped[list["APIKey"]] = relationship(back_populates="organisation")
+    certificates: Mapped[list["Certificate"]] = relationship(back_populates="organisation")
+    pathways: Mapped[list["Pathway"]] = relationship(back_populates="organisation")
+
+
+# ---------------------------------------------------------------------------
+# certificates
+# ---------------------------------------------------------------------------
+
+class Certificate(Base):
+    __tablename__ = "certificates"
+
+    id: Mapped[str] = mapped_column(
+        String(20), primary_key=True, comment="AG-YYYY-NNNNNN registry ID"
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False
+    )
+    sequence_hash: Mapped[str] = mapped_column(
+        String(64), nullable=False, comment="SHA3-256 hex of original protein"
+    )
+    owner_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    ethics_code: Mapped[str] = mapped_column(String(100), nullable=False)
+    sequence_type: Mapped[str] = mapped_column(String(10), nullable=False)
+    host_organism: Mapped[str] = mapped_column(String(20), nullable=False)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    watermark_metadata: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    wots_public_key: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    wots_signature: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    lwe_commitment: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    merkle_proof: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    pathway_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    consequence_report: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    certificate_hash: Mapped[str] = mapped_column(
+        String(128), nullable=False, comment="SHA3-512 hex"
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    chi_squared: Mapped[float | None] = mapped_column(Float, nullable=True)
+    tier: Mapped[str] = mapped_column(String(20), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    organisation: Mapped["Organisation"] = relationship(back_populates="certificates")
+
+
+# ---------------------------------------------------------------------------
+# registry_audit_log  (append-only blockchain-style log)
+# ---------------------------------------------------------------------------
+
+class RegistryAuditLog(AppendOnlyMixin, Base):
+    """Tamper-evident, append-only audit log.
+
+    Each entry hashes the previous entry's hash, forming a chain.
+    The first entry uses ``prev_hash_hex = "0" * 64``.
+
+    CRITICAL: No UPDATE or DELETE operations must ever be issued
+    against this table.  The AppendOnlyMixin enforces this at the
+    ORM layer; database-level triggers should be added in production.
+    """
+
+    __tablename__ = "registry_audit_log"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    seq_num: Mapped[int] = mapped_column(BigInteger, nullable=False, unique=True)
+    prev_hash_hex: Mapped[str] = mapped_column(
+        String(64), nullable=False, comment="SHA3-256 of previous entry"
+    )
+    certificate_hash: Mapped[str] = mapped_column(
+        String(128), nullable=False, comment="SHA3-512 of the certificate being logged"
+    )
+    entry_hash_hex: Mapped[str] = mapped_column(
+        String(64), nullable=False, comment="SHA3-256(seq_num||prev_hash||cert_hash)"
+    )
+    registry_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint("registry_id", name="uq_audit_registry_id"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# pathways
+# ---------------------------------------------------------------------------
+
+class Pathway(Base):
+    __tablename__ = "pathways"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    gene_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    merkle_root: Mapped[str] = mapped_column(String(64), nullable=False)
+    certificate_ids: Mapped[list] = mapped_column(
+        JSONB, nullable=False, default=list, comment="Array of registry IDs"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    organisation: Mapped["Organisation"] = relationship(back_populates="pathways")
+
+
+# ---------------------------------------------------------------------------
+# api_keys
+# ---------------------------------------------------------------------------
+
+class APIKey(Base):
+    __tablename__ = "api_keys"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False
+    )
+    key_prefix: Mapped[str] = mapped_column(
+        String(8), nullable=False, comment="First 8 chars of raw key (non-secret)"
+    )
+    key_hash: Mapped[str] = mapped_column(
+        String(64), nullable=False, comment="SHA3-256 hex of the full raw key"
+    )
+    label: Mapped[str] = mapped_column(String(100), nullable=False)
+    last_used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    organisation: Mapped["Organisation"] = relationship(back_populates="api_keys")
