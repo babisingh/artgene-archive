@@ -638,7 +638,7 @@ provides-extras = ["test"]
 
 [[package]]
 name = "tinsel-gates"
-version = "0.1.0"
+version = "1.0.0"
 source = { editable = "packages/tinsel-gates" }
 dependencies = [
     { name = "pydantic" },
@@ -655,7 +655,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "pydantic", specifier = ">=2.7" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.1" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
     { name = "tinsel-core", editable = "packages/tinsel-core" },
