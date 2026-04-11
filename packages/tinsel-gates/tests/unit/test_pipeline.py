@@ -17,7 +17,6 @@ Test matrix
 """
 
 import pytest
-
 from tinsel.consequence import ConsequenceReport
 from tinsel.models import GateStatus
 from tinsel_gates.adapters.gate1 import MockGate1Adapter
@@ -31,7 +30,7 @@ from tinsel_gates.pipeline import run_consequence_pipeline
 
 # NB-GLP1-047 (39 aa, all gates PASS with default mocks)
 PROTEIN = "HAEGTFTSDVSSYLEGQAAKEFIAWLVKGRCEGVLGDTFR"
-DNA = "CATGCTGAAGGAACTTTTACGTCAGACGTTAGCAGTTACCTTGAGGGACAAGCTAAAGAGTTTATCGCTTGGCTTGTCAAAGGTCGCTGTGAAGGAGTCCTTGGTGATACCTTTCGT"
+DNA = "CATGCTGAAGGAACTTTTACGTCAGACGTTAGCAGTTACCTTGAGGGACAAGCTAAAGAGTTTATCGCTTGGCTTGTCAAAGGTCGCTGTGAAGGAGTCCTTGGTGATACCTTTCGT"  # noqa: E501
 
 
 # ---------------------------------------------------------------------------

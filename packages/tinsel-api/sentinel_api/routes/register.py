@@ -17,14 +17,12 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from tinsel.registry import (
     CertificateStatus,
     HostOrganism,
@@ -39,9 +37,8 @@ from tinsel_gates.pipeline import run_consequence_pipeline
 
 from sentinel_api.config import settings
 from sentinel_api.db.connection import get_db
-from sentinel_api.db.models import Certificate, RegistryAuditLog
+from sentinel_api.db.models import Certificate, Organisation, RegistryAuditLog
 from sentinel_api.dependencies import require_api_key
-from sentinel_api.db.models import Organisation
 from sentinel_api.vault import get_vault_client
 
 router = APIRouter()
@@ -61,11 +58,11 @@ class RegistrationRequest(BaseModel):
 
 class RegistrationResponse(BaseModel):
     status: CertificateStatus
-    registry_id: Optional[str] = None
-    tier: Optional[str] = None
-    chi_squared: Optional[float] = None
-    consequence_report: Optional[dict] = None
-    message: Optional[str] = None
+    registry_id: str | None = None
+    tier: str | None = None
+    chi_squared: float | None = None
+    consequence_report: dict | None = None
+    message: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -142,7 +139,7 @@ async def register_sequence(
     spreading_key = await vault.get_spreading_key(settings.spreading_key_id)
 
     seq_num = await _next_seq_num(db)
-    year = datetime.now(timezone.utc).year
+    year = datetime.now(UTC).year
     registry_id = f"AG-{year}-{seq_num:06d}"
 
     encoder = TINSELEncoder(spreading_key, settings.spreading_key_id)
@@ -159,7 +156,7 @@ async def register_sequence(
     lwe_com = LWECommitmentData.stub()
 
     # ── Step 6: Certificate hash ──────────────────────────────────────────
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     cert_fields = {
         "registry_id": registry_id,
         "owner_id": body.owner_id,

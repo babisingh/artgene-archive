@@ -15,7 +15,7 @@ CRITICAL: registry_audit_log must NEVER be updated or deleted.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
@@ -25,7 +25,6 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
-    Text,
     UniqueConstraint,
     func,
 )
@@ -78,9 +77,9 @@ class Organisation(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    api_keys: Mapped[list["APIKey"]] = relationship(back_populates="organisation")
-    certificates: Mapped[list["Certificate"]] = relationship(back_populates="organisation")
-    pathways: Mapped[list["Pathway"]] = relationship(back_populates="organisation")
+    api_keys: Mapped[list[APIKey]] = relationship(back_populates="organisation")
+    certificates: Mapped[list[Certificate]] = relationship(back_populates="organisation")
+    pathways: Mapped[list[Pathway]] = relationship(back_populates="organisation")
 
 
 # ---------------------------------------------------------------------------
@@ -129,7 +128,7 @@ class Certificate(Base):
         nullable=False,
     )
 
-    organisation: Mapped["Organisation"] = relationship(back_populates="certificates")
+    organisation: Mapped[Organisation] = relationship(back_populates="certificates")
 
 
 # ---------------------------------------------------------------------------
@@ -195,7 +194,7 @@ class Pathway(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    organisation: Mapped["Organisation"] = relationship(back_populates="pathways")
+    organisation: Mapped[Organisation] = relationship(back_populates="pathways")
 
 
 # ---------------------------------------------------------------------------
@@ -225,4 +224,4 @@ class APIKey(Base):
         DateTime(timezone=True), nullable=True
     )
 
-    organisation: Mapped["Organisation"] = relationship(back_populates="api_keys")
+    organisation: Mapped[Organisation] = relationship(back_populates="api_keys")

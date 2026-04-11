@@ -1,7 +1,6 @@
 """Unit tests for tinsel.validators (16 tests)."""
 
 import pytest
-
 from tinsel.validators import (
     ValidationError,
     is_valid_dna,
@@ -11,7 +10,6 @@ from tinsel.validators import (
     validate_rna_sequence,
     validate_sequence_length,
 )
-
 
 # ---------------------------------------------------------------------------
 # validate_dna_sequence

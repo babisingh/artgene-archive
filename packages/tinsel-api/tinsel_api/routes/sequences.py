@@ -2,7 +2,6 @@
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-
 from tinsel.models import SequenceRecord, SequenceType
 
 router = APIRouter()

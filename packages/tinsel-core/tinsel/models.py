@@ -1,18 +1,18 @@
 """Pydantic models for tinsel-core: sequences, gate results, and pipeline outputs."""
 
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
 
-class SequenceType(str, Enum):
+class SequenceType(StrEnum):
     DNA = "dna"
     RNA = "rna"
     PROTEIN = "protein"
 
 
-class GateStatus(str, Enum):
+class GateStatus(StrEnum):
     PASS = "pass"
     FAIL = "fail"
     WARN = "warn"
@@ -23,8 +23,8 @@ class SequenceRecord(BaseModel):
     id: str
     sequence: str
     seq_type: SequenceType
-    description: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    description: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("sequence")
     @classmethod
@@ -37,20 +37,20 @@ class SequenceRecord(BaseModel):
 class GateResult(BaseModel):
     gate_name: str
     status: GateStatus
-    score: Optional[float] = None
-    message: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    score: float | None = None
+    message: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class ESMFoldResult(GateResult):
     gate_name: str = "esmfold"
-    plddt_mean: Optional[float] = None
-    plddt_scores: Optional[List[float]] = None
-    pdb_string: Optional[str] = None
+    plddt_mean: float | None = None
+    plddt_scores: list[float] | None = None
+    pdb_string: str | None = None
 
     @field_validator("plddt_mean")
     @classmethod
-    def validate_plddt(cls, v: Optional[float]) -> Optional[float]:
+    def validate_plddt(cls, v: float | None) -> float | None:
         if v is not None and not (0.0 <= v <= 100.0):
             raise ValueError("pLDDT score must be between 0 and 100")
         return v
@@ -74,20 +74,20 @@ class BlastHit(BaseModel):
 
 class BlastResult(GateResult):
     gate_name: str = "ncbi_blast"
-    query_length: Optional[int] = None
-    hits: List[BlastHit] = Field(default_factory=list)
-    top_hit: Optional[BlastHit] = None
+    query_length: int | None = None
+    hits: list[BlastHit] = Field(default_factory=list)
+    top_hit: BlastHit | None = None
 
 
 class ToxinPredResult(GateResult):
     gate_name: str = "toxinpred"
-    is_toxic: Optional[bool] = None
-    toxicity_score: Optional[float] = None
-    svm_score: Optional[float] = None
+    is_toxic: bool | None = None
+    toxicity_score: float | None = None
+    svm_score: float | None = None
 
     @field_validator("toxicity_score")
     @classmethod
-    def validate_toxicity_score(cls, v: Optional[float]) -> Optional[float]:
+    def validate_toxicity_score(cls, v: float | None) -> float | None:
         if v is not None and not (0.0 <= v <= 1.0):
             raise ValueError("Toxicity score must be between 0 and 1")
         return v
@@ -96,7 +96,7 @@ class ToxinPredResult(GateResult):
 class PipelineResult(BaseModel):
     sequence_id: str
     overall_status: GateStatus = GateStatus.PASS
-    gates: List[GateResult] = Field(default_factory=list)
+    gates: list[GateResult] = Field(default_factory=list)
     passed_gates: int = 0
     failed_gates: int = 0
     warned_gates: int = 0

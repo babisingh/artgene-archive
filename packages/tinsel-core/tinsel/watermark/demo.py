@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import os
 import sys
-import textwrap
 
 from tinsel.watermark.encoder import (
     decode_protein,

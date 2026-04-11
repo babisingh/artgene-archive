@@ -2,7 +2,6 @@
 
 import pytest
 from pydantic import ValidationError as PydanticValidationError
-
 from tinsel.models import (
     BlastHit,
     BlastResult,
@@ -14,7 +13,6 @@ from tinsel.models import (
     SequenceType,
     ToxinPredResult,
 )
-
 
 # ---------------------------------------------------------------------------
 # SequenceType enum

@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from tinsel.models import GateResult, GateStatus, PipelineResult
 
@@ -122,7 +123,7 @@ class GatePipeline:
                 message=f"Unexpected error: {type(exc).__name__}: {exc}",
             )
 
-    async def __aenter__(self) -> "GatePipeline":
+    async def __aenter__(self) -> GatePipeline:
         await self.setup_all()
         return self
 

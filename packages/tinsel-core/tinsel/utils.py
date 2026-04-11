@@ -1,9 +1,7 @@
 """Bioinformatics utility functions: complement, translate, GC content, MW."""
 
-from typing import List
 
 import numpy as np
-
 
 _COMPLEMENT_MAP = str.maketrans("ACGTNacgtn", "TGCANtgcan")
 
@@ -65,7 +63,7 @@ def translate(seq: str, stop_symbol: str = "*") -> str:
     Unknown codons are rendered as 'X'.
     """
     seq = seq.upper()
-    protein: List[str] = []
+    protein: list[str] = []
     for i in range(0, len(seq) - 2, 3):
         codon = seq[i : i + 3]
         aa = CODON_TABLE.get(codon, "X")
@@ -91,12 +89,12 @@ def molecular_weight(protein_seq: str) -> float:
     return mw
 
 
-def plddt_to_bfactor(plddt_scores: List[float]) -> np.ndarray:
+def plddt_to_bfactor(plddt_scores: list[float]) -> np.ndarray:
     """Convert a list of pLDDT scores to a numpy array suitable for B-factor columns."""
     return np.array(plddt_scores, dtype=float)
 
 
-def mean_plddt(plddt_scores: List[float]) -> float:
+def mean_plddt(plddt_scores: list[float]) -> float:
     """Return the mean pLDDT score, or 0.0 for an empty list."""
     if not plddt_scores:
         return 0.0
