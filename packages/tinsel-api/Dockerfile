@@ -1,4 +1,4 @@
-FROM public.ecr.aws/lambda/python:3.12 AS base
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -13,6 +13,6 @@ RUN pip install --no-cache-dir \
         packages/tinsel-gates \
         packages/tinsel-api
 
-# ── Lambda entry-point ────────────────────────────────────────────────────
-# Override for local uvicorn: docker-compose sets its own CMD
-CMD ["sentinel_api.main.handler"]
+# Default: run the API server directly
+# docker-compose overrides this with the alembic migration prefix
+CMD ["uvicorn", "sentinel_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
