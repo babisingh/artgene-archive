@@ -1,9 +1,10 @@
-version: "3.9"
 services:
   api:
     build:
       context: .
       dockerfile: packages/tinsel-api/Dockerfile
+    # Clear the Lambda ENTRYPOINT so docker-compose command runs directly
+    entrypoint: ["/bin/sh", "-c"]
     ports:
       - "8000:8000"
     environment:
@@ -15,9 +16,9 @@ services:
       db:
         condition: service_healthy
     command: >
-      sh -c "cd /app &&
-             alembic -c packages/tinsel-api/alembic.ini upgrade head &&
-             uvicorn sentinel_api.main:app --host 0.0.0.0 --port 8000"
+      cd /app &&
+      alembic -c packages/tinsel-api/alembic.ini upgrade head &&
+      uvicorn sentinel_api.main:app --host 0.0.0.0 --port 8000
 
   db:
     image: supabase/postgres:15.1.0.147
