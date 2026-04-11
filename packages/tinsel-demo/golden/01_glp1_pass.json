@@ -40,7 +40,7 @@
     "status": "CERTIFIED"
   },
   "watermark": {
-    "tier": "STANDARD",
+    "tier": "REDUCED",
     "carrier_positions": 500,
     "chi_squared": 50.477803,
     "sequence_hash": "1dff6c1bbb47257fd719e7c760545fb054d76922f578e04687c649fbd0730470",

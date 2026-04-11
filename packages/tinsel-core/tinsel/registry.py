@@ -5,17 +5,26 @@ certificate registry.  The crypto implementations (WOTS+, LWE, Merkle)
 live in tinsel.crypto and are phased in; stub objects are provided here
 for Phase 3 MVP.
 
-Constants
----------
-MINIMUM_CARRIERS_ABSOLUTE : int
-    Sequences with fewer synonymous carrier positions than this value
-    cannot carry a watermark and are REJECTED.
+Tier system
+-----------
+Watermark tiers are determined by the number of synonymous carrier
+positions (watermark bit capacity) in the protein sequence:
 
-TIER_SPECS : dict[WatermarkTier, int]
-    Minimum carrier positions required to reach each tier.
-
-select_tier(carrier_positions) : WatermarkTier
-    Classify a sequence into the appropriate watermark tier.
++----------+-------------------+--------+----------+---------------------+
+| Tier     | Min carriers      | Sig    | RS codec | Correctable bytes   |
++==========+===================+========+==========+=====================+
+| FULL     | ≥ 1,792           | 128-b  | (32,16)  | 8                   |
++----------+-------------------+--------+----------+---------------------+
+| STANDARD | ≥   896           |  64-b  | (16, 8)  | 4                   |
++----------+-------------------+--------+----------+---------------------+
+| REDUCED  | ≥   320           |  32-b  | ( 8, 4)  | 2                   |
++----------+-------------------+--------+----------+---------------------+
+| MINIMAL  | ≥    96           |  16-b  | ( 4, 2)  | 1                   |
++----------+-------------------+--------+----------+---------------------+
+| DEMO     | ≥    24           |   8-b  | none     | 0 (no RS)           |
++----------+-------------------+--------+----------+---------------------+
+| REJECTED | <    24           |  —     | —        | not embeddable      |
++----------+-------------------+--------+----------+---------------------+
 """
 
 from __future__ import annotations
@@ -33,19 +42,21 @@ from pydantic import BaseModel, Field
 # ---------------------------------------------------------------------------
 
 class WatermarkTier(str, Enum):
-    """Watermark quality tiers based on synonymous carrier capacity.
+    """Watermark quality tiers based on synonymous carrier bit capacity.
 
-    FULL       >= 512 carriers — chi-squared typically < 0.08
-    STANDARD   >= 256 carriers
-    REDUCED    >= 128 carriers
-    MINIMAL    >= 64  carriers — chi-squared 0.30-0.45 (high bias)
-    REJECTED   <  64  carriers — cannot reliably embed a watermark
+    FULL     >= 1792 carriers  — 128-bit signature, RS(32,16), 8-byte correction
+    STANDARD >=  896 carriers  — 64-bit signature,  RS(16,8),  4-byte correction
+    REDUCED  >=  320 carriers  — 32-bit signature,  RS(8,4),   2-byte correction
+    MINIMAL  >=   96 carriers  — 16-bit signature,  RS(4,2),   1-byte correction
+    DEMO     >=   24 carriers  — 8-bit  signature,  no RS
+    REJECTED <    24 carriers  — cannot embed a watermark
     """
 
     FULL = "FULL"
     STANDARD = "STANDARD"
     REDUCED = "REDUCED"
     MINIMAL = "MINIMAL"
+    DEMO = "DEMO"
     REJECTED = "REJECTED"
 
 
@@ -68,13 +79,35 @@ class HostOrganism(str, Enum):
 # Carrier capacity constants and tier selection
 # ---------------------------------------------------------------------------
 
-MINIMUM_CARRIERS_ABSOLUTE: int = 64
+MINIMUM_CARRIERS_ABSOLUTE: int = 24
 
+#: Minimum number of carrier bits required for each tier.
 TIER_SPECS: Dict[WatermarkTier, int] = {
-    WatermarkTier.FULL: 512,
-    WatermarkTier.STANDARD: 256,
-    WatermarkTier.REDUCED: 128,
-    WatermarkTier.MINIMAL: MINIMUM_CARRIERS_ABSOLUTE,
+    WatermarkTier.FULL:     1792,
+    WatermarkTier.STANDARD:  896,
+    WatermarkTier.REDUCED:   320,
+    WatermarkTier.MINIMAL:    96,
+    WatermarkTier.DEMO:       24,
+}
+
+#: RS codec parameters per tier: (n, k) where parity symbols = n - k.
+TIER_RS_PARAMS: Dict[WatermarkTier, Optional[tuple[int, int]]] = {
+    WatermarkTier.FULL:     (32, 16),  # 16 parity symbols, corrects 8 bytes
+    WatermarkTier.STANDARD: (16,  8),  # 8  parity symbols, corrects 4 bytes
+    WatermarkTier.REDUCED:  ( 8,  4),  # 4  parity symbols, corrects 2 bytes
+    WatermarkTier.MINIMAL:  ( 4,  2),  # 2  parity symbols, corrects 1 byte
+    WatermarkTier.DEMO:     None,      # no Reed-Solomon
+    WatermarkTier.REJECTED: None,
+}
+
+#: Signature length in bytes per tier.
+TIER_SIG_BYTES: Dict[WatermarkTier, int] = {
+    WatermarkTier.FULL:     16,   # 128-bit signature
+    WatermarkTier.STANDARD:  8,   # 64-bit signature
+    WatermarkTier.REDUCED:   4,   # 32-bit signature
+    WatermarkTier.MINIMAL:   2,   # 16-bit signature
+    WatermarkTier.DEMO:      1,   # 8-bit signature
+    WatermarkTier.REJECTED:  0,
 }
 
 
@@ -88,11 +121,102 @@ def select_tier(carrier_positions: int) -> WatermarkTier:
         return WatermarkTier.REDUCED
     if carrier_positions >= TIER_SPECS[WatermarkTier.MINIMAL]:
         return WatermarkTier.MINIMAL
+    if carrier_positions >= TIER_SPECS[WatermarkTier.DEMO]:
+        return WatermarkTier.DEMO
     return WatermarkTier.REJECTED
 
 
 # ---------------------------------------------------------------------------
-# Cryptographic stub models (Phase 3 MVP — replaced by real impls in Phase 7)
+# New v1.0 models
+# ---------------------------------------------------------------------------
+
+class WatermarkConfig(BaseModel):
+    """Configuration snapshot used during encoding — needed for decoding.
+
+    Both the encoder and decoder must agree on every field.
+    """
+
+    watermark_id: str
+    tier: WatermarkTier
+    sig_bytes: int          # length of signature embedded in the watermark
+    spreading_key_id: str   # identifier of the spreading key (not the key itself)
+    codeword_length: int    # total length of the RS codeword in bits (= sig_bytes if no RS)
+    rs_n: Optional[int] = None   # RS block length (None if no RS)
+    rs_k: Optional[int] = None   # RS message length (None if no RS)
+
+
+class AnchorMap(BaseModel):
+    """Positional mapping of carrier codons for mutation-tolerant decoding.
+
+    Records which protein positions are synonymous carriers, allowing
+    the decoder to skip positions that have been mutated out.
+
+    Attributes
+    ----------
+    carrier_indices:
+        Sorted list of 0-based indices into the protein sequence that are
+        used as watermark carriers (pool size >= 2).
+    pool_sizes:
+        Corresponding pool sizes at each carrier position.
+    protein_length:
+        Total length of the original protein (used for bounds checking).
+    """
+
+    carrier_indices: List[int]
+    pool_sizes: List[int]
+    protein_length: int
+
+    @property
+    def n_carriers(self) -> int:
+        return len(self.carrier_indices)
+
+
+class CodonBiasMetrics(BaseModel):
+    """Codon-usage statistics computed after watermarking."""
+
+    chi_squared: float        # χ² deviation from uniform codon usage
+    p_value: float            # Wilson-Hilferty approximation p-value
+    is_covert: bool           # True if p_value > 0.05
+    per_aa_deviations: Dict[str, float] = Field(default_factory=dict)
+
+
+class WatermarkResult(BaseModel):
+    """Output of the new TINSELEncoder.encode() API (v1.0)."""
+
+    original_protein: str
+    dna_sequence: str
+    watermark_id: str
+    config: WatermarkConfig
+    anchor_map: AnchorMap
+    codon_bias_metrics: CodonBiasMetrics
+    signature_hex: str        # hex-encoded embedded signature
+    carrier_positions: int    # number of synonymous carrier positions
+
+
+class VerificationResult(BaseModel):
+    """Output of TINSELDecoder.verify()."""
+
+    verified: bool
+    bit_error_rate: float           # BER after de-spreading (0.0 = perfect)
+    anchor_positions_mutated: int   # carrier positions that changed codon-choice
+    bits_recovered: int             # bits successfully extracted
+    tier: WatermarkTier
+    watermark_id: str
+    failure_reason: Optional[str] = None
+
+
+class CapacityReport(BaseModel):
+    """Output of check_capacity()."""
+
+    tier: WatermarkTier
+    sig_bits: int             # signature bits that can be embedded
+    capacity_ok: bool         # True unless REJECTED
+    n_carrier_positions: int  # synonymous carrier count
+    rejection_reason: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Cryptographic stub models (Phase 3 MVP)
 # ---------------------------------------------------------------------------
 
 class WOTSPublicKey(BaseModel):
@@ -103,7 +227,6 @@ class WOTSPublicKey(BaseModel):
 
     @classmethod
     def stub(cls) -> "WOTSPublicKey":
-        """Return a deterministic zero-value stub for Phase 3 MVP."""
         return cls(chains=["00" * 32] * 35, public_seed="00" * 32)
 
 
@@ -138,25 +261,25 @@ class LWECommitmentData(BaseModel):
 class MerkleProof(BaseModel):
     """Merkle inclusion proof for a single sequence in a pathway tree."""
 
-    leaf_hash: str       # hex SHA3-256
-    siblings: List[str]  # hex SHA3-256 values along the proof path
-    path_bits: List[int] # 0 = go left, 1 = go right at each level
-    root: str            # hex SHA3-256 Merkle root
+    leaf_hash: str
+    siblings: List[str]
+    path_bits: List[int]
+    root: str
     leaf_index: int
 
 
 # ---------------------------------------------------------------------------
-# Encode result
+# Legacy EncodeResult (preserved for backward compatibility)
 # ---------------------------------------------------------------------------
 
 class EncodeResult(BaseModel):
-    """Output of TINSELEncoder.encode()."""
+    """Legacy output of TINSELEncoder.encode() — preserved for compatibility."""
 
     original_protein: str
     watermarked_dna: str
     watermark_id: str
-    carrier_positions: int  # number of synonymous positions used
-    chi_squared: float      # codon-usage deviation from uniform
+    carrier_positions: int
+    chi_squared: float
     tier: WatermarkTier
     spreading_key_id: str
 
@@ -168,14 +291,14 @@ class EncodeResult(BaseModel):
 class HybridCertificate(BaseModel):
     """Issued TINSEL certificate binding sequence, owner, and crypto proofs."""
 
-    registry_id: str              # AG-YYYY-NNNNNN
+    registry_id: str
     owner_id: str
     org_id: str
     ethics_code: str
     host_organism: HostOrganism
-    sequence_hash: str            # SHA3-256 hex of original protein
-    sequence_type: str            # DNA / RNA / PROTEIN
-    timestamp: datetime           # UTC issuance time
+    sequence_hash: str
+    sequence_type: str
+    timestamp: datetime
     watermark_metadata: Optional[Dict[str, Any]] = None
     wots_public_key: WOTSPublicKey
     wots_signature: WOTSSignature
@@ -183,13 +306,12 @@ class HybridCertificate(BaseModel):
     merkle_proof: Optional[MerkleProof] = None
     pathway_id: Optional[str] = None
     consequence_report: Dict[str, Any] = Field(default_factory=dict)
-    certificate_hash: str         # SHA3-512 hex of all fields
+    certificate_hash: str
     status: CertificateStatus
     chi_squared: Optional[float] = None
     tier: WatermarkTier
 
     @classmethod
     def compute_hash(cls, fields: Dict[str, Any]) -> str:
-        """SHA3-512 of all certificate fields concatenated as UTF-8."""
         payload = "".join(str(v) for v in fields.values()).encode("utf-8")
         return hashlib.sha3_512(payload).hexdigest()
