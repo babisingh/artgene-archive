@@ -1,0 +1,49 @@
+{
+  "meta": {
+    "seq_id": "06",
+    "label": "CRISPR sgRNA — all gates PASS (non-protein DNA input)",
+    "fasta": "06_sgrna_pass.fasta",
+    "seq_type": "dna",
+    "header": "CRISPR-CAS9-SGRNA-001 CRISPR-Cas9 single guide RNA targeting VEGFA locus — non-protein input | organism:synthetic | ethics:ETHICS-CRISPR-2026-006"
+  },
+  "pipeline": {
+    "overall_status": "pass",
+    "gate1": {
+      "status": "pass",
+      "plddt_mean": 87.3,
+      "plddt_low_fraction": 0.05,
+      "delta_mfe": 0.4,
+      "message": "pLDDT mean 87.3, low fraction 0.05, ΔMFE 0.40 kcal/mol"
+    },
+    "gate2": {
+      "status": "pass",
+      "blast_hits": 0,
+      "toxin_probability": 0.07,
+      "allergen_probability": 0.12,
+      "message": "BLAST hits 0, toxin 0.070, allergen 0.120"
+    },
+    "gate3": {
+      "status": "pass",
+      "pathogen_hits": 0,
+      "hgt_score": 3.2,
+      "escape_probability": 0.04,
+      "message": "Pathogen hits 0, HGT score 3.2/100, escape 0.040 (MOCK)"
+    },
+    "skipped_gates": [],
+    "run_gates": [
+      1,
+      2,
+      3
+    ]
+  },
+  "certificate": {
+    "status": "CERTIFIED"
+  },
+  "watermark": {
+    "tier": "MINIMAL",
+    "carrier_positions": 208,
+    "chi_squared": 13.646818,
+    "sequence_hash": "3a2d9f7f66de458cffdbb8aa91450f3d64819ecbdda49cd295afd9ec5a55018e",
+    "watermark_id": "DEMO-06-SGRNA-PASS"
+  }
+}

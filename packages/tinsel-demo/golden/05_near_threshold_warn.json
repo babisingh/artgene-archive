@@ -1,0 +1,49 @@
+{
+  "meta": {
+    "seq_id": "05",
+    "label": "Near-threshold — Gate 3 WARN → ESCALATED",
+    "fasta": "05_near_threshold_warn.fasta",
+    "seq_type": "protein",
+    "header": "NEAR-THRESH-001 Borderline ecological risk — Gate 3 WARN, escape probability 0.18 | organism:synthetic | host:ecoli | ethics:ETHICS-ECO-2026-005"
+  },
+  "pipeline": {
+    "overall_status": "warn",
+    "gate1": {
+      "status": "pass",
+      "plddt_mean": 87.3,
+      "plddt_low_fraction": 0.05,
+      "delta_mfe": 0.4,
+      "message": "pLDDT mean 87.3, low fraction 0.05, ΔMFE 0.40 kcal/mol"
+    },
+    "gate2": {
+      "status": "pass",
+      "blast_hits": 0,
+      "toxin_probability": 0.07,
+      "allergen_probability": 0.12,
+      "message": "BLAST hits 0, toxin 0.070, allergen 0.120"
+    },
+    "gate3": {
+      "status": "warn",
+      "pathogen_hits": 0,
+      "hgt_score": 3.2,
+      "escape_probability": 0.18,
+      "message": "Evolutionary escape probability 0.180 >= 0.15 (WARN, MOCK)"
+    },
+    "skipped_gates": [],
+    "run_gates": [
+      1,
+      2,
+      3
+    ]
+  },
+  "certificate": {
+    "status": "CERTIFIED"
+  },
+  "watermark": {
+    "tier": "REDUCED",
+    "carrier_positions": 413,
+    "chi_squared": 36.867443,
+    "sequence_hash": "f42903a02a54648064ad04ac483393f1152e49c352502c26c984f5642f20b5c9",
+    "watermark_id": "DEMO-05-NEARTHRESH-WARN"
+  }
+}

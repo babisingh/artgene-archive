@@ -1,0 +1,34 @@
+{
+  "meta": {
+    "seq_id": "02",
+    "label": "Misfolded variant — Gate 1 FAIL (pLDDT 42)",
+    "fasta": "02_misfolded_gate1_fail.fasta",
+    "seq_type": "protein",
+    "header": "MISFOLD-VAR-001 Misfolded GLP-1 variant with disordered C-terminal extension | organism:synthetic | host:ecoli | ethics:ETHICS-STRUCT-2026-002"
+  },
+  "pipeline": {
+    "overall_status": "fail",
+    "gate1": {
+      "status": "fail",
+      "plddt_mean": 42.0,
+      "plddt_low_fraction": 0.65,
+      "delta_mfe": 4.1,
+      "message": "pLDDT mean 42.0 < 70.0 threshold"
+    },
+    "gate2": null,
+    "gate3": null,
+    "skipped_gates": [
+      2,
+      3
+    ],
+    "run_gates": [
+      1,
+      2,
+      3
+    ]
+  },
+  "certificate": {
+    "status": "FAILED"
+  },
+  "watermark": null
+}
