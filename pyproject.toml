@@ -30,3 +30,8 @@ testpaths = [
     "packages/tinsel-gates/tests",
     "packages/tinsel-api/tests",
 ]
+
+[dependency-groups]
+dev = [
+    "aiosqlite>=0.22.1",
+]
