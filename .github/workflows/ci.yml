@@ -33,7 +33,9 @@ jobs:
         run: ruff check packages/
 
       - name: Type check (mypy)
-        run: mypy packages/tinsel-core/tinsel/ packages/tinsel-gates/tinsel_gates/
+        run: |
+          mypy packages/tinsel-core/tinsel/ packages/tinsel-gates/tinsel_gates/
+          mypy packages/tinsel-api/sentinel_api/
 
       - name: Test
         run: |

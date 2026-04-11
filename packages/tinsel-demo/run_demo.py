@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -46,6 +47,12 @@ from tinsel_gates.pipeline import run_consequence_pipeline
 
 DEMO_KEY = bytes.fromhex("aa" * 32)          # fixed demo spreading key
 DEMO_KEY_ID = "demo-key-v1"
+DEMO_SIGNING_KEY = hashlib.sha3_256(DEMO_KEY + b":tinsel-signing-key-v1").digest()
+
+# Fixed demo metadata — keeps golden files deterministic across runs
+DEMO_OWNER_ID = "demo-owner"
+DEMO_TIMESTAMP = "2027-01-01T00:00:00Z"
+DEMO_ETHICS_CODE = "ERC-DEMO"
 
 HERE = Path(__file__).parent
 SEQ_DIR = HERE / "sequences"
@@ -61,7 +68,6 @@ MANIFEST: list[dict[str, Any]] = [
         "seq_id": "01",
         "label": "GLP-1 agonist variant — all gates PASS",
         "fasta": "01_glp1_pass.fasta",
-        "watermark_id": "DEMO-01-GLP1-PASS",
         # Default adapters → all PASS
         "gate1": MockGate1Adapter(),
         "gate2": MockGate2Adapter(),
@@ -73,7 +79,6 @@ MANIFEST: list[dict[str, Any]] = [
         "seq_id": "02",
         "label": "Misfolded variant — Gate 1 FAIL (pLDDT 42)",
         "fasta": "02_misfolded_gate1_fail.fasta",
-        "watermark_id": "DEMO-02-MISFOLD-FAIL",
         "gate1": MockGate1Adapter(plddt_mean=42.0, plddt_low_fraction=0.65, delta_mfe=4.1),
         "gate2": MockGate2Adapter(),
         "gate3": MockGate3Adapter(),
@@ -84,7 +89,6 @@ MANIFEST: list[dict[str, Any]] = [
         "seq_id": "03",
         "label": "Toxin homolog — Gate 2 FAIL (toxin_prob 0.87)",
         "fasta": "03_toxin_gate2_fail.fasta",
-        "watermark_id": "DEMO-03-TOXIN-FAIL",
         "gate1": MockGate1Adapter(),                            # passes
         "gate2": MockGate2Adapter(toxin_probability=0.87),      # FAIL
         "gate3": MockGate3Adapter(),
@@ -95,7 +99,6 @@ MANIFEST: list[dict[str, Any]] = [
         "seq_id": "04",
         "label": "IS element — Gate 3 FAIL (HGT score 74)",
         "fasta": "04_is_element_gate3_fail.fasta",
-        "watermark_id": "DEMO-04-ISELEMENT-FAIL",
         "gate1": MockGate1Adapter(),                            # passes
         "gate2": MockGate2Adapter(),                            # passes
         "gate3": MockGate3Adapter(hgt_score=74.0),              # FAIL
@@ -106,7 +109,6 @@ MANIFEST: list[dict[str, Any]] = [
         "seq_id": "05",
         "label": "Near-threshold — Gate 3 WARN → ESCALATED",
         "fasta": "05_near_threshold_warn.fasta",
-        "watermark_id": "DEMO-05-NEARTHRESH-WARN",
         "gate1": MockGate1Adapter(),                            # passes
         "gate2": MockGate2Adapter(),                            # passes
         "gate3": MockGate3Adapter(escape_probability=0.18),     # WARN
@@ -117,7 +119,6 @@ MANIFEST: list[dict[str, Any]] = [
         "seq_id": "06",
         "label": "CRISPR sgRNA — all gates PASS (non-protein DNA input)",
         "fasta": "06_sgrna_pass.fasta",
-        "watermark_id": "DEMO-06-SGRNA-PASS",
         # Default adapters → all PASS
         "gate1": MockGate1Adapter(),
         "gate2": MockGate2Adapter(),
@@ -157,15 +158,20 @@ async def run_sequence(entry: dict[str, Any]) -> dict[str, Any]:
     # ── Watermark encoding (only when pipeline passes or warns) ───────────
     watermark: dict[str, Any] | None = None
     if cert_status == CertificateStatus.CERTIFIED:
-        encoder = TINSELEncoder(DEMO_KEY, DEMO_KEY_ID)
-        encode_result = encoder.encode(sequence, entry["watermark_id"])
+        encoder = TINSELEncoder(DEMO_KEY, DEMO_KEY_ID, signing_key=DEMO_SIGNING_KEY)
+        encode_result = encoder.encode_v1(
+            sequence,
+            DEMO_OWNER_ID,
+            DEMO_TIMESTAMP,
+            DEMO_ETHICS_CODE,
+        )
         seq_hash = encoder.sequence_hash(sequence)
         watermark = {
-            "tier": encode_result.tier.value,
+            "tier": encode_result.config.tier.value,
             "carrier_positions": encode_result.carrier_positions,
-            "chi_squared": encode_result.chi_squared,
+            "chi_squared": encode_result.codon_bias_metrics.chi_squared,
             "sequence_hash": seq_hash,
-            "watermark_id": entry["watermark_id"],
+            "watermark_id": encode_result.watermark_id,
         }
 
     return {

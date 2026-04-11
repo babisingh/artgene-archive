@@ -42,8 +42,8 @@
   "watermark": {
     "tier": "REDUCED",
     "carrier_positions": 413,
-    "chi_squared": 36.867443,
+    "chi_squared": 40.380481,
     "sequence_hash": "f42903a02a54648064ad04ac483393f1152e49c352502c26c984f5642f20b5c9",
-    "watermark_id": "DEMO-05-NEARTHRESH-WARN"
+    "watermark_id": "demo-owner|2027-01-01T00:00:00Z"
   }
 }

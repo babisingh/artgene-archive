@@ -42,8 +42,8 @@
   "watermark": {
     "tier": "REDUCED",
     "carrier_positions": 500,
-    "chi_squared": 50.477803,
+    "chi_squared": 38.86017,
     "sequence_hash": "1dff6c1bbb47257fd719e7c760545fb054d76922f578e04687c649fbd0730470",
-    "watermark_id": "DEMO-01-GLP1-PASS"
+    "watermark_id": "demo-owner|2027-01-01T00:00:00Z"
   }
 }

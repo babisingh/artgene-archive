@@ -205,9 +205,15 @@ interface CodonBiasChartProps {
 }
 
 export function CodonBiasChart({ watermark }: CodonBiasChartProps) {
-  const { original_protein, watermarked_dna, chi_squared, tier, carrier_positions } = watermark;
+  const {
+    original_protein,
+    dna_sequence,
+    carrier_positions,
+  } = watermark;
+  const chi_squared = watermark.codon_bias_metrics.chi_squared;
+  const tier = watermark.config.tier;
 
-  if (!original_protein || !watermarked_dna) {
+  if (!original_protein || !dna_sequence) {
     return (
       <div className="flex items-center justify-center h-40 text-sm text-slate-400">
         No codon data available
@@ -215,7 +221,7 @@ export function CodonBiasChart({ watermark }: CodonBiasChartProps) {
     );
   }
 
-  const chartData = computeChartData(original_protein, watermarked_dna, 6);
+  const chartData = computeChartData(original_protein, dna_sequence, 6);
   const aaOrder = Array.from(new Set(chartData.filter((d) => !d.isGap).map((d) => d.aa)));
   const chi = chiLabel(chi_squared);
 
