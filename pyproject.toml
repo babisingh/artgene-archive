@@ -22,6 +22,14 @@ python_version = "3.12"
 strict = true
 ignore_missing_imports = true
 
+# FastAPI/SQLAlchemy ecosystem: decorators and scalar() calls are untyped
+# in a way that triggers strict errors; relax only the noisy checks.
+[[tool.mypy.overrides]]
+module = ["sentinel_api.*"]
+disallow_untyped_decorators = false
+warn_return_any = false
+disallow_any_generics = false
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 addopts = "--import-mode=importlib"

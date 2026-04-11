@@ -42,8 +42,8 @@
   "watermark": {
     "tier": "MINIMAL",
     "carrier_positions": 208,
-    "chi_squared": 13.646818,
+    "chi_squared": 9.666523,
     "sequence_hash": "3a2d9f7f66de458cffdbb8aa91450f3d64819ecbdda49cd295afd9ec5a55018e",
-    "watermark_id": "DEMO-06-SGRNA-PASS"
+    "watermark_id": "demo-owner|2027-01-01T00:00:00Z"
   }
 }

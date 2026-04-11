@@ -60,15 +60,39 @@ export interface CertificateSummary {
   timestamp: string;
 }
 
-/** Typed EncodeResult from TINSELEncoder.encode() stored as JSONB */
+/** v1.0 WatermarkResult from TINSELEncoder.encode_v1() stored as JSONB */
+export interface WatermarkConfig {
+  watermark_id: string;
+  tier: string;
+  sig_bytes: number;
+  spreading_key_id: string;
+  codeword_length: number;
+  rs_n: number | null;
+  rs_k: number | null;
+}
+
+export interface AnchorMap {
+  carrier_indices: number[];
+  pool_sizes: number[];
+  protein_length: number;
+}
+
+export interface CodonBiasMetrics {
+  chi_squared: number;
+  p_value: number;
+  is_covert: boolean;
+  per_aa_deviations: Record<string, number>;
+}
+
 export interface WatermarkMetadata {
   original_protein: string;
-  watermarked_dna: string;
+  dna_sequence: string;
   watermark_id: string;
   carrier_positions: number;
-  chi_squared: number;
-  tier: string;
-  spreading_key_id: string;
+  config: WatermarkConfig;
+  anchor_map: AnchorMap;
+  codon_bias_metrics: CodonBiasMetrics;
+  signature_hex: string;
 }
 
 export interface Certificate extends CertificateSummary {
