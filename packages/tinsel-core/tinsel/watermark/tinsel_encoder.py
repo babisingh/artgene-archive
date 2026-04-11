@@ -41,27 +41,25 @@ from __future__ import annotations
 import hashlib
 import hmac
 import math
-from typing import Optional
 
 import numpy as np
 
 from tinsel.registry import (
+    TIER_RS_PARAMS,
+    TIER_SIG_BYTES,
     AnchorMap,
     CapacityReport,
     CodonBiasMetrics,
     EncodeResult,
     HostOrganism,
-    TIER_RS_PARAMS,
-    TIER_SIG_BYTES,
     WatermarkConfig,
     WatermarkResult,
     WatermarkTier,
     select_tier,
 )
-from tinsel.watermark.encoder import CODON_POOLS, encode, watermark_capacity
+from tinsel.watermark.encoder import CODON_POOLS, watermark_capacity
 from tinsel.watermark.rs_codec import RSCodec
 from tinsel.watermark.spreading import SpreadingCodeGenerator
-
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -101,7 +99,6 @@ def _chi2_p_value(chi2: float, df: int) -> float:
         return 1.0
     # Normalised chi-squared z-score via Wilson-Hilferty
     mu = df
-    sigma2 = 2 * df
     h = 1 - 2 / (9 * df)
     k = math.sqrt(2 / (9 * df))
     z = ((chi2 / mu) ** (1 / 3) - h) / k
@@ -133,7 +130,11 @@ def _codon_bias_metrics(dna: str, protein: str) -> CodonBiasMetrics:
     chi2 = _chi_squared(dna, protein)
 
     # Degrees of freedom: Σ_aa (pool_size - 1)
-    df = sum(len(CODON_POOLS.get(aa, [])) - 1 for aa in set(protein) if len(CODON_POOLS.get(aa, [])) > 1)
+    df = sum(
+        len(CODON_POOLS.get(aa, [])) - 1
+        for aa in set(protein)
+        if len(CODON_POOLS.get(aa, [])) > 1
+    )
     p_val = _chi2_p_value(chi2, df)
 
     # Per-AA maximum fractional deviation from uniform expectation
@@ -163,7 +164,9 @@ def _codon_bias_metrics(dna: str, protein: str) -> CodonBiasMetrics:
     )
 
 
-def _derive_signature(signing_key: bytes, owner_id: str, timestamp_str: str, ethics_code: str, sig_bytes: int) -> bytes:
+def _derive_signature(
+    signing_key: bytes, owner_id: str, timestamp_str: str, ethics_code: str, sig_bytes: int
+) -> bytes:
     """Derive a short deterministic signature from owner metadata."""
     label = (owner_id + "|" + timestamp_str + "|" + ethics_code).encode("utf-8")
     full = hmac.new(signing_key, label, hashlib.sha3_256).digest()
@@ -264,7 +267,7 @@ class TINSELEncoder:
         spreading_key: bytes,
         spreading_key_id: str = "",
         *,
-        signing_key: Optional[bytes] = None,
+        signing_key: bytes | None = None,
     ) -> None:
         if len(spreading_key) != 32:
             raise ValueError("spreading_key must be exactly 32 bytes")
@@ -415,7 +418,7 @@ class TINSELEncoder:
             carrier_positions=capacity,
         )
 
-    def encode(self, protein: str, *args: object, **kwargs: object) -> object:  # type: ignore[override]
+    def encode(self, protein: str, *args: object, **kwargs: object) -> object:
         """Dispatch to encode_v1 (new API) or encode_legacy (old API).
 
         When ``signing_key`` was provided at construction, calls ``encode_v1``.

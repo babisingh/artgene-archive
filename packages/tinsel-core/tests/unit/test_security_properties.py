@@ -12,25 +12,14 @@ system:
 
 from __future__ import annotations
 
-import os
-
 import numpy as np
 import pytest
-
 from tinsel import (
-    AnchorMap,
-    CapacityReport,
-    RSCodec,
     ReedSolomonError,
+    RSCodec,
     SpreadingCodeGenerator,
     TINSELDecoder,
     TINSELEncoder,
-    VerificationResult,
-    WatermarkTier,
-    check_capacity,
-    select_tier,
-    watermark_capacity,
-    CODON_POOLS,
 )
 
 # ---------------------------------------------------------------------------
@@ -52,11 +41,15 @@ _TS      = "2027-01-01T00:00:00Z"
 _ETHICS  = "ERC-001"
 
 
-def _make_encoder(spreading_key: bytes = _SPREADING_KEY, signing_key: bytes = _SIGNING_KEY) -> TINSELEncoder:
+def _make_encoder(
+    spreading_key: bytes = _SPREADING_KEY, signing_key: bytes = _SIGNING_KEY
+) -> TINSELEncoder:
     return TINSELEncoder(spreading_key, "test-key", signing_key=signing_key)
 
 
-def _encode(protein: str = _PROTEIN_MEDIUM, owner: str = _OWNER, ts: str = _TS, ethics: str = _ETHICS):
+def _encode(
+    protein: str = _PROTEIN_MEDIUM, owner: str = _OWNER, ts: str = _TS, ethics: str = _ETHICS
+):
     enc = _make_encoder()
     return enc, enc.encode_v1(protein, owner, ts, ethics)
 
@@ -101,8 +94,9 @@ class TestWatermarkCovertness:
         """A longer protein should also produce a covert watermark."""
         enc = _make_encoder()
         result = enc.encode_v1(_PROTEIN_LONG, _OWNER, _TS, _ETHICS)
-        assert result.codon_bias_metrics.is_covert or result.codon_bias_metrics.p_value > 0.01, (
-            f"Long protein watermark not sufficiently covert: p={result.codon_bias_metrics.p_value:.4f}"
+        p = result.codon_bias_metrics.p_value
+        assert result.codon_bias_metrics.is_covert or p > 0.01, (
+            f"Long protein watermark not sufficiently covert: p={p:.4f}"
         )
 
     def test_chi2_finite_and_non_negative(self):

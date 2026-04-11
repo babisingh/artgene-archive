@@ -26,21 +26,17 @@ Usage
 
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
 
 from tinsel.registry import (
-    AnchorMap,
     TIER_RS_PARAMS,
+    AnchorMap,
     VerificationResult,
     WatermarkConfig,
-    WatermarkTier,
 )
 from tinsel.watermark.encoder import CODON_POOLS
-from tinsel.watermark.rs_codec import RSCodec, ReedSolomonError
+from tinsel.watermark.rs_codec import ReedSolomonError, RSCodec
 from tinsel.watermark.spreading import SpreadingCodeGenerator
-
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -179,7 +175,7 @@ class TINSELDecoder:
         expected_sig_hex: str,
         config: WatermarkConfig,
         anchor_map: AnchorMap,
-        protein: Optional[str] = None,
+        protein: str | None = None,
     ) -> VerificationResult:
         """Verify that *dna* carries the expected watermark signature.
 
@@ -259,7 +255,6 @@ class TINSELDecoder:
         codeword_bytes = bytes(np.packbits(padded))
 
         candidate_sig: bytes
-        rs_ok = True
         if rs_params is not None:
             try:
                 candidate_sig, _ = codec.decode(codeword_bytes)

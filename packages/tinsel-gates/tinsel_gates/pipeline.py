@@ -29,10 +29,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Optional
 
 from tinsel.consequence import ConsequenceReport, Gate1Result, Gate2Result, Gate3Result
 from tinsel.models import GateStatus
+
 from tinsel_gates.adapters.base import Gate1Adapter, Gate2Adapter, Gate3Adapter
 from tinsel_gates.adapters.gate1 import MockGate1Adapter
 from tinsel_gates.adapters.gate2 import MockGate2Adapter
@@ -60,9 +60,9 @@ async def run_consequence_pipeline(
     env: str = "test",
     run_gates: tuple[int, ...] = (1, 2, 3),
     *,
-    gate1_adapter: Optional[Gate1Adapter] = None,
-    gate2_adapter: Optional[Gate2Adapter] = None,
-    gate3_adapter: Optional[Gate3Adapter] = None,
+    gate1_adapter: Gate1Adapter | None = None,
+    gate2_adapter: Gate2Adapter | None = None,
+    gate3_adapter: Gate3Adapter | None = None,
 ) -> ConsequenceReport:
     """Run the three-gate biosafety consequence pipeline.
 
@@ -91,9 +91,9 @@ async def run_consequence_pipeline(
     g2: Gate2Adapter = gate2_adapter or _build_gate2(env)
     g3: Gate3Adapter = gate3_adapter or _build_gate3(env)
 
-    gate1_result: Optional[Gate1Result] = None
-    gate2_result: Optional[Gate2Result] = None
-    gate3_result: Optional[Gate3Result] = None
+    gate1_result: Gate1Result | None = None
+    gate2_result: Gate2Result | None = None
+    gate3_result: Gate3Result | None = None
     skipped: list[int] = []
 
     # ── Gate 1 (fail-fast) ────────────────────────────────────────────────

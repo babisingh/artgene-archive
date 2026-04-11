@@ -1,14 +1,12 @@
 """Gate analysis endpoints — run the sentinel_gates pipeline."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
-
-from tinsel.models import PipelineResult, SequenceType
-
 from sentinel_gates.adapters.mock_esmfold import MockESMFoldAdapter
 from sentinel_gates.adapters.mock_ncbi_blast import MockNCBIBlastAdapter
 from sentinel_gates.adapters.mock_toxinpred import MockToxinPredAdapter
 from sentinel_gates.pipeline import GatePipeline
+from tinsel.models import PipelineResult, SequenceType
 
 router = APIRouter()
 

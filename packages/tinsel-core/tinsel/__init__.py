@@ -69,55 +69,53 @@ __license__ = "MIT"
 # Codec primitives
 # ---------------------------------------------------------------------------
 
-from tinsel.watermark.rs_codec import RSCodec, ReedSolomonError
+# ---------------------------------------------------------------------------
+# Data models
+# ---------------------------------------------------------------------------
+from tinsel.registry import (
+    MINIMUM_CARRIERS_ABSOLUTE,
+    TIER_RS_PARAMS,
+    TIER_SIG_BYTES,
+    TIER_SPECS,
+    AnchorMap,
+    CapacityReport,
+    CertificateStatus,
+    CodonBiasMetrics,
+    # Legacy models (v0.x)
+    EncodeResult,
+    HostOrganism,
+    HybridCertificate,
+    LWECommitmentData,
+    VerificationResult,
+    # New v1.0 models
+    WatermarkConfig,
+    WatermarkResult,
+    # Registry enums / tier system
+    WatermarkTier,
+    WOTSPublicKey,
+    WOTSSignature,
+    select_tier,
+)
+from tinsel.watermark.decoder import TINSELDecoder
+
+# ---------------------------------------------------------------------------
+# Sequence utilities
+# ---------------------------------------------------------------------------
+from tinsel.watermark.encoder import (
+    CODON_POOLS,
+    decode_protein,
+    watermark_capacity,
+)
+from tinsel.watermark.encoder import (
+    encode as encode_dna,
+)
+from tinsel.watermark.rs_codec import ReedSolomonError, RSCodec
 from tinsel.watermark.spreading import SpreadingCodeGenerator
 
 # ---------------------------------------------------------------------------
 # Core encoder / decoder
 # ---------------------------------------------------------------------------
-
 from tinsel.watermark.tinsel_encoder import TINSELEncoder, check_capacity
-from tinsel.watermark.decoder import TINSELDecoder
-
-# ---------------------------------------------------------------------------
-# Data models
-# ---------------------------------------------------------------------------
-
-from tinsel.registry import (
-    # New v1.0 models
-    WatermarkConfig,
-    AnchorMap,
-    CodonBiasMetrics,
-    WatermarkResult,
-    VerificationResult,
-    CapacityReport,
-    # Registry enums / tier system
-    WatermarkTier,
-    HostOrganism,
-    CertificateStatus,
-    TIER_SPECS,
-    TIER_RS_PARAMS,
-    TIER_SIG_BYTES,
-    MINIMUM_CARRIERS_ABSOLUTE,
-    select_tier,
-    # Legacy models (v0.x)
-    EncodeResult,
-    HybridCertificate,
-    WOTSPublicKey,
-    WOTSSignature,
-    LWECommitmentData,
-)
-
-# ---------------------------------------------------------------------------
-# Sequence utilities
-# ---------------------------------------------------------------------------
-
-from tinsel.watermark.encoder import (
-    CODON_POOLS,
-    encode as encode_dna,
-    decode_protein,
-    watermark_capacity,
-)
 
 # ---------------------------------------------------------------------------
 # __all__ — defines the stable public surface

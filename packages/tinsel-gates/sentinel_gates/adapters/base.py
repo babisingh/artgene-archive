@@ -1,7 +1,7 @@
 """Abstract base class for all sentinel gate adapters."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any
 
 
 class GateAdapterError(RuntimeError):
@@ -33,8 +33,8 @@ class BaseGateAdapter(ABC):
     #: Override in subclasses with a stable, lower-case identifier.
     gate_name: str = "base"
 
-    def __init__(self, config: Dict[str, Any] | None = None) -> None:
-        self.config: Dict[str, Any] = config or {}
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
+        self.config: dict[str, Any] = config or {}
 
     @abstractmethod
     async def setup(self) -> None:

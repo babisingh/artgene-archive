@@ -23,6 +23,7 @@ class AWSSecretsVaultClient(AbstractVaultClient):
 
     async def get_spreading_key(self, key_id: str) -> bytes:
         import json
+
         import boto3
 
         client = boto3.client("secretsmanager", region_name=settings.aws_region)

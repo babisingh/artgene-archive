@@ -87,7 +87,10 @@ class MockNCBIBlastAdapter(BaseGateAdapter):
             message = "No BLAST hits found"
         elif worst_evalue > evalue_threshold:
             status = GateStatus.WARN
-            message = f"Top hit e-value {top_hit.evalue:.2e} exceeds threshold {evalue_threshold:.2e}"
+            message = (
+                f"Top hit e-value {top_hit.evalue:.2e} "
+                f"exceeds threshold {evalue_threshold:.2e}"
+            )
         else:
             status = GateStatus.PASS
             message = f"Found {len(hits)} hit(s); top hit identity {top_hit.identity_pct:.1f}%"

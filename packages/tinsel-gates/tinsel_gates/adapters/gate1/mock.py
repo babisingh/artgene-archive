@@ -16,6 +16,7 @@ Inject specific values via the constructor to trigger any desired outcome:
 
 from tinsel.consequence import Gate1Result
 from tinsel.models import GateStatus
+
 from tinsel_gates.adapters.base import Gate1Adapter
 
 # Default values that produce a PASS result

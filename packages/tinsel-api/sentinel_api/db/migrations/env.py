@@ -10,9 +10,10 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from sentinel_api.config import settings
+
 # Load ORM metadata so autogenerate can detect schema changes
 from sentinel_api.db.models import Base  # noqa: F401 — registers all models
-from sentinel_api.config import settings
 
 config = context.config
 target_metadata = Base.metadata

@@ -216,7 +216,7 @@ export function CodonBiasChart({ watermark }: CodonBiasChartProps) {
   }
 
   const chartData = computeChartData(original_protein, watermarked_dna, 6);
-  const aaOrder = [...new Set(chartData.filter((d) => !d.isGap).map((d) => d.aa))];
+  const aaOrder = Array.from(new Set(chartData.filter((d) => !d.isGap).map((d) => d.aa)));
   const chi = chiLabel(chi_squared);
 
   return (

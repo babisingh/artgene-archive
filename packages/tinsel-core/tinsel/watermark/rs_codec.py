@@ -210,36 +210,33 @@ def _rs_forney(synd: list[int], err_loc: list[int], err_pos: list[int], nmess: i
 
     Returns a corrected copy of the message coefficients (length nmess).
     """
-    t = len(err_pos)
-    # X_k = α^{n-1-pos_k} (locator numbers)
-    X = [_GF_EXP[nmess - 1 - pos] for pos in err_pos]
+    # x_locs[k] = X_k = α^{n-1-pos_k} (locator numbers)
+    x_locs = [_GF_EXP[nmess - 1 - pos] for pos in err_pos]
 
     # Error evaluator polynomial Ω(x) = S(x)·σ(x) mod x^nsym
-    # S is the syndrome polynomial (reversed to match polynomial convention)
-    synd_poly = list(synd)             # S_i = coefficient of x^i (low-degree first)
+    # S is the syndrome polynomial, S_i = coefficient of x^i (low-degree first)
+    synd_poly = list(synd)
     sig_poly = list(reversed(err_loc))  # convert from high-degree-first to low-degree-first
     omega_full = _poly_mul(synd_poly, sig_poly)
     # Keep only the first nsym terms (mod x^nsym in low-degree-first form)
     omega = omega_full[: len(synd)]
 
-    msg = list(range(nmess))  # placeholder, fill below
-    # We'll return corrections to apply
     corrections = [0] * nmess
-    for k, (Xk, pos) in enumerate(zip(X, err_pos)):
-        Xk_inv = _gf_inv(Xk)
+    for _k, (xk, pos) in enumerate(zip(x_locs, err_pos)):
+        xk_inv = _gf_inv(xk)
         # Ω(X_k^{-1}) — evaluate low-degree-first polynomial
         omega_val = 0
         for j, c in enumerate(omega):
-            omega_val ^= _gf_mul(c, _gf_pow(Xk_inv, j))
+            omega_val ^= _gf_mul(c, _gf_pow(xk_inv, j))
         # σ'(X_k^{-1}) — formal derivative: drop even-indexed terms (over GF(2))
-        # σ'(x) = Σ_{j odd} σ_j (low-degree-first) evaluated at Xk_inv
+        # σ'(x) = Σ_{j odd} σ_j (low-degree-first) evaluated at xk_inv
         sigma_prime_val = 0
         for j in range(1, len(sig_poly), 2):
-            sigma_prime_val ^= _gf_mul(sig_poly[j], _gf_pow(Xk_inv, j - 1))
+            sigma_prime_val ^= _gf_mul(sig_poly[j], _gf_pow(xk_inv, j - 1))
         if sigma_prime_val == 0:
             raise ReedSolomonError("Forney: zero denominator — too many errors")
         # Magnitude: e_k = X_k · Ω(X_k^{-1}) / σ'(X_k^{-1})
-        magnitude = _gf_mul(Xk, _gf_mul(omega_val, _gf_inv(sigma_prime_val)))
+        magnitude = _gf_mul(xk, _gf_mul(omega_val, _gf_inv(sigma_prime_val)))
         corrections[pos] = magnitude
     return corrections
 

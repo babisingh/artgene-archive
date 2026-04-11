@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 
-from sentinel_api.routes import health, register, certificates, pathways
+from sentinel_api.routes import certificates, health, pathways, register
 
 app = FastAPI(
     title="ArtGene / TINSEL API",

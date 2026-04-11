@@ -2,7 +2,6 @@
 
 import numpy as np
 import pytest
-
 from tinsel.utils import (
     complement,
     gc_content,
@@ -12,7 +11,6 @@ from tinsel.utils import (
     reverse_complement,
     translate,
 )
-
 
 # ---------------------------------------------------------------------------
 # complement

@@ -30,18 +30,17 @@ positions (watermark bit capacity) in the protein sequence:
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # Enumerations
 # ---------------------------------------------------------------------------
 
-class WatermarkTier(str, Enum):
+class WatermarkTier(StrEnum):
     """Watermark quality tiers based on synonymous carrier bit capacity.
 
     FULL     >= 1792 carriers  — 128-bit signature, RS(32,16), 8-byte correction
@@ -60,13 +59,13 @@ class WatermarkTier(str, Enum):
     REJECTED = "REJECTED"
 
 
-class CertificateStatus(str, Enum):
+class CertificateStatus(StrEnum):
     CERTIFIED = "CERTIFIED"
     FAILED = "FAILED"
     PENDING = "PENDING"
 
 
-class HostOrganism(str, Enum):
+class HostOrganism(StrEnum):
     HUMAN = "HUMAN"
     ECOLI = "ECOLI"
     YEAST = "YEAST"
@@ -82,7 +81,7 @@ class HostOrganism(str, Enum):
 MINIMUM_CARRIERS_ABSOLUTE: int = 24
 
 #: Minimum number of carrier bits required for each tier.
-TIER_SPECS: Dict[WatermarkTier, int] = {
+TIER_SPECS: dict[WatermarkTier, int] = {
     WatermarkTier.FULL:     1792,
     WatermarkTier.STANDARD:  896,
     WatermarkTier.REDUCED:   320,
@@ -91,7 +90,7 @@ TIER_SPECS: Dict[WatermarkTier, int] = {
 }
 
 #: RS codec parameters per tier: (n, k) where parity symbols = n - k.
-TIER_RS_PARAMS: Dict[WatermarkTier, Optional[tuple[int, int]]] = {
+TIER_RS_PARAMS: dict[WatermarkTier, tuple[int, int] | None] = {
     WatermarkTier.FULL:     (32, 16),  # 16 parity symbols, corrects 8 bytes
     WatermarkTier.STANDARD: (16,  8),  # 8  parity symbols, corrects 4 bytes
     WatermarkTier.REDUCED:  ( 8,  4),  # 4  parity symbols, corrects 2 bytes
@@ -101,7 +100,7 @@ TIER_RS_PARAMS: Dict[WatermarkTier, Optional[tuple[int, int]]] = {
 }
 
 #: Signature length in bytes per tier.
-TIER_SIG_BYTES: Dict[WatermarkTier, int] = {
+TIER_SIG_BYTES: dict[WatermarkTier, int] = {
     WatermarkTier.FULL:     16,   # 128-bit signature
     WatermarkTier.STANDARD:  8,   # 64-bit signature
     WatermarkTier.REDUCED:   4,   # 32-bit signature
@@ -141,8 +140,8 @@ class WatermarkConfig(BaseModel):
     sig_bytes: int          # length of signature embedded in the watermark
     spreading_key_id: str   # identifier of the spreading key (not the key itself)
     codeword_length: int    # total length of the RS codeword in bits (= sig_bytes if no RS)
-    rs_n: Optional[int] = None   # RS block length (None if no RS)
-    rs_k: Optional[int] = None   # RS message length (None if no RS)
+    rs_n: int | None = None   # RS block length (None if no RS)
+    rs_k: int | None = None   # RS message length (None if no RS)
 
 
 class AnchorMap(BaseModel):
@@ -162,8 +161,8 @@ class AnchorMap(BaseModel):
         Total length of the original protein (used for bounds checking).
     """
 
-    carrier_indices: List[int]
-    pool_sizes: List[int]
+    carrier_indices: list[int]
+    pool_sizes: list[int]
     protein_length: int
 
     @property
@@ -177,7 +176,7 @@ class CodonBiasMetrics(BaseModel):
     chi_squared: float        # χ² deviation from uniform codon usage
     p_value: float            # Wilson-Hilferty approximation p-value
     is_covert: bool           # True if p_value > 0.05
-    per_aa_deviations: Dict[str, float] = Field(default_factory=dict)
+    per_aa_deviations: dict[str, float] = Field(default_factory=dict)
 
 
 class WatermarkResult(BaseModel):
@@ -202,7 +201,7 @@ class VerificationResult(BaseModel):
     bits_recovered: int             # bits successfully extracted
     tier: WatermarkTier
     watermark_id: str
-    failure_reason: Optional[str] = None
+    failure_reason: str | None = None
 
 
 class CapacityReport(BaseModel):
@@ -212,7 +211,7 @@ class CapacityReport(BaseModel):
     sig_bits: int             # signature bits that can be embedded
     capacity_ok: bool         # True unless REJECTED
     n_carrier_positions: int  # synonymous carrier count
-    rejection_reason: Optional[str] = None
+    rejection_reason: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -222,23 +221,23 @@ class CapacityReport(BaseModel):
 class WOTSPublicKey(BaseModel):
     """W-OTS+ public key (WOTS_L=35 chains of WOTS_N=32 bytes each)."""
 
-    chains: List[str]     # WOTS_L hex-encoded 32-byte values
+    chains: list[str]     # WOTS_L hex-encoded 32-byte values
     public_seed: str      # hex-encoded 32-byte seed
 
     @classmethod
-    def stub(cls) -> "WOTSPublicKey":
+    def stub(cls) -> WOTSPublicKey:
         return cls(chains=["00" * 32] * 35, public_seed="00" * 32)
 
 
 class WOTSSignature(BaseModel):
     """W-OTS+ one-time signature."""
 
-    signature_chains: List[str]  # WOTS_L hex-encoded 32-byte values
+    signature_chains: list[str]  # WOTS_L hex-encoded 32-byte values
     public_seed: str
     message_hash: str            # hex-encoded SHA3-256 of signed material
 
     @classmethod
-    def stub(cls, message_hash: str = "00" * 32) -> "WOTSSignature":
+    def stub(cls, message_hash: str = "00" * 32) -> WOTSSignature:
         return cls(
             signature_chains=["00" * 32] * 35,
             public_seed="00" * 32,
@@ -249,12 +248,12 @@ class WOTSSignature(BaseModel):
 class LWECommitmentData(BaseModel):
     """LWE lattice commitment (n=64, q=3329 for Phase 3 MVP)."""
 
-    b_vector: List[int]  # length n=64
+    b_vector: list[int]  # length n=64
     A_seed: str          # hex-encoded seed for the public matrix A
     n_bits: int = 64
 
     @classmethod
-    def stub(cls) -> "LWECommitmentData":
+    def stub(cls) -> LWECommitmentData:
         return cls(b_vector=[0] * 64, A_seed="00" * 32, n_bits=64)
 
 
@@ -262,8 +261,8 @@ class MerkleProof(BaseModel):
     """Merkle inclusion proof for a single sequence in a pathway tree."""
 
     leaf_hash: str
-    siblings: List[str]
-    path_bits: List[int]
+    siblings: list[str]
+    path_bits: list[int]
     root: str
     leaf_index: int
 
@@ -299,19 +298,19 @@ class HybridCertificate(BaseModel):
     sequence_hash: str
     sequence_type: str
     timestamp: datetime
-    watermark_metadata: Optional[Dict[str, Any]] = None
+    watermark_metadata: dict[str, Any] | None = None
     wots_public_key: WOTSPublicKey
     wots_signature: WOTSSignature
     lwe_commitment: LWECommitmentData
-    merkle_proof: Optional[MerkleProof] = None
-    pathway_id: Optional[str] = None
-    consequence_report: Dict[str, Any] = Field(default_factory=dict)
+    merkle_proof: MerkleProof | None = None
+    pathway_id: str | None = None
+    consequence_report: dict[str, Any] = Field(default_factory=dict)
     certificate_hash: str
     status: CertificateStatus
-    chi_squared: Optional[float] = None
+    chi_squared: float | None = None
     tier: WatermarkTier
 
     @classmethod
-    def compute_hash(cls, fields: Dict[str, Any]) -> str:
+    def compute_hash(cls, fields: dict[str, Any]) -> str:
         payload = "".join(str(v) for v in fields.values()).encode("utf-8")
         return hashlib.sha3_512(payload).hexdigest()

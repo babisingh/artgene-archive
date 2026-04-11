@@ -17,6 +17,7 @@ Inject specific values to trigger any desired outcome:
 
 from tinsel.consequence import Gate2Result
 from tinsel.models import GateStatus
+
 from tinsel_gates.adapters.base import Gate2Adapter
 
 _DEFAULT_BLAST_HITS: int = 0

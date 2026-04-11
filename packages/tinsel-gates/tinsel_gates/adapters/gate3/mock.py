@@ -24,6 +24,7 @@ Inject specific values to trigger any desired outcome:
 
 from tinsel.consequence import Gate3Result
 from tinsel.models import GateStatus
+
 from tinsel_gates.adapters.base import Gate3Adapter
 
 _DEFAULT_PATHOGEN_HITS: int = 0

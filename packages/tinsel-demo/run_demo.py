@@ -32,7 +32,7 @@ from typing import Any
 
 from tinsel.consequence import ConsequenceReport
 from tinsel.models import GateStatus
-from tinsel.registry import CertificateStatus, WatermarkTier
+from tinsel.registry import CertificateStatus
 from tinsel.sequence.fasta import normalise
 from tinsel.watermark.tinsel_encoder import TINSELEncoder
 from tinsel_gates.adapters.gate1.mock import MockGate1Adapter
@@ -234,7 +234,8 @@ def _gate3_dict(report: ConsequenceReport) -> dict[str, Any] | None:
 # ---------------------------------------------------------------------------
 
 def _golden_path(entry: dict[str, Any]) -> Path:
-    return GOLDEN_DIR / f"{entry['seq_id']}_{entry['fasta'].split('_', 1)[1].replace('.fasta', '')}.json"
+    stem = entry["fasta"].split("_", 1)[1].replace(".fasta", "")
+    return GOLDEN_DIR / f"{entry['seq_id']}_{stem}.json"
 
 
 def _compare(actual: dict[str, Any], golden: dict[str, Any]) -> list[str]:
@@ -315,7 +316,7 @@ async def main(generate: bool, verbose: bool) -> int:
             if not golden_path.exists():
                 print(f"  MISSING    {label}")
                 print(f"             Golden file not found: {golden_path}")
-                print(f"             Run with --generate to create golden files.")
+                print("             Run with --generate to create golden files.")
                 failed += 1
                 continue
 

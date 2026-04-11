@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 
+from sentinel_api.config import settings
 from sentinel_api.db.connection import async_session_factory
 from sentinel_api.vault import get_vault_client
-from sentinel_api.config import settings
 
 router = APIRouter()
 
