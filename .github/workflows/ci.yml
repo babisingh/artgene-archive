@@ -26,6 +26,7 @@ jobs:
             -e packages/tinsel-core[test] \
             -e packages/tinsel-gates[test] \
             -e packages/tinsel-api[dev] \
+            aiosqlite \
             --system
 
       - name: Lint (ruff)
@@ -39,6 +40,7 @@ jobs:
           pytest \
             packages/tinsel-core/tests/ \
             packages/tinsel-gates/tests/ \
+            packages/tinsel-api/tests/ \
             -v --import-mode=importlib --cov=tinsel --cov=tinsel_gates --cov-report=xml
         env:
           SENTINEL_ENV: test

@@ -134,16 +134,33 @@ async def register_sequence(
             message="One or more biosafety gates failed — registration rejected",
         )
 
-    # ── Step 3–4: Vault + watermark encoding ──────────────────────────────
+    # ── Step 3–4: Vault + watermark encoding (v1.0 API) ──────────────────
     vault = get_vault_client()
     spreading_key = await vault.get_spreading_key(settings.spreading_key_id)
+    signing_key = await vault.get_signing_key(settings.spreading_key_id)
 
+    now = datetime.now(UTC)
     seq_num = await _next_seq_num(db)
-    year = datetime.now(UTC).year
+    year = now.year
     registry_id = f"AG-{year}-{seq_num:06d}"
 
-    encoder = TINSELEncoder(spreading_key, settings.spreading_key_id)
-    encode_result = encoder.encode(protein, registry_id)
+    encoder = TINSELEncoder(
+        spreading_key, settings.spreading_key_id, signing_key=signing_key
+    )
+    try:
+        encode_result = encoder.encode_v1(
+            protein,
+            body.owner_id,
+            now.isoformat(),
+            body.ethics_code,
+            organism=body.host_organism,
+        )
+    except ValueError as exc:
+        return RegistrationResponse(
+            status=CertificateStatus.FAILED,
+            consequence_report=report_dict,
+            message=f"Sequence cannot be watermarked: {exc}",
+        )
     seq_hash = encoder.sequence_hash(protein)
 
     # ── Step 5: Stub WOTS+ / LWE (Phase 7 replaces these) ────────────────
@@ -156,7 +173,6 @@ async def register_sequence(
     lwe_com = LWECommitmentData.stub()
 
     # ── Step 6: Certificate hash ──────────────────────────────────────────
-    now = datetime.now(UTC)
     cert_fields = {
         "registry_id": registry_id,
         "owner_id": body.owner_id,
@@ -164,9 +180,9 @@ async def register_sequence(
         "ethics_code": body.ethics_code,
         "sequence_hash": seq_hash,
         "timestamp": now.isoformat(),
-        "watermark_id": registry_id,
-        "tier": encode_result.tier.value,
-        "chi_squared": encode_result.chi_squared,
+        "watermark_id": encode_result.watermark_id,
+        "tier": encode_result.config.tier.value,
+        "chi_squared": encode_result.codon_bias_metrics.chi_squared,
     }
     cert_hash = HybridCertificate.compute_hash(cert_fields)
 
@@ -187,8 +203,8 @@ async def register_sequence(
         consequence_report=report_dict,
         certificate_hash=cert_hash,
         status=CertificateStatus.CERTIFIED.value,
-        chi_squared=encode_result.chi_squared,
-        tier=encode_result.tier.value,
+        chi_squared=encode_result.codon_bias_metrics.chi_squared,
+        tier=encode_result.config.tier.value,
     )
     db.add(cert)
     await db.flush()
@@ -211,8 +227,8 @@ async def register_sequence(
     return RegistrationResponse(
         status=CertificateStatus.CERTIFIED,
         registry_id=registry_id,
-        tier=encode_result.tier.value,
-        chi_squared=encode_result.chi_squared,
+        tier=encode_result.config.tier.value,
+        chi_squared=encode_result.codon_bias_metrics.chi_squared,
         consequence_report=report_dict,
         message=f"Sequence certified — {registry_id}",
     )

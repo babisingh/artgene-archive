@@ -9,6 +9,8 @@ environment and any crash dump.  Use AWSSecretsVaultClient in production.
 
 from __future__ import annotations
 
+import hashlib
+
 from sentinel_api.config import settings
 from sentinel_api.vault.base import AbstractVaultClient
 
@@ -25,6 +27,10 @@ class EnvMockVaultClient(AbstractVaultClient):
             ) from exc
 
     async def get_signing_key(self, key_id: str) -> bytes:
-        # For MVP the spreading key doubles as the signing key seed.
-        # Phase 7 will derive a separate signing key via HKDF.
-        return await self.get_spreading_key(key_id)
+        """Derive a distinct signing key from the spreading key via SHA3-256.
+
+        The two keys MUST differ (TINSELEncoder enforces this).  Phase 7 will
+        replace this with a proper HKDF derivation from a separate secret.
+        """
+        spreading = await self.get_spreading_key(key_id)
+        return hashlib.sha3_256(spreading + b":tinsel-signing-key-v1").digest()

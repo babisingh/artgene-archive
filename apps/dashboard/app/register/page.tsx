@@ -197,7 +197,7 @@ export default function RegisterPage() {
                   <select {...register("host_organism")} className="input" disabled={busy}>
                     <option value="ECOLI">E. coli</option>
                     <option value="YEAST">Yeast</option>
-                    <option value="MAMMALIAN">Mammalian (CHO / HEK)</option>
+                    <option value="CHO">CHO / Mammalian</option>
                     <option value="INSECT">Insect (Sf9)</option>
                     <option value="PLANT">Plant</option>
                     <option value="HUMAN">Human</option>
