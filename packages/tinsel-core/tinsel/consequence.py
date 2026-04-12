@@ -27,6 +27,10 @@ class Gate1Result(BaseModel):
     plddt_low_fraction: float | None = None  # fraction of residues with pLDDT < 50
     delta_mfe: float | None = None           # kcal/mol
     message: str | None = None
+    # Rich visualization fields
+    plddt_per_residue: list[float] | None = None   # per-residue pLDDT from ESMFold
+    instability_index: float | None = None          # Guruprasad 1990; >40 = unstable
+    sequence_length: int | None = None              # amino acid count
 
     @field_validator("plddt_mean")
     @classmethod
@@ -51,6 +55,10 @@ class Gate2Result(BaseModel):
     toxin_probability: float | None = None     # ToxinPred2 score [0, 1]
     allergen_probability: float | None = None  # AllerTop score [0, 1]
     message: str | None = None
+    # Rich visualization fields
+    blast_top_hits: list[dict] | None = None        # top k-mer matches with scores
+    gravy_score: float | None = None                # Kyte-Doolittle grand avg hydropathy
+    amino_acid_composition: dict | None = None      # {AA: fraction} for 20 amino acids
 
     @field_validator("toxin_probability", "allergen_probability")
     @classmethod
@@ -68,6 +76,10 @@ class Gate3Result(BaseModel):
     hgt_score: float | None = None   # horizontal gene transfer risk [0, 100]
     escape_probability: float | None = None  # evolutionary escape probability [0, 1]
     message: str | None = None
+    # Rich visualization fields
+    gc_content: float | None = None              # GC fraction of coding DNA [0, 1]
+    codon_adaptation_index: float | None = None  # CAI vs host organism [0, 1]
+    hgt_risk_factors: list[str] | None = None    # human-readable risk explanations
 
     @field_validator("escape_probability")
     @classmethod
