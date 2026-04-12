@@ -164,7 +164,7 @@ const SLIDES = [
     label: "Authenticate",
     title: "Set your API key",
     description:
-      "Click "Set API Key" in the navigation bar and enter the key issued by your organisation administrator. This authenticates every submission and links your certificates to your institution — nothing leaves your browser unencrypted.",
+      'Click "Set API Key" in the navigation bar and enter the key issued by your organisation administrator. This authenticates every submission and links your certificates to your institution — nothing leaves your browser unencrypted.',
     gradient: "from-blue-500 to-blue-700",
     accent: "#2563eb",
     Icon: IconKey,
