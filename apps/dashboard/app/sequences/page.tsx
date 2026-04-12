@@ -194,7 +194,7 @@ function RegisterModal({
                   <label className="label">Host Organism</label>
                   <select {...register("host_organism")} className="input">
                     <option value="ECOLI">E. coli</option>
-                    <option value="YEAST">Yeast</option>
+                    <option value="YEAST">Yeast (S. cerevisiae)</option>
                     <option value="CHO">CHO / Mammalian</option>
                     <option value="INSECT">Insect (Sf9)</option>
                     <option value="PLANT">Plant</option>
@@ -357,25 +357,40 @@ export default function SequencesPage() {
         </button>
       </div>
 
-      {/* API key guard */}
-      {!apiKey && (
-        <div className="card p-6 text-center text-amber-600 dark:text-amber-400 text-sm mb-4">
-          ⚠ No API key set — click <strong>Set API Key</strong> in the navigation bar to load certificates.
-        </div>
-      )}
-
       {/* Table card */}
       <div className="card overflow-hidden">
-        {isLoading && Boolean(apiKey) && (
+        {isLoading && (
           <div className="p-8 text-center text-slate-500 dark:text-slate-400">
             Loading certificates…
           </div>
         )}
 
+        {!apiKey && (
+          <div className="p-8 text-center space-y-2">
+            <div className="text-2xl">🔑</div>
+            <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+              No API key set
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+              Click <strong>Set API Key</strong> in the navigation bar and enter your
+              organisation key to view the registry.
+            </p>
+          </div>
+        )}
+
         {isError && (
-          <div className="p-8 text-center text-red-500">
-            Error:{" "}
-            {error instanceof Error ? error.message : "Failed to load certificates"}
+          <div className="p-8 text-center space-y-3">
+            <div className="text-2xl">⚠️</div>
+            <p className="text-sm font-semibold text-red-600 dark:text-red-400">
+              Could not load the registry
+            </p>
+            <p className="text-xs text-slate-600 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+              {error instanceof Error ? error.message : "An unexpected error occurred. Please try again."}
+            </p>
+            <p className="text-xs text-slate-400 dark:text-slate-500">
+              If your key looks correct, check that the API server is running at{" "}
+              <code className="font-mono">{process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}</code>.
+            </p>
           </div>
         )}
 
