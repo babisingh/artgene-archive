@@ -156,10 +156,54 @@ async function apiFetch<T>(
     ...init,
     headers: { ...buildHeaders(apiKey), ...(init?.headers ?? {}) },
   });
+
   if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
-    throw new Error(`API ${res.status}: ${text}`);
+    // Try to extract the detail field from a JSON error body
+    let detail: string | null = null;
+    try {
+      const body = await res.json();
+      detail =
+        typeof body?.detail === "string"
+          ? body.detail
+          : JSON.stringify(body?.detail ?? body);
+    } catch {
+      detail = res.statusText || null;
+    }
+
+    switch (res.status) {
+      case 401:
+        throw new Error(
+          'API key not recognised. Click "Set API Key" in the navigation bar ' +
+          "and enter a valid key for your organisation. " +
+          "If you have just created the key, wait a moment and try again."
+        );
+      case 403:
+        throw new Error(
+          "Access denied. Your API key does not have permission to perform this action. " +
+          "Contact your organisation administrator if you believe this is an error."
+        );
+      case 404:
+        throw new Error(
+          "The requested record was not found. " +
+          "It may have been deleted or the ID may be incorrect."
+        );
+      case 422:
+        throw new Error(
+          `Validation error — one or more fields were rejected by the server. ` +
+          `Check your input and try again. (${detail ?? "unprocessable entity"})`
+        );
+      case 500:
+        throw new Error(
+          "The server encountered an internal error. Please try again. " +
+          "If the problem persists, contact support."
+        );
+      default:
+        throw new Error(
+          detail ?? `Request failed with status ${res.status}.`
+        );
+    }
   }
+
   return res.json() as Promise<T>;
 }
 
