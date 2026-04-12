@@ -3,8 +3,6 @@ services:
     build:
       context: .
       dockerfile: packages/tinsel-api/Dockerfile
-    # Clear the Lambda ENTRYPOINT so docker-compose command runs directly
-    entrypoint: ["/bin/sh", "-c"]
     ports:
       - "8000:8000"
     environment:
@@ -16,9 +14,28 @@ services:
       db:
         condition: service_healthy
     command: >
-      cd /app &&
-      alembic -c packages/tinsel-api/alembic.ini upgrade head &&
-      uvicorn sentinel_api.main:app --host 0.0.0.0 --port 8000
+      sh -c "cd /app/packages/tinsel-api &&
+             alembic upgrade head &&
+             python /app/packages/tinsel-api/scripts/seed_dev.py &&
+             uvicorn sentinel_api.main:app --host 0.0.0.0 --port 8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  dashboard:
+    build:
+      context: apps/dashboard
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "${DASHBOARD_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
 
   db:
     image: supabase/postgres:15.1.0.147
