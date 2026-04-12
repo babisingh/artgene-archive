@@ -19,7 +19,7 @@ ARG NEXT_PUBLIC_API_URL=http://localhost:8000
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN npm run build
+RUN npm run build && mkdir -p /app/public
 
 # ── Runner ────────────────────────────────────────────────────────────────────
 FROM base AS runner
@@ -34,7 +34,7 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Standalone output produced by next.config.ts `output: "standalone"`
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static    ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/public          ./public 2>/dev/null || true
+COPY --from=builder --chown=nextjs:nodejs /app/public          ./public
 
 USER nextjs
 EXPOSE 3000
