@@ -39,11 +39,11 @@ export function Nav() {
   }
 
   return (
-    <header className="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 sticky top-0 z-40">
-      <div className="container mx-auto px-4 max-w-7xl flex items-center gap-6 h-14">
+    <header className="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 sticky top-0 z-40 shadow-sm">
+      <div className="container mx-auto px-4 max-w-7xl flex items-center gap-6 h-16">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 font-bold text-slate-900 dark:text-white">
-          <span className="text-xl">🧬</span>
+        <Link href="/" className="flex items-center gap-2.5 font-extrabold text-lg text-slate-900 dark:text-white tracking-tight">
+          <span className="text-2xl">🧬</span>
           <span>ArtGene</span>
         </Link>
 
@@ -53,7 +53,7 @@ export function Nav() {
             <Link
               key={href}
               href={href}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-md text-base font-semibold transition-colors ${
                 pathname === href
                   ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                   : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
