@@ -14,7 +14,12 @@ services:
       db:
         condition: service_healthy
     command: >
+<<<<<<< HEAD
       sh -c "cd /app/packages/tinsel-api && alembic upgrade head &&
+=======
+      sh -c "cd /app/packages/tinsel-api &&
+             alembic upgrade head &&
+>>>>>>> f9e77e1088a2e93f15991bac3fd424d36070a099
              python /app/packages/tinsel-api/scripts/seed_dev.py &&
              uvicorn sentinel_api.main:app --host 0.0.0.0 --port 8000"
     healthcheck:
@@ -29,7 +34,10 @@ services:
       context: apps/dashboard
       dockerfile: Dockerfile
       args:
+<<<<<<< HEAD
         # Browser-side URL — must be localhost (not docker service name)
+=======
+>>>>>>> f9e77e1088a2e93f15991bac3fd424d36070a099
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     ports:
       - "${DASHBOARD_PORT:-3000}:3000"

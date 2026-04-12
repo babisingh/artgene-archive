@@ -123,6 +123,7 @@ async def register_sequence(
         protein=protein,
         dna=sequence if seq_type.value == "dna" else "",
         env=settings.sentinel_env,
+        host_organism=body.host_organism.value,
     )
     report_dict = report.model_dump()
 

@@ -23,6 +23,18 @@ export interface Gate1Result {
   plddt_low_fraction: number | null;
   delta_mfe: number | null;
   message: string | null;
+  // Rich visualization fields
+  plddt_per_residue: number[] | null;
+  instability_index: number | null;
+  sequence_length: number | null;
+}
+
+export interface BlastHit {
+  motif: string;
+  description: string;
+  position: number;
+  mismatches: number;
+  score: number;
 }
 
 export interface Gate2Result {
@@ -31,6 +43,10 @@ export interface Gate2Result {
   toxin_probability: number | null;
   allergen_probability: number | null;
   message: string | null;
+  // Rich visualization fields
+  blast_top_hits: BlastHit[] | null;
+  gravy_score: number | null;
+  amino_acid_composition: Record<string, number> | null;
 }
 
 export interface Gate3Result {
@@ -39,6 +55,10 @@ export interface Gate3Result {
   hgt_score: number | null;
   escape_probability: number | null;
   message: string | null;
+  // Rich visualization fields
+  gc_content: number | null;
+  codon_adaptation_index: number | null;
+  hgt_risk_factors: string[] | null;
 }
 
 export interface ConsequenceReport {

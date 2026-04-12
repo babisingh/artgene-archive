@@ -9,8 +9,8 @@ Execution order
 
 Adapters are selected by ``env``:
     "test"        → all mock adapters (no network calls, deterministic)
-    "development" → mock adapters (same as test for MVP; swap in Phase 2)
-    "production"  → real adapters (Phase 2+)
+    "development" → real adapters (ESMFold + composition + codon analysis)
+    "production"  → real adapters (same as development)
 
 Dependency injection
 --------------------
@@ -34,23 +34,36 @@ from tinsel.consequence import ConsequenceReport, Gate1Result, Gate2Result, Gate
 from tinsel.models import GateStatus
 
 from tinsel_gates.adapters.base import Gate1Adapter, Gate2Adapter, Gate3Adapter
-from tinsel_gates.adapters.gate1 import MockGate1Adapter
-from tinsel_gates.adapters.gate2 import MockGate2Adapter
+from tinsel_gates.adapters.gate1 import ESMFoldGate1Adapter, MockGate1Adapter
+from tinsel_gates.adapters.gate2 import CompositionGate2Adapter, MockGate2Adapter
 from tinsel_gates.adapters.gate3 import MockGate3Adapter
+from tinsel_gates.adapters.gate3.codon import make_codon_gate3_adapter
 
 logger = logging.getLogger(__name__)
 
+_REAL_ENVS = frozenset({"development", "production"})
+
 
 def _build_gate1(env: str) -> Gate1Adapter:
-    # Phase 2: return RealGate1Adapter() when env == "production"
+    if env in _REAL_ENVS:
+        logger.debug("Gate 1: using ESMFoldGate1Adapter (env=%s)", env)
+        return ESMFoldGate1Adapter()
     return MockGate1Adapter()
 
 
 def _build_gate2(env: str) -> Gate2Adapter:
+    if env in _REAL_ENVS:
+        logger.debug("Gate 2: using CompositionGate2Adapter (env=%s)", env)
+        return CompositionGate2Adapter()
     return MockGate2Adapter()
 
 
-def _build_gate3(env: str) -> Gate3Adapter:
+def _build_gate3(env: str, host_organism: str = "ECOLI") -> Gate3Adapter:
+    if env in _REAL_ENVS:
+        logger.debug(
+            "Gate 3: using CodonGate3Adapter (env=%s, host=%s)", env, host_organism
+        )
+        return make_codon_gate3_adapter(host_organism)
     return MockGate3Adapter()
 
 
@@ -59,6 +72,7 @@ async def run_consequence_pipeline(
     dna: str,
     env: str = "test",
     run_gates: tuple[int, ...] = (1, 2, 3),
+    host_organism: str = "ECOLI",
     *,
     gate1_adapter: Gate1Adapter | None = None,
     gate2_adapter: Gate2Adapter | None = None,
@@ -78,6 +92,9 @@ async def run_consequence_pipeline(
     run_gates:
         Tuple of gate numbers to execute.  Defaults to ``(1, 2, 3)``.
         Pass ``(1,)`` to run gate 1 only (e.g. for a quick structural pre-check).
+    host_organism:
+        Host expression system (e.g. ``"ECOLI"``, ``"HUMAN"``, ``"YEAST"``).
+        Used by Gate 3 for host-specific codon adaptation scoring.
     gate1_adapter / gate2_adapter / gate3_adapter:
         Optional adapter overrides (keyword-only).  When ``None`` the
         default adapter for *env* is used.  Primarily used in tests.
@@ -89,7 +106,7 @@ async def run_consequence_pipeline(
     """
     g1: Gate1Adapter = gate1_adapter or _build_gate1(env)
     g2: Gate2Adapter = gate2_adapter or _build_gate2(env)
-    g3: Gate3Adapter = gate3_adapter or _build_gate3(env)
+    g3: Gate3Adapter = gate3_adapter or _build_gate3(env, host_organism)
 
     gate1_result: Gate1Result | None = None
     gate2_result: Gate2Result | None = None
