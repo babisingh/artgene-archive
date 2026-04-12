@@ -165,45 +165,71 @@ export default function RegisterPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="label">Owner ID / Email</label>
-                  <input {...register("owner_id")} className="input" disabled={busy} />
+                  <label className="label">
+                    Owner ID / Email <span className="text-red-500" aria-hidden="true">*</span>
+                  </label>
+                  <input {...register("owner_id")} className="input" disabled={busy}
+                    placeholder="researcher@example.com" />
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                    Email or username of the submitting researcher.
+                  </p>
                   {errors.owner_id && (
                     <p className="mt-1 text-xs text-red-500">{errors.owner_id.message}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="label">Organisation UUID</label>
+                  <label className="label">
+                    Organisation UUID <span className="text-red-500" aria-hidden="true">*</span>
+                  </label>
                   <input
                     {...register("org_id")}
                     className="input font-mono text-xs"
                     disabled={busy}
+                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                   />
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                    UUID of the registering institution or lab.
+                  </p>
                   {errors.org_id && (
                     <p className="mt-1 text-xs text-red-500">{errors.org_id.message}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="label">Ethics Code</label>
-                  <input {...register("ethics_code")} className="input" disabled={busy} />
+                  <label className="label">
+                    Ethics Code <span className="text-red-500" aria-hidden="true">*</span>
+                  </label>
+                  <input {...register("ethics_code")} className="input" disabled={busy}
+                    placeholder="e.g. ERC-2026-001" />
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                    IRB / ethics committee approval reference number.
+                  </p>
                   {errors.ethics_code && (
                     <p className="mt-1 text-xs text-red-500">{errors.ethics_code.message}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="label">Host Organism</label>
+                  <label className="label">
+                    Host Organism <span className="text-red-500" aria-hidden="true">*</span>
+                  </label>
                   <select {...register("host_organism")} className="input" disabled={busy}>
                     <option value="ECOLI">E. coli</option>
-                    <option value="YEAST">Yeast</option>
+                    <option value="YEAST">Yeast (S. cerevisiae)</option>
                     <option value="CHO">CHO / Mammalian</option>
                     <option value="INSECT">Insect (Sf9)</option>
                     <option value="PLANT">Plant</option>
                     <option value="HUMAN">Human</option>
                   </select>
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                    Intended expression system — affects biosafety gate thresholds.
+                  </p>
                 </div>
               </div>
+              <p className="text-xs text-slate-400 dark:text-slate-500">
+                Fields marked <span className="text-red-500">*</span> are required.
+              </p>
             </div>
 
             {/* Submit */}

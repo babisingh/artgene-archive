@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { href: "/register", label: "Register" },
   { href: "/registry", label: "Registry" },
   { href: "/sequences", label: "Sequences" },
+  { href: "/getting-started", label: "Help" },
 ];
 
 export function Nav() {

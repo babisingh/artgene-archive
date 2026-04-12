@@ -373,10 +373,53 @@ export function CodonBiasChart({ watermark }: CodonBiasChartProps) {
         ))}
       </div>
 
+      {/* χ² interpretation table */}
+      <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden text-xs">
+        <div className="bg-slate-50 dark:bg-slate-900/50 px-4 py-2 font-semibold text-slate-700 dark:text-slate-300">
+          χ² Score — What does it mean?
+        </div>
+        <div className="divide-y divide-slate-200 dark:divide-slate-700">
+          {[
+            { range: "< 10", label: "Covert", color: "#10b981", desc: "Statistically indistinguishable from natural host codon usage. Optimal steganographic concealment." },
+            { range: "10 – 30", label: "Low bias", color: "#22c55e", desc: "Mild deviation from host codon table. Watermark is present but unlikely to affect expression." },
+            { range: "30 – 60", label: "Moderate bias", color: "#f59e0b", desc: "Detectable bias. May marginally affect translation efficiency in expression-sensitive constructs." },
+            { range: "≥ 60", label: "Elevated bias", color: "#ef4444", desc: "Strong codon skew. Consider re-optimisation if high expression yield is required." },
+          ].map(({ range, label, color, desc }) => (
+            <div key={range} className="flex gap-3 px-4 py-2 items-start">
+              <span className="font-mono w-16 shrink-0 text-slate-600 dark:text-slate-400">{range}</span>
+              <span className="w-28 shrink-0 font-semibold" style={{ color }}>{label}</span>
+              <span className="text-slate-500 dark:text-slate-400">{desc}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Tier explanation */}
+      <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden text-xs">
+        <div className="bg-slate-50 dark:bg-slate-900/50 px-4 py-2 font-semibold text-slate-700 dark:text-slate-300">
+          Watermark Tier — Error-correction capacity
+        </div>
+        <div className="divide-y divide-slate-200 dark:divide-slate-700">
+          {[
+            { tier: "FULL", bits: "≥ 1792", desc: "Maximum Reed-Solomon redundancy. Survives heavy mutagenesis and synthesis errors." },
+            { tier: "STANDARD", bits: "≥ 896", desc: "High redundancy. Suitable for most synthetic biology workflows." },
+            { tier: "REDUCED", bits: "≥ 320", desc: "Moderate redundancy. Tolerates low-level point mutations." },
+            { tier: "MINIMAL", bits: "≥ 96", desc: "Basic redundancy. Suited to very short sequences only." },
+            { tier: "DEMO", bits: "≥ 24", desc: "Minimal carrier positions. For demonstration purposes only." },
+          ].map(({ tier, bits, desc }) => (
+            <div key={tier} className="flex gap-3 px-4 py-2 items-start">
+              <span className="font-mono w-20 shrink-0 font-semibold text-violet-700 dark:text-violet-400">{tier}</span>
+              <span className="w-20 shrink-0 text-slate-600 dark:text-slate-400">{bits} bits</span>
+              <span className="text-slate-500 dark:text-slate-400">{desc}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <p className="text-xs text-slate-400 dark:text-slate-500 text-center">
         Bar height = observed codon frequency within synonymous family.
         Opacity encodes deviation from uniform expectation.
-        Higher χ² indicates stronger watermark statistical signature.
+        χ² is computed across all synonymous codon families in the watermarked protein.
       </p>
     </div>
   );
