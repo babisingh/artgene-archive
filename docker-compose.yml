@@ -32,7 +32,7 @@ services:
         # Browser-side URL — must be localhost (not docker service name)
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     ports:
-      - "3000:3000"
+      - "${DASHBOARD_PORT:-3000}:3000"
     depends_on:
       api:
         condition: service_healthy
