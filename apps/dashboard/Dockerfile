@@ -3,8 +3,11 @@ FROM node:20-alpine AS base
 # ── Dependencies ──────────────────────────────────────────────────────────────
 FROM base AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci --legacy-peer-deps
+# Copy only package.json — do NOT copy the local package-lock.json so Docker
+# always installs the versions declared in package.json (next@14.2.3) and
+# avoids SWC version mismatches caused by locally-upgraded lock files.
+COPY package.json ./
+RUN npm install --legacy-peer-deps
 
 # ── Builder ───────────────────────────────────────────────────────────────────
 FROM base AS builder
@@ -14,6 +17,7 @@ COPY . .
 
 ARG NEXT_PUBLIC_API_URL=http://localhost:8000
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN npm run build
 
