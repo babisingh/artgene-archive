@@ -21,7 +21,7 @@ const RegisterSchema = z.object({
   owner_id: z.string().min(1, "Owner ID is required"),
   org_id: z.string().min(1, "Organisation ID is required"),
   ethics_code: z.string().min(1, "Ethics code is required"),
-  host_organism: z.enum(["ECOLI", "YEAST", "MAMMALIAN", "INSECT", "PLANT", "HUMAN"]),
+  host_organism: z.enum(["ECOLI", "YEAST", "CHO", "INSECT", "PLANT", "HUMAN"]),
 });
 
 type RegisterForm = z.infer<typeof RegisterSchema>;

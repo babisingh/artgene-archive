@@ -63,7 +63,7 @@ const RegisterSchema = z.object({
   owner_id: z.string().min(1, "Owner ID is required"),
   org_id: z.string().min(1, "Organisation ID is required"),
   ethics_code: z.string().min(1, "Ethics code is required"),
-  host_organism: z.enum(["ecoli", "yeast", "mammalian", "insect", "plant", "synthetic"]),
+  host_organism: z.enum(["ECOLI", "YEAST", "CHO", "INSECT", "PLANT", "HUMAN"]),
 });
 
 type RegisterForm = z.infer<typeof RegisterSchema>;
@@ -90,7 +90,7 @@ function RegisterModal({
   } = useForm<RegisterForm>({
     resolver: zodResolver(RegisterSchema),
     defaultValues: {
-      host_organism: "ecoli",
+      host_organism: "ECOLI",
       owner_id: "researcher@example.com",
       org_id: "",
       ethics_code: "ETHICS-001",
@@ -193,12 +193,12 @@ function RegisterModal({
                 <div>
                   <label className="label">Host Organism</label>
                   <select {...register("host_organism")} className="input">
-                    <option value="ecoli">E. coli</option>
-                    <option value="yeast">Yeast</option>
-                    <option value="mammalian">Mammalian</option>
-                    <option value="insect">Insect</option>
-                    <option value="plant">Plant</option>
-                    <option value="synthetic">Synthetic</option>
+                    <option value="ECOLI">E. coli</option>
+                    <option value="YEAST">Yeast</option>
+                    <option value="CHO">CHO / Mammalian</option>
+                    <option value="INSECT">Insect (Sf9)</option>
+                    <option value="PLANT">Plant</option>
+                    <option value="HUMAN">Human</option>
                   </select>
                 </div>
 
@@ -317,13 +317,14 @@ const columns = [
 // ---------------------------------------------------------------------------
 
 export default function SequencesPage() {
-  const { client } = useApiKey();
+  const { client, apiKey } = useApiKey();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [showRegister, setShowRegister] = useState(false);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["certificates"],
     queryFn: () => client.listCertificates(100, 0),
+    enabled: Boolean(apiKey),
   });
 
   const table = useReactTable({
@@ -356,9 +357,16 @@ export default function SequencesPage() {
         </button>
       </div>
 
+      {/* API key guard */}
+      {!apiKey && (
+        <div className="card p-6 text-center text-amber-600 dark:text-amber-400 text-sm mb-4">
+          ⚠ No API key set — click <strong>Set API Key</strong> in the navigation bar to load certificates.
+        </div>
+      )}
+
       {/* Table card */}
       <div className="card overflow-hidden">
-        {isLoading && (
+        {isLoading && Boolean(apiKey) && (
           <div className="p-8 text-center text-slate-500 dark:text-slate-400">
             Loading certificates…
           </div>

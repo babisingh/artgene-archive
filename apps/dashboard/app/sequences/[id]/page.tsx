@@ -139,13 +139,21 @@ export default function CertificatePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { client } = useApiKey();
+  const { client, apiKey } = useApiKey();
 
   const { data: cert, isLoading, isError, error } = useQuery({
     queryKey: ["certificate", id],
     queryFn: () => client.getCertificate(id),
-    enabled: Boolean(id),
+    enabled: Boolean(id && apiKey),
   });
+
+  if (!apiKey) {
+    return (
+      <div className="card p-8 text-center text-amber-600 dark:text-amber-400 text-sm">
+        ⚠ No API key set — click <strong>Set API Key</strong> in the navigation bar.
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
