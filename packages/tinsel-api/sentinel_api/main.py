@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 
-from sentinel_api.routes import certificates, health, pathways, register
+from sentinel_api.routes import analyse, certificates, health, pathways, register, structure
 
 app = FastAPI(
     title="ArtGene / TINSEL API",
@@ -40,6 +40,8 @@ app.include_router(
     certificates.router, prefix="/api/v1/certificates", tags=["certificates"]
 )
 app.include_router(pathways.router, prefix="/api/v1/pathways", tags=["pathways"])
+app.include_router(analyse.router, prefix="/api/v1", tags=["demo"])
+app.include_router(structure.router, prefix="/api/v1", tags=["demo"])
 
 # ── AWS Lambda adapter ────────────────────────────────────────────────────
 handler = Mangum(app, lifespan="off")
