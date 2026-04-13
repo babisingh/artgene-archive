@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { href: "/register", label: "Register" },
   { href: "/registry", label: "Registry" },
   { href: "/sequences", label: "Sequences" },
+  { href: "/demo",            label: "Demo" },
   { href: "/getting-started", label: "Help" },
 ];
 
