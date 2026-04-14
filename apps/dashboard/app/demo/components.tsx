@@ -1,7 +1,87 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import type { StructureResponse, WatermarkMetadata } from "../../lib/api";
 import { InfoTooltip } from "../../components/InfoTooltip";
-import type { AnalyseResponse, StructureResponse, WatermarkMetadata } from "../../lib/api";
+import type { AnalyseResponse } from "../../lib/api";
+
+// ── SVG Icons ──────────────────────────────────────────────────────────────
+
+export function IconDna({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M7 3.5C9 7 15 7.5 15 12s-6 5-8 8.5" stroke="#3b82f6" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M17 3.5C15 7 9 7.5 9 12s6 5 8 8.5" stroke="#8b5cf6" strokeWidth="1.8" strokeLinecap="round" />
+      <line x1="9.5" y1="6.2" x2="14.5" y2="7.2" stroke="#94a3b8" strokeWidth="1.2" strokeLinecap="round" />
+      <line x1="8.8" y1="9.8" x2="15.2" y2="9.8" stroke="#94a3b8" strokeWidth="1.2" strokeLinecap="round" />
+      <line x1="8.8" y1="14.2" x2="15.2" y2="14.2" stroke="#94a3b8" strokeWidth="1.2" strokeLinecap="round" />
+      <line x1="9.5" y1="17.8" x2="14.5" y2="16.8" stroke="#94a3b8" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function IconProtein({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <circle cx="5" cy="5" r="2" strokeWidth="1.5" />
+      <circle cx="12" cy="3" r="2" strokeWidth="1.5" />
+      <circle cx="19" cy="7" r="2" strokeWidth="1.5" />
+      <circle cx="17" cy="15" r="2" strokeWidth="1.5" />
+      <circle cx="9" cy="18" r="2" strokeWidth="1.5" />
+      <circle cx="5" cy="20" r="1.5" strokeWidth="1.5" />
+      <path d="M7 5h3M14 3.5l3 2M17 9v4M15 17l-4 1M7 18l-0.5 1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function IconLock({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+      <circle cx="12" cy="16" r="1.5" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function IconCheck({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  );
+}
+
+export function IconMrna({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden>
+      <path d="M3 17 Q6 9 9 17 Q12 9 15 17 Q18 9 21 17" />
+      <line x1="3" y1="17" x2="21" y2="17" strokeOpacity="0.3" />
+    </svg>
+  );
+}
+
+export function IconCodon({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3" y="4" width="5" height="7" rx="1" />
+      <rect x="10" y="4" width="5" height="7" rx="1" />
+      <rect x="17" y="4" width="4" height="7" rx="1" />
+      <rect x="3" y="14" width="5" height="7" rx="1" className="fill-violet-200 dark:fill-violet-800/60" strokeOpacity="0.6" />
+      <rect x="10" y="14" width="5" height="7" rx="1" />
+      <rect x="17" y="14" width="4" height="7" rx="1" />
+    </svg>
+  );
+}
+
+export function IconStructure3D({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 3L3 8.5v7L12 21l9-5.5v-7L12 3z" />
+      <path d="M12 3v18M3 8.5l9 5L21 8.5" strokeOpacity="0.4" />
+    </svg>
+  );
+}
 
 // ── Example presets ────────────────────────────────────────────────────────
 
@@ -36,7 +116,7 @@ export const EXAMPLES = [
   },
 ] as const;
 
-// ── WatermarkMetadata adapter (for CodonBiasChart) ─────────────────────────
+// ── WatermarkMetadata adapter ──────────────────────────────────────────────
 
 export function toWatermarkMeta(data: AnalyseResponse): WatermarkMetadata {
   return {
@@ -67,13 +147,9 @@ export function toWatermarkMeta(data: AnalyseResponse): WatermarkMetadata {
 // ── mRNA Arc Diagram ───────────────────────────────────────────────────────
 
 export function ArcDiagram({
-  dotBracket,
-  label,
-  color,
+  dotBracket, label, color,
 }: {
-  dotBracket: string;
-  label: string;
-  color: string;
+  dotBracket: string; label: string; color: string;
 }) {
   const LIMIT = 120;
   const seq = dotBracket.slice(0, LIMIT);
@@ -109,7 +185,7 @@ export function ArcDiagram({
           })}
           {dotBracket.length > LIMIT && (
             <text x={W - margin + 2} y={yBase - 4} fontSize={8} fill="#94a3b8" textAnchor="start">
-              …{dotBracket.length - LIMIT} more
+              ...{dotBracket.length - LIMIT} more
             </text>
           )}
         </svg>
@@ -132,9 +208,9 @@ export function PlddtStrip({ scores }: { scores: number[] }) {
       </svg>
       <div className="flex flex-wrap gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400">
         {[
-          { label: "Very high (≥90)", c: "#2563eb" },
-          { label: "Confident (70–89)", c: "#06b6d4" },
-          { label: "Low (50–69)", c: "#f59e0b" },
+          { label: "Very high (>=90)", c: "#2563eb" },
+          { label: "Confident (70-89)", c: "#06b6d4" },
+          { label: "Low (50-69)", c: "#f59e0b" },
           { label: "Very low (<50)", c: "#ef4444" },
         ].map(({ label, c }) => (
           <span key={label} className="flex items-center gap-1">
@@ -170,25 +246,102 @@ export function StatCard({
   );
 }
 
-// ── Structure viewer placeholder ───────────────────────────────────────────
+// ── Self-contained 3D viewer ───────────────────────────────────────────────
+// Manages its own script loading and ref so there are no parent-ref timing issues.
+
+export function Viewer3D({ pdbText, label, sublabel }: { pdbText: string; label: string; sublabel: string }) {
+  const divRef = useRef<HTMLDivElement>(null);
+  const rendered = useRef(false);
+  const [libReady, setLibReady] = useState(false);
+
+  // Load 3Dmol.js exactly once per page
+  useEffect(() => {
+    if (typeof window !== "undefined" && (window as Window & typeof globalThis & { $3Dmol?: unknown }).$3Dmol) {
+      setLibReady(true);
+      return;
+    }
+    const existing = document.getElementById("3dmol-script");
+    if (existing) {
+      // Script tag exists — poll until window.$3Dmol is set
+      const t = setInterval(() => {
+        if ((window as Window & typeof globalThis & { $3Dmol?: unknown }).$3Dmol) {
+          setLibReady(true);
+          clearInterval(t);
+        }
+      }, 100);
+      return () => clearInterval(t);
+    }
+    const s = document.createElement("script");
+    s.id = "3dmol-script";
+    s.src = "https://3dmol.csb.pitt.edu/build/3Dmol-min.js";
+    s.async = true;
+    s.onload = () => setLibReady(true);
+    document.head.appendChild(s);
+  }, []);
+
+  // Render viewer once lib + div are both ready
+  useEffect(() => {
+    if (!libReady || !divRef.current || rendered.current) return;
+    const w = (window as Window & typeof globalThis & { $3Dmol?: { createViewer: (el: HTMLElement, opts: object) => { addModel: (d: string, f: string) => void; setStyle: (sel: object, sty: object) => void; zoomTo: () => void; render: () => void } } }).$3Dmol;
+    if (!w) return;
+    rendered.current = true;
+    const el = divRef.current;
+    el.innerHTML = "";
+    const v = w.createViewer(el, { backgroundColor: "#0f172a" });
+    v.addModel(pdbText, "pdb");
+    v.setStyle({ b: [90, 100]  }, { cartoon: { color: "#2563eb" } });
+    v.setStyle({ b: [70, 89.9] }, { cartoon: { color: "#06b6d4" } });
+    v.setStyle({ b: [50, 69.9] }, { cartoon: { color: "#f59e0b" } });
+    v.setStyle({ b: [0,  49.9] }, { cartoon: { color: "#ef4444" } });
+    v.zoomTo();
+    v.render();
+  }, [libReady, pdbText]);
+
+  return (
+    <div className="space-y-1.5">
+      <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">{label}</div>
+      <div className="text-xs text-slate-400">{sublabel}</div>
+      <div
+        ref={divRef}
+        style={{
+          height: 300,
+          minHeight: 300,
+          maxHeight: 300,
+          background: "#0f172a",
+          overflow: "hidden",
+          userSelect: "none",
+          borderRadius: "0.5rem",
+          border: "1px solid rgba(100,116,139,0.25)",
+        }}
+      />
+      {!libReady && (
+        <div className="text-xs text-slate-400 flex items-center gap-1">
+          <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          Loading 3Dmol.js...
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Structure panel ────────────────────────────────────────────────────────
 
 export function StructurePanel({
-  structure,
-  structureLoading,
-  ctrlRef,
-  wmRef,
+  structure, structureLoading,
 }: {
   structure: StructureResponse | null;
   structureLoading: boolean;
-  ctrlRef: React.RefObject<HTMLDivElement>;
-  wmRef: React.RefObject<HTMLDivElement>;
 }) {
   return (
     <div className="card p-6 space-y-4">
       <div className="flex items-center gap-2">
+        <IconStructure3D className="w-5 h-5 text-blue-500" />
         <h2 className="font-semibold text-lg text-slate-900 dark:text-white">3D Protein Structure</h2>
         <InfoTooltip
-          text="ESMFold predicts the 3D fold from the amino acid sequence. Because TINSEL only changes synonymous codons, both DNAs encode the identical protein — so they fold into the identical 3D structure. This is the ultimate proof of losslessness."
+          text="ESMFold predicts the 3D fold from the amino acid sequence. Because TINSEL only changes synonymous codons, both DNAs encode the identical protein and therefore fold into the identical 3D structure — the ultimate proof of losslessness."
           wide
         />
         {structureLoading && (
@@ -197,25 +350,26 @@ export function StructurePanel({
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            Folding with ESMFold…
+            Folding with ESMFold...
           </span>
         )}
       </div>
 
       <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-4 py-3 text-sm text-blue-700 dark:text-blue-300">
-        <strong>Key insight:</strong> Both viewers below render the <em>same</em> 3D structure.
-        TINSEL preserves the amino acid sequence exactly, so control DNA and watermarked DNA
-        fold into an <strong>identical protein</strong> — RMSD = 0.000 Å.
+        <strong>Key insight:</strong> Both viewers render the <em>same</em> 3D structure.
+        TINSEL preserves the amino acid sequence exactly — control DNA and watermarked DNA
+        fold into an <strong>identical protein</strong> (RMSD = 0.000 A).
       </div>
 
       {structureLoading && (
-        <div className="rounded-lg bg-slate-100 dark:bg-slate-800 flex flex-col items-center justify-center h-48 gap-2 text-sm text-slate-400">
+        <div className="rounded-lg bg-slate-100 dark:bg-slate-800 flex flex-col items-center justify-center gap-2 text-sm text-slate-400"
+          style={{ height: 300 }}>
           <svg className="animate-spin h-6 w-6 text-blue-500" viewBox="0 0 24 24" fill="none">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
-          ESMFold computing structure…
-          <span className="text-xs text-slate-400">This takes 15–30 s</span>
+          ESMFold computing structure...
+          <span className="text-xs">This takes 15-30 s</span>
         </div>
       )}
 
@@ -228,24 +382,15 @@ export function StructurePanel({
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {[
-                  { ref: ctrlRef, label: "Control DNA → Protein", sub: "Host-optimised reference" },
-                  { ref: wmRef,   label: "Watermarked DNA → Protein", sub: "TINSEL-encoded sequence" },
-                ].map(({ ref, label, sub }) => (
-                  <div key={label} className="space-y-1.5">
-                    <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">{label}</div>
-                    <div className="text-xs text-slate-400">{sub}</div>
-                    <div ref={ref} className="w-full rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700"
-                      style={{ height: 280, background: "#0f172a" }} />
-                  </div>
-                ))}
+                <Viewer3D pdbText={structure.pdb_text!} label="Control DNA -> Protein" sublabel="Host-optimised reference" />
+                <Viewer3D pdbText={structure.pdb_text!} label="Watermarked DNA -> Protein" sublabel="TINSEL-encoded sequence" />
               </div>
 
               {structure.plddt_per_residue && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                     pLDDT Confidence Strip
-                    <InfoTooltip text="Per-residue pLDDT from ESMFold. Blue ≥90 (very high), cyan 70–89 (confident), amber 50–69 (low), red <50 (disordered)." wide />
+                    <InfoTooltip text="Per-residue pLDDT from ESMFold. Blue >=90 (very high), cyan 70-89 (confident), amber 50-69 (low), red <50 (disordered)." wide />
                   </div>
                   <PlddtStrip scores={structure.plddt_per_residue} />
                 </div>
@@ -253,7 +398,7 @@ export function StructurePanel({
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <StatCard label="Mean pLDDT" value={structure.plddt_mean?.toFixed(1) ?? "—"}
-                  tooltip="Mean per-residue pLDDT. ≥70 = confident structure." good={(structure.plddt_mean ?? 0) >= 70} />
+                  tooltip="Mean per-residue pLDDT. >=70 = confident structure." good={(structure.plddt_mean ?? 0) >= 70} />
                 <StatCard label="Instability Index" value={structure.instability_index?.toFixed(1) ?? "—"}
                   tooltip="Guruprasad 1990 instability index. >40 may indicate in-vivo instability." good={(structure.instability_index ?? 0) <= 40} />
                 <StatCard label="Source" value={structure.fallback ? "Mock" : "ESMFold"}

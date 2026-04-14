@@ -1,26 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { CodonBiasChart } from "../../components/CodonBiasChart";
 import { InfoTooltip } from "../../components/InfoTooltip";
-import { analyseSequence, fetchStructure, type AnalyseResponse, type StructureResponse } from "../../lib/api";
-import { ArcDiagram, EXAMPLES, PlddtStrip, StatCard, StructurePanel, toWatermarkMeta } from "./components";
-
-declare global {
-  interface Window {
-    $3Dmol: {
-      createViewer: (
-        el: HTMLElement,
-        opts: Record<string, unknown>
-      ) => {
-        addModel: (data: string, fmt: string) => void;
-        setStyle: (sel: Record<string, unknown>, style: Record<string, unknown>) => void;
-        zoomTo: () => void;
-        render: () => void;
-      };
-    };
-  }
-}
+import {
+  analyseSequence, fetchStructure,
+  type AnalyseResponse, type StructureResponse,
+} from "../../lib/api";
+import {
+  ArcDiagram, EXAMPLES, IconCodon, IconDna, IconLock, IconMrna, IconProtein,
+  StatCard, StructurePanel, toWatermarkMeta,
+} from "./components";
 
 const HOST_OPTIONS = [
   { value: "ECOLI",  label: "E. coli" },
@@ -39,41 +29,6 @@ export default function DemoPage() {
   const [data, setData]                         = useState<AnalyseResponse | null>(null);
   const [structure, setStructure]               = useState<StructureResponse | null>(null);
   const [structureLoading, setStructureLoading] = useState(false);
-  const [mol3Loaded, setMol3Loaded]             = useState(false);
-  const ctrlRef      = useRef<HTMLDivElement>(null);
-  const wmRef        = useRef<HTMLDivElement>(null);
-  const viewersDone  = useRef(false);
-
-  // Load 3Dmol.js once
-  useEffect(() => {
-    if (document.getElementById("3dmol-script")) { setMol3Loaded(true); return; }
-    const s = document.createElement("script");
-    s.id  = "3dmol-script";
-    s.src = "https://3dmol.csb.pitt.edu/build/3Dmol-min.js";
-    s.async = true;
-    s.onload = () => setMol3Loaded(true);
-    document.head.appendChild(s);
-  }, []);
-
-  // Render 3D viewers when both PDB + library are ready
-  useEffect(() => {
-    if (!structure?.pdb_text || !mol3Loaded || viewersDone.current) return;
-    if (!ctrlRef.current || !wmRef.current) return;
-    viewersDone.current = true;
-    const w = window.$3Dmol;
-    if (!w) return;
-    [ctrlRef.current, wmRef.current].forEach((el) => {
-      el.innerHTML = "";
-      const v = w.createViewer(el, { backgroundColor: "#0f172a" });
-      v.addModel(structure.pdb_text!, "pdb");
-      v.setStyle({ b: [90, 100]  }, { cartoon: { color: "#2563eb" } });
-      v.setStyle({ b: [70, 89.9] }, { cartoon: { color: "#06b6d4" } });
-      v.setStyle({ b: [50, 69.9] }, { cartoon: { color: "#f59e0b" } });
-      v.setStyle({ b: [0,  49.9] }, { cartoon: { color: "#ef4444" } });
-      v.zoomTo();
-      v.render();
-    });
-  }, [structure, mol3Loaded]);
 
   const handleSubmit = useCallback(async () => {
     const input = fasta.trim();
@@ -82,7 +37,6 @@ export default function DemoPage() {
     setError(null);
     setData(null);
     setStructure(null);
-    viewersDone.current = false;
     try {
       const result = await analyseSequence({ fasta: input, host_organism: host });
       setData(result);
@@ -111,10 +65,13 @@ export default function DemoPage() {
   return (
     <div className="container mx-auto px-4 max-w-5xl py-8 space-y-8">
 
-      {/* ── Hero ─────────────────────────────────────────────────────────── */}
+      {/* Hero */}
       <div className="text-center space-y-3">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 text-green-700 dark:text-green-400 text-sm font-medium">
-          ✓ Lossless Watermarking — Public Proof-of-Concept
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+          Lossless Watermarking — Public Proof-of-Concept
         </div>
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
           TINSEL Watermarking is Lossless
@@ -126,22 +83,34 @@ export default function DemoPage() {
         </p>
       </div>
 
-      {/* ── Explainer cards ───────────────────────────────────────────────── */}
+      {/* Explainer cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { icon: "🧬", title: "Synonymous Codons", text: "Multiple DNA triplets encode the same amino acid. TINSEL steganographically selects among them using a cryptographic key stream — no amino acid is ever changed." },
-          { icon: "🔬", title: "Identical Protein",  text: "Because the amino acid sequence is preserved character-for-character, the 3D fold, binding sites, and biological activity are indistinguishable from the unmodified sequence." },
-          { icon: "📡", title: "Covert by Design",   text: "Chi-squared analysis across synonymous codon families shows statistically normal codon bias — the watermark is undetectable without the spreading key." },
+          {
+            icon: <IconDna className="w-8 h-8" />,
+            title: "Synonymous Codons",
+            text: "Multiple DNA triplets encode the same amino acid. TINSEL steganographically selects among them using a cryptographic key stream — no amino acid is ever changed.",
+          },
+          {
+            icon: <IconProtein className="w-8 h-8 text-slate-600 dark:text-slate-300" />,
+            title: "Identical Protein",
+            text: "Because the amino acid sequence is preserved character-for-character, the 3D fold, binding sites, and biological activity are indistinguishable from the unmodified sequence.",
+          },
+          {
+            icon: <IconLock className="w-8 h-8 text-slate-600 dark:text-slate-300" />,
+            title: "Covert by Design",
+            text: "Chi-squared analysis across synonymous codon families shows statistically normal codon bias — the watermark is undetectable without the spreading key.",
+          },
         ].map(({ icon, title, text }) => (
-          <div key={title} className="card p-5 space-y-2 border-l-4 border-blue-400 dark:border-blue-600">
-            <div className="text-2xl">{icon}</div>
+          <div key={title} className="card p-5 space-y-3 border-l-4 border-blue-400 dark:border-blue-600">
+            <div className="text-blue-500 dark:text-blue-400">{icon}</div>
             <div className="font-semibold text-slate-900 dark:text-white">{title}</div>
             <p className="text-sm text-slate-500 dark:text-slate-400">{text}</p>
           </div>
         ))}
       </div>
 
-      {/* ── Example presets ───────────────────────────────────────────────── */}
+      {/* Example presets */}
       <div>
         <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Try an example:</div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -159,14 +128,14 @@ export default function DemoPage() {
         </div>
       </div>
 
-      {/* ── Input form ────────────────────────────────────────────────────── */}
+      {/* Input form */}
       <div className="card p-6 space-y-4">
         <div className="flex items-center gap-2">
           <h2 className="font-semibold text-slate-900 dark:text-white">Input Sequence</h2>
-          <InfoTooltip text="Paste a protein FASTA (>header\nMKL...) or a DNA FASTA. DNA is automatically translated to protein. Max 1,000 AA." wide />
+          <InfoTooltip text="Paste a protein FASTA (>header then sequence) or a DNA FASTA. DNA is automatically translated. Max 1,000 AA." wide />
         </div>
         <textarea value={fasta} onChange={(e) => setFasta(e.target.value)}
-          placeholder=">Example\nMKLVGGEELFTGVVPILVELDGDVNGH..."
+          placeholder=">Example&#10;MKLVGGEELFTGVVPILVELDGDVNGH..."
           rows={5} className="input w-full font-mono text-xs resize-y" />
         <div className="flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-1 text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -183,7 +152,7 @@ export default function DemoPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                Analysing…
+                Analysing...
               </span>
             ) : "Analyse Sequence"}
           </button>
@@ -195,24 +164,28 @@ export default function DemoPage() {
         )}
       </div>
 
-      {/* ── Results ───────────────────────────────────────────────────────── */}
-      {data && <ResultsSection data={data} structure={structure} structureLoading={structureLoading}
-        pctChanged={pctChanged} ctrlRef={ctrlRef} wmRef={wmRef} />}
+      {/* Results */}
+      {data && (
+        <ResultsSection
+          data={data}
+          structure={structure}
+          structureLoading={structureLoading}
+          pctChanged={pctChanged}
+        />
+      )}
     </div>
   );
 }
 
-// ── Results section (extracted to keep DemoPage small) ────────────────────
+// ── Results section ────────────────────────────────────────────────────────
 
 function ResultsSection({
-  data, structure, structureLoading, pctChanged, ctrlRef, wmRef,
+  data, structure, structureLoading, pctChanged,
 }: {
   data: AnalyseResponse;
   structure: StructureResponse | null;
   structureLoading: boolean;
   pctChanged: string;
-  ctrlRef: React.RefObject<HTMLDivElement>;
-  wmRef: React.RefObject<HTMLDivElement>;
 }) {
   return (
     <div className="space-y-6">
@@ -221,7 +194,7 @@ function ResultsSection({
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-lg font-bold text-slate-900 dark:text-white">Analysis Results</span>
         <span className="px-3 py-1 rounded-full bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 text-green-700 dark:text-green-400 text-sm font-semibold">
-          ✓ Protein identity: 100%
+          Protein identity: 100%
         </span>
         <span className="px-3 py-1 rounded-full bg-violet-50 dark:bg-violet-900/30 border border-violet-200 dark:border-violet-700 text-violet-700 dark:text-violet-400 text-sm font-medium">
           Tier: {data.watermark_tier}
@@ -232,10 +205,11 @@ function ResultsSection({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard label="Length" value={data.sequence_length} sub="amino acids"
           tooltip="Total number of amino acids in the sequence." />
-        <StatCard label="Codons changed" value={`${data.n_codons_changed} / ${data.n_codons_total}`} sub={`${pctChanged}% — all synonymous`}
+        <StatCard label="Codons changed" value={`${data.n_codons_changed} / ${data.n_codons_total}`}
+          sub={`${pctChanged}% — all synonymous`}
           tooltip="Synonymous codon substitutions made to embed the watermark. The amino acid sequence is unchanged." />
         <StatCard label="Carrier positions" value={data.carrier_positions} sub="positions"
-          tooltip="Codon positions used to carry the TINSEL watermark payload. More positions = greater capacity." />
+          tooltip="Codon positions used to carry the TINSEL watermark payload. More = greater capacity." />
         <StatCard label="Host" value={data.host_organism}
           tooltip="Expression host used for codon optimisation." />
       </div>
@@ -243,18 +217,21 @@ function ResultsSection({
       {/* Panel A: Protein Identity */}
       <div className="card p-6 space-y-4">
         <div className="flex items-center gap-2">
+          <IconProtein className="w-5 h-5 text-green-500" />
           <h2 className="font-semibold text-lg text-slate-900 dark:text-white">Protein Sequence Identity</h2>
           <InfoTooltip text="TINSEL only selects among synonymous codons — different DNA triplet, same amino acid. The protein sequence is character-for-character identical to the input." wide />
-          <span className="ml-auto px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 text-sm font-bold border border-green-300 dark:border-green-700">
-            ✓ 100% Identical
+          <span className="ml-auto flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 text-sm font-bold border border-green-300 dark:border-green-700">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+            100% Identical
           </span>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-1">
-              RMSD (amino acid sequence)<InfoTooltip text="Root Mean Square Deviation between the two protein sequences. Zero means they are byte-for-byte identical." />
+              RMSD (amino acid sequence)
+              <InfoTooltip text="Root Mean Square Deviation between the two protein sequences. Zero means byte-for-byte identical." />
             </div>
-            <div className="font-mono text-2xl font-bold text-green-600 dark:text-green-400">0.000 Å</div>
+            <div className="font-mono text-2xl font-bold text-green-600 dark:text-green-400">0.000 A</div>
           </div>
           <div>
             <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">
@@ -275,16 +252,23 @@ function ResultsSection({
         </div>
       </div>
 
+      {/* Panel E: 3D Structure — directly below Protein Identity */}
+      <StructurePanel structure={structure} structureLoading={structureLoading} />
+
       {/* Panel B: DNA Codon Diff */}
       <div className="card p-6 space-y-4">
         <div className="flex items-center gap-2">
+          <IconCodon className="w-5 h-5 text-violet-500" />
           <h2 className="font-semibold text-lg text-slate-900 dark:text-white">DNA Codon Comparison</h2>
-          <InfoTooltip text="Purple pills = positions where the watermark substituted a synonymous codon. The amino acid encoded at every position remains identical." wide />
+          <InfoTooltip text="Purple pills = positions where the watermark substituted a synonymous codon. The amino acid at every position remains identical." wide />
         </div>
         <div>
-          <div className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+          <div className="text-xs text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-2">
             First {Math.min(150, data.n_codons_total)}/{data.n_codons_total} codons shown.
-            <span className="ml-2 inline-block w-3 h-3 rounded-sm bg-violet-200 dark:bg-violet-800 align-middle" /> Purple = changed (synonymous)
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-3 h-3 rounded-sm bg-violet-200 dark:bg-violet-800" />
+              Purple = changed (synonymous)
+            </span>
           </div>
           <div className="flex flex-wrap gap-0.5">
             {Array.from({ length: Math.min(150, data.n_codons_total) }, (_, i) => {
@@ -292,7 +276,8 @@ function ResultsSection({
               const wm   = data.watermarked_dna.slice(i * 3, i * 3 + 3);
               const changed = ctrl !== wm;
               return (
-                <span key={i} title={changed ? `AA ${i+1}: ${data.original_protein[i]} — ${ctrl}→${wm}` : `AA ${i+1}: ${data.original_protein[i]} — ${ctrl}`}
+                <span key={i}
+                  title={changed ? `AA ${i+1}: ${data.original_protein[i]} — ${ctrl}->${wm}` : `AA ${i+1}: ${data.original_protein[i]} — ${ctrl}`}
                   className={`font-mono text-[9px] px-1 py-0.5 rounded leading-none cursor-default ${
                     changed
                       ? "bg-violet-200 text-violet-900 dark:bg-violet-800/60 dark:text-violet-200 font-bold"
@@ -312,7 +297,7 @@ function ResultsSection({
             <table className="w-full text-xs">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
-                  {["Position","Amino Acid","Control","Watermarked","Synonymous?"].map((h) => (
+                  {["Position","AA","Control","Watermarked","Synonymous?"].map((h) => (
                     <th key={h} className="px-3 py-2 text-left font-semibold text-slate-600 dark:text-slate-300">{h}</th>
                   ))}
                 </tr>
@@ -324,14 +309,14 @@ function ResultsSection({
                     <td className="px-3 py-1.5 font-mono font-bold text-slate-900 dark:text-white">{d.amino_acid}</td>
                     <td className="px-3 py-1.5 font-mono text-slate-500">{d.control_codon}</td>
                     <td className="px-3 py-1.5 font-mono font-bold text-violet-700 dark:text-violet-400">{d.watermarked_codon}</td>
-                    <td className="px-3 py-1.5 text-green-600 dark:text-green-400 font-semibold">✓ Yes</td>
+                    <td className="px-3 py-1.5 text-green-600 dark:text-green-400 font-semibold">Yes</td>
                   </tr>
                 ))}
               </tbody>
             </table>
             {data.codon_diffs.length > 20 && (
               <div className="px-3 py-2 text-xs text-slate-400 bg-slate-50 dark:bg-slate-900/30 border-t border-slate-200 dark:border-slate-700">
-                …and {data.codon_diffs.length - 20} more synonymous substitutions
+                ...and {data.codon_diffs.length - 20} more synonymous substitutions
               </div>
             )}
           </div>
@@ -341,26 +326,26 @@ function ResultsSection({
       {/* Panel C: mRNA */}
       <div className="card p-6 space-y-4">
         <div className="flex items-center gap-2">
+          <IconMrna className="w-5 h-5 text-cyan-500" />
           <h2 className="font-semibold text-lg text-slate-900 dark:text-white">mRNA Secondary Structure</h2>
           <InfoTooltip text="mRNA folds through Watson-Crick (A-U, G-C) and wobble (G-U) base pairs. Synonymous substitutions are designed not to significantly disrupt existing structures." wide />
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: "Control MFE",     value: `${data.control_mfe.toFixed(2)}`, sub: "kcal/mol", tooltip: "Approximate minimum free energy of the host-optimised control mRNA secondary structure.", color: "text-blue-600 dark:text-blue-400" },
-            { label: "Watermarked MFE", value: `${data.watermarked_mfe.toFixed(2)}`, sub: "kcal/mol", tooltip: "Approximate minimum free energy of the watermarked mRNA secondary structure.", color: "text-violet-600 dark:text-violet-400" },
-            { label: "ΔMFE",     value: `${data.delta_mfe >= 0 ? "+" : ""}${data.delta_mfe.toFixed(2)}`, sub: "kcal/mol", tooltip: "Change in MFE. Values close to 0 show preserved mRNA stability.", color: Math.abs(data.delta_mfe) < 5 ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400" },
-            { label: "ΔGC",      value: `${data.delta_gc >= 0 ? "+" : ""}${(data.delta_gc * 100).toFixed(2)}`, sub: "%", tooltip: "Change in GC content. Small changes indicate similar mRNA stability.", color: Math.abs(data.delta_gc) < 0.02 ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400" },
-          ].map(({ label, value, sub, tooltip, color }) => (
+            { label: "Control MFE",     v: `${data.control_mfe.toFixed(2)}`,     sub: "kcal/mol", tip: "Approximate MFE of the host-optimised control mRNA secondary structure.", col: "text-blue-600 dark:text-blue-400" },
+            { label: "Watermarked MFE", v: `${data.watermarked_mfe.toFixed(2)}`, sub: "kcal/mol", tip: "Approximate MFE of the watermarked mRNA secondary structure.", col: "text-violet-600 dark:text-violet-400" },
+            { label: "ΔMFE",   v: `${data.delta_mfe >= 0 ? "+" : ""}${data.delta_mfe.toFixed(2)}`, sub: "kcal/mol", tip: "Change in MFE. Values near 0 show preserved mRNA stability.", col: Math.abs(data.delta_mfe) < 5 ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400" },
+            { label: "ΔGC",    v: `${data.delta_gc >= 0 ? "+" : ""}${(data.delta_gc * 100).toFixed(2)}`, sub: "%", tip: "Change in GC content. Small changes indicate similar mRNA stability.", col: Math.abs(data.delta_gc) < 0.02 ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400" },
+          ].map(({ label, v, sub, tip, col }) => (
             <div key={label} className="card p-3">
               <div className="flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-                {label}<InfoTooltip text={tooltip} />
+                {label}<InfoTooltip text={tip} />
               </div>
-              <div className={`font-mono text-xl font-bold ${color}`}>{value}</div>
+              <div className={`font-mono text-xl font-bold ${col}`}>{v}</div>
               <div className="text-xs text-slate-400">{sub}</div>
             </div>
           ))}
         </div>
-        {/* GC bars */}
         <div className="space-y-2">
           <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide flex items-center gap-1">
             GC Content<InfoTooltip text="Percentage of G and C bases. Higher GC = more stable mRNA. Should remain similar after watermarking." />
@@ -378,7 +363,6 @@ function ResultsSection({
             </div>
           ))}
         </div>
-        {/* Arc diagrams */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {[
             { label: "Control",     db: data.control_dot_bracket,     pairs: data.n_pairs_control,     color: "#3b82f6" },
@@ -390,7 +374,7 @@ function ResultsSection({
               </div>
               <ArcDiagram dotBracket={db} label="Dot-bracket (first 120 nt)" color={color} />
               <div className="font-mono text-[9px] break-all bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded p-2 text-slate-500 max-h-16 overflow-y-auto">
-                {db.slice(0, 200)}{db.length > 200 ? "…" : ""}
+                {db.slice(0, 200)}{db.length > 200 ? "..." : ""}
               </div>
             </div>
           ))}
@@ -400,6 +384,7 @@ function ResultsSection({
       {/* Panel D: Codon Bias */}
       <div className="card p-6 space-y-4">
         <div className="flex items-center gap-2">
+          <IconDna className="w-5 h-5" />
           <h2 className="font-semibold text-lg text-slate-900 dark:text-white">Codon Bias Analysis</h2>
           <InfoTooltip text="Chi-squared statistics measure how much the watermarked codon usage deviates from uniform expectation. Low chi-squared = statistically covert watermark." wide />
         </div>
@@ -407,33 +392,39 @@ function ResultsSection({
           <StatCard label="χ² statistic" value={data.chi_squared.toFixed(4)}
             tooltip="Chi-squared across all synonymous codon families. <10 = statistically indistinguishable from natural usage."
             good={data.chi_squared < 30} />
-          <StatCard label="p-value" value={data.p_value < 0.001 ? data.p_value.toExponential(2) : data.p_value.toFixed(4)}
-            tooltip="Probability that the observed codon bias could arise by chance. >0.05 = covert." good={data.p_value > 0.05} />
-          <StatCard label="Covert?" value={data.is_covert ? "Yes ✓" : "No ✗"}
-            tooltip="Whether the watermark passes covertness threshold (p>0.05 and χ²<30)." good={data.is_covert} />
+          <StatCard label="p-value"
+            value={data.p_value < 0.001 ? data.p_value.toExponential(2) : data.p_value.toFixed(4)}
+            tooltip="Probability that the observed codon bias could arise by chance. >0.05 = covert."
+            good={data.p_value > 0.05} />
+          <StatCard label="Covert?" value={data.is_covert ? "Yes" : "No"}
+            tooltip="Whether the watermark passes covertness threshold (p>0.05 and χ²<30)."
+            good={data.is_covert} />
         </div>
         <CodonBiasChart watermark={toWatermarkMeta(data)} />
       </div>
 
-      {/* Panel E: 3D Structure */}
-      <StructurePanel structure={structure} structureLoading={structureLoading} ctrlRef={ctrlRef} wmRef={wmRef} />
-
       {/* Final proof summary */}
       <div className="rounded-xl bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border border-green-200 dark:border-green-800 p-6 text-center space-y-3">
-        <div className="text-2xl font-bold text-green-700 dark:text-green-400">✓ Losslessness Verified</div>
+        <div className="flex items-center justify-center gap-2 text-2xl font-bold text-green-700 dark:text-green-400">
+          <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <path d="M22 4L12 14.01l-3-3" />
+          </svg>
+          Losslessness Verified
+        </div>
         <p className="text-sm text-slate-600 dark:text-slate-400 max-w-lg mx-auto">
           The watermarked DNA encodes a protein that is <strong>100% identical</strong> to the control.{" "}
           {data.n_codons_changed} synonymous substitution{data.n_codons_changed !== 1 ? "s" : ""} out of{" "}
           {data.n_codons_total} codons ({pctChanged}%). Zero amino acids changed.
         </p>
         <div className="flex flex-wrap justify-center gap-4 text-sm font-medium">
-          <span className="text-green-700 dark:text-green-400">✓ Protein identity: 100%</span>
-          <span className="text-green-700 dark:text-green-400">✓ RMSD: 0.000 Å</span>
+          <span className="text-green-700 dark:text-green-400">Protein identity: 100%</span>
+          <span className="text-green-700 dark:text-green-400">RMSD: 0.000 A</span>
           <span className={data.is_covert ? "text-green-700 dark:text-green-400" : "text-amber-700 dark:text-amber-400"}>
-            {data.is_covert ? "✓" : "~"} Codon bias: {data.is_covert ? "Covert" : "Detectable"}
+            Codon bias: {data.is_covert ? "Covert" : "Detectable"}
           </span>
           <span className={Math.abs(data.delta_mfe) < 5 ? "text-green-700 dark:text-green-400" : "text-amber-700 dark:text-amber-400"}>
-            {Math.abs(data.delta_mfe) < 5 ? "✓" : "~"} ΔMFE: {data.delta_mfe >= 0 ? "+" : ""}{data.delta_mfe.toFixed(2)} kcal/mol
+            ΔMFE: {data.delta_mfe >= 0 ? "+" : ""}{data.delta_mfe.toFixed(2)} kcal/mol
           </span>
         </div>
       </div>
