@@ -50,13 +50,13 @@ function ConsequenceSummary({ report }: { report: ConsequenceReport }) {
   return (
     <div className="space-y-1.5">
       {report.gate1 && (
-        <GateBadge label="Gate 1 — Structural" status={report.gate1.status} />
+        <GateBadge label="Gate 1: Structural" status={report.gate1.status} />
       )}
       {report.gate2 && (
-        <GateBadge label="Gate 2 — Off-Target" status={report.gate2.status} />
+        <GateBadge label="Gate 2: Off-Target" status={report.gate2.status} />
       )}
       {report.gate3 && (
-        <GateBadge label="Gate 3 — Ecological" status={report.gate3.status} />
+        <GateBadge label="Gate 3: Ecological" status={report.gate3.status} />
       )}
       {report.skipped_gates.length > 0 && (
         <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -74,11 +74,11 @@ function ConsequenceSummary({ report }: { report: ConsequenceReport }) {
 function FailureDetail({ report }: { report: ConsequenceReport }) {
   const failGate =
     report.gate1?.status === "fail"
-      ? { label: "Gate 1 — Structural Analysis", msg: report.gate1.message }
+      ? { label: "Gate 1: Structural Analysis", msg: report.gate1.message }
       : report.gate2?.status === "fail"
-        ? { label: "Gate 2 — Off-Target Screening", msg: report.gate2.message }
+        ? { label: "Gate 2: Off-Target Screening", msg: report.gate2.message }
         : report.gate3?.status === "fail"
-          ? { label: "Gate 3 — Ecological Risk", msg: report.gate3.message }
+          ? { label: "Gate 3: Ecological Risk", msg: report.gate3.message }
           : null;
 
   if (!failGate) return null;

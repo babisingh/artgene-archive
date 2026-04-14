@@ -52,7 +52,7 @@ export function Nav() {
             <line x1="8.8" y1="14.2" x2="15.2" y2="14.2" stroke="#94a3b8" strokeWidth="1.2" strokeLinecap="round" />
             <line x1="9.5" y1="17.8" x2="14.5" y2="16.8" stroke="#94a3b8" strokeWidth="1.2" strokeLinecap="round" />
           </svg>
-          <span>ArtGene</span>
+          <span>ArtGene Archive</span>
         </Link>
 
         {/* Nav links */}

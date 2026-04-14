@@ -376,7 +376,7 @@ export function CodonBiasChart({ watermark }: CodonBiasChartProps) {
       {/* χ² interpretation table */}
       <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden text-xs">
         <div className="bg-slate-50 dark:bg-slate-900/50 px-4 py-2 font-semibold text-slate-700 dark:text-slate-300">
-          χ² Score — What does it mean?
+          χ² Score: What does it mean?
         </div>
         <div className="divide-y divide-slate-200 dark:divide-slate-700">
           {[
@@ -397,7 +397,7 @@ export function CodonBiasChart({ watermark }: CodonBiasChartProps) {
       {/* Tier explanation */}
       <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden text-xs">
         <div className="bg-slate-50 dark:bg-slate-900/50 px-4 py-2 font-semibold text-slate-700 dark:text-slate-300">
-          Watermark Tier — Error-correction capacity
+          Watermark Tier: Error-correction capacity
         </div>
         <div className="divide-y divide-slate-200 dark:divide-slate-700">
           {[

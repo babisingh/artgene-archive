@@ -164,7 +164,7 @@ const SLIDES = [
     label: "Authenticate",
     title: "Set your API key",
     description:
-      'Click "Set API Key" in the navigation bar and enter the key issued by your organisation administrator. This authenticates every submission and links your certificates to your institution — nothing leaves your browser unencrypted.',
+      'Click "Set API Key" in the navigation bar and enter the key issued by your organisation administrator. This authenticates every submission and links your certificates to your institution. Nothing leaves your browser unencrypted.',
     gradient: "from-blue-500 to-blue-700",
     accent: "#2563eb",
     Icon: IconKey,
@@ -204,7 +204,7 @@ const SLIDES = [
     label: "Certified",
     title: "Receive your certificate",
     description:
-      "On success, a unique Registry ID (e.g. AG-2026-000001) is issued with a SHA3-512 certificate hash, watermark tier, χ² codon bias score, and full gate report — a tamper-evident provenance record for regulatory submission or audit.",
+      "On success, a unique Registry ID (e.g. AG-2026-000001) is issued with a SHA3-512 certificate hash, watermark tier, χ² codon bias score, and full gate report, forming a tamper-evident provenance record for regulatory submission or audit.",
     gradient: "from-rose-500 to-pink-700",
     accent: "#be123c",
     Icon: IconCert,
@@ -408,7 +408,7 @@ export default function HomePage() {
               <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20
                               rounded-full px-3 py-1 text-xs font-semibold text-blue-100 tracking-wide">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                TINSEL Registry v1.0 — Now in beta
+                TINSEL Registry v1.0 - Now in beta
               </div>
 
               <h1 className="text-4xl sm:text-5xl font-extrabold leading-[1.1] tracking-tight">
@@ -418,7 +418,7 @@ export default function HomePage() {
 
               <p className="text-blue-100 text-base leading-relaxed max-w-lg">
                 ArtGene embeds invisible, tamper-evident watermarks into synthetic gene sequences
-                and certifies them through automated biosafety screening — creating an auditable
+                and certifies them through automated biosafety screening, creating an auditable
                 chain of custody from lab bench to regulatory submission.
               </p>
 
@@ -508,7 +508,7 @@ export default function HomePage() {
             {
               icon: "🔏",
               title: "Steganographic watermarking",
-              body: "TINSEL encodes a cryptographically signed identity payload into the codon usage pattern of a protein — invisible to standard sequence analysis tools, yet mathematically verifiable.",
+              body: "TINSEL encodes a cryptographically signed identity payload into the codon usage pattern of a protein, invisible to standard sequence analysis tools yet mathematically verifiable.",
             },
             {
               icon: "🛡️",
