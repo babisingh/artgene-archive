@@ -286,15 +286,19 @@ export function Viewer3D({ pdbText, label, sublabel }: { pdbText: string; label:
     if (!w) return;
     rendered.current = true;
     const el = divRef.current;
-    el.innerHTML = "";
-    const v = w.createViewer(el, { backgroundColor: "#0f172a" });
-    v.addModel(pdbText, "pdb");
-    v.setStyle({ b: [90, 100]  }, { cartoon: { color: "#2563eb" } });
-    v.setStyle({ b: [70, 89.9] }, { cartoon: { color: "#06b6d4" } });
-    v.setStyle({ b: [50, 69.9] }, { cartoon: { color: "#f59e0b" } });
-    v.setStyle({ b: [0,  49.9] }, { cartoon: { color: "#ef4444" } });
-    v.zoomTo();
-    v.render();
+    // rAF ensures the browser has computed layout and the container has real pixel dimensions
+    requestAnimationFrame(() => {
+      if (!el) return;
+      el.innerHTML = "";
+      const v = w.createViewer(el, { backgroundColor: "#0f172a" });
+      v.addModel(pdbText, "pdb");
+      v.setStyle({ b: [90, 100]  }, { cartoon: { color: "#2563eb" } });
+      v.setStyle({ b: [70, 89.9] }, { cartoon: { color: "#06b6d4" } });
+      v.setStyle({ b: [50, 69.9] }, { cartoon: { color: "#f59e0b" } });
+      v.setStyle({ b: [0,  49.9] }, { cartoon: { color: "#ef4444" } });
+      v.zoomTo();
+      v.render();
+    });
   }, [libReady, pdbText]);
 
   return (
@@ -304,6 +308,7 @@ export function Viewer3D({ pdbText, label, sublabel }: { pdbText: string; label:
       <div
         ref={divRef}
         style={{
+          position: "relative",   /* 3Dmol canvas is position:absolute — must be relative */
           height: 300,
           minHeight: 300,
           maxHeight: 300,

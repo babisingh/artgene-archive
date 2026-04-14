@@ -76,10 +76,17 @@ export default function DemoPage() {
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
           TINSEL Watermarking is Lossless
         </h1>
-        <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-          Every watermark encodes provenance into <strong>synonymous codons</strong> — different DNA,
-          identical protein. Amino acid sequence, 3D structure, and mRNA stability are all preserved.
-          Paste any sequence below to see live proof.
+        <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto text-base leading-relaxed">
+          In synthetic biology, <strong>your sequences are your product</strong>. TINSEL lets you embed
+          an unforgeable provenance watermark directly into the DNA — without altering a single amino acid.
+          Your protein folds identically, expresses identically, and performs identically.
+          Yet buried in the codon choices is a cryptographic signature that permanently links the sequence
+          to you, surviving sequencing, synthesis, and even partial mutagenesis.
+        </p>
+        <p className="text-slate-500 dark:text-slate-500 max-w-xl mx-auto text-sm">
+          Use the interactive proof below to verify for yourself: paste any protein or DNA sequence,
+          pick an expression host, and watch every panel confirm that watermarking changes the DNA
+          while leaving the biology completely intact.
         </p>
       </div>
 
