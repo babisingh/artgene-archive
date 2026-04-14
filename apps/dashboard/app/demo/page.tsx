@@ -122,7 +122,10 @@ export default function DemoPage() {
 
       {/* Example presets */}
       <div>
-        <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Try an example:</div>
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Try an example — or paste your own sequence below:</span>
+          <span className="text-xs text-slate-400 dark:text-slate-500">FASTA format, protein or DNA, up to 1,000 AA</span>
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {EXAMPLES.map((ex) => (
             <button key={ex.name} type="button"
@@ -140,13 +143,29 @@ export default function DemoPage() {
 
       {/* Input form */}
       <div className="card p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <h2 className="font-semibold text-slate-900 dark:text-white">Input Sequence</h2>
-          <InfoTooltip text="Paste a protein FASTA (>header then sequence) or a DNA FASTA. DNA is automatically translated. Max 1,000 AA." wide />
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <h2 className="font-semibold text-slate-900 dark:text-white">Input Sequence</h2>
+            <InfoTooltip text="Paste a protein FASTA (>header then sequence) or a DNA FASTA. DNA is automatically translated. Max 1,000 AA." wide />
+          </div>
+          {/* Privacy badge */}
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400 text-xs font-medium select-none">
+            <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0110 0v4" />
+            </svg>
+            Not stored — demo only
+          </div>
         </div>
+
+        <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-4 py-3 text-sm text-blue-800 dark:text-blue-300 leading-relaxed">
+          <span className="font-semibold">Your sequence is safe.</span> This demo runs entirely server-side for analysis and is discarded immediately after the response. Your sequence is never stored, indexed, or logged unless you choose to{" "}
+          <a href="/register" className="underline font-medium hover:text-blue-600 dark:hover:text-blue-200">register it</a> through the formal workflow.
+        </div>
+
         <textarea value={fasta} onChange={(e) => setFasta(e.target.value)}
-          placeholder=">Example&#10;MKLVGGEELFTGVVPILVELDGDVNGH..."
-          rows={5} className="input w-full font-mono text-xs resize-y" />
+          placeholder=">MyProtein&#10;MKLVGGEELFTGVVPILVELDGDVNGH..."
+          rows={6} className="input w-full font-mono text-xs resize-y" />
         <div className="flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-1 text-sm font-medium text-slate-700 dark:text-slate-300">
             Host organism
