@@ -61,7 +61,7 @@ function TierBadge({ tier }: { tier: string }) {
 const RegisterSchema = z.object({
   fasta: z.string().min(10, "Paste a valid FASTA sequence (≥ 10 chars)"),
   owner_id: z.string().min(1, "Owner ID is required"),
-  org_id: z.string().min(1, "Organisation ID is required"),
+  // org_id removed — server derives it from the authenticated API key.
   ethics_code: z.string().min(1, "Ethics code is required"),
   host_organism: z.enum(["ECOLI", "YEAST", "CHO", "INSECT", "PLANT", "HUMAN"]),
 });
@@ -92,7 +92,6 @@ function RegisterModal({
     defaultValues: {
       host_organism: "ECOLI",
       owner_id: "researcher@example.com",
-      org_id: "",
       ethics_code: "ETHICS-001",
     },
   });
@@ -102,9 +101,9 @@ function RegisterModal({
       client.register({
         fasta: data.fasta,
         owner_id: data.owner_id,
-        org_id: data.org_id,
         ethics_code: data.ethics_code,
         host_organism: data.host_organism,
+        // org_id omitted — server derives from API key.
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["certificates"] });
@@ -171,13 +170,10 @@ function RegisterModal({
                   )}
                 </div>
 
-                {/* Org ID */}
-                <div>
-                  <label className="label">Organisation ID (UUID)</label>
-                  <input {...register("org_id")} className="input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
-                  {errors.org_id && (
-                    <p className="mt-1 text-xs text-red-500">{errors.org_id.message}</p>
-                  )}
+                {/* Org — derived from API key */}
+                <div className="flex flex-col justify-center rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-3 py-3 text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
+                  <div className="font-semibold mb-0.5">Organisation</div>
+                  Derived automatically from your API key.
                 </div>
 
                 {/* Ethics code */}
