@@ -1,7 +1,9 @@
-"""Gate 2 real adapter — amino-acid composition-based off-target screening.
+"""Gate 2 adapter — composition-based heuristic off-target screening (v1.0).
 
-Replaces the mock BLAST + ToxinPred2 + AllerTop calls with deterministic
-sequence-analysis algorithms that can run entirely offline:
+NOTE ON SCREENING METHOD
+------------------------
+This adapter implements HEURISTIC screening only.  It does NOT call BLAST
+or any external pathogen/toxin database.  It runs entirely offline using:
 
 1. GRAVY (Grand Average of hYdropathicity) — Kyte & Doolittle (1982)
    Measures overall hydrophobicity.  Highly positive = hydrophobic core.
@@ -17,12 +19,17 @@ sequence-analysis algorithms that can run entirely offline:
    - Combined into a [0, 1] probability via a weighted sum
 
 4. Toxin k-mer screen:
-   - Query sequence is screened against 15 known toxin-associated
-     9-mer sequence motifs (manually curated from the NCBI Toxin DB)
-   - Each match is returned as a "blast_top_hit" entry with a score
+   - Query sequence is screened against 15 manually curated 9-mer motifs
+     associated with known antimicrobial / membrane-disrupting peptides.
+   - This is NOT a BLAST search against NCBI, UniProt, or any live database.
+   - Full BLAST integration against pathogen/toxin databases is planned
+     for Phase 3.
 
-Thresholds (identical to mock):
-    blast_hits > 0              → FAIL
+All Gate2Result objects produced by this adapter include:
+    screening_method = "composition_heuristic_v1"
+
+Thresholds:
+    kmer_hits > 0               → FAIL
     toxin_probability >= 0.30   → FAIL
     allergen_probability >= 0.40 → FAIL
     allergen_probability >= 0.30 → WARN
@@ -232,6 +239,7 @@ class CompositionGate2Adapter(Gate2Adapter):
 
         return Gate2Result(
             status=status,
+            screening_method="composition_heuristic_v1",
             blast_hits=blast_hits,
             toxin_probability=toxin_prob,
             allergen_probability=allergen_prob,

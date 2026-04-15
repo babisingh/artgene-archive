@@ -215,11 +215,17 @@ class CapacityReport(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Cryptographic stub models (Phase 3 MVP)
+# Cryptographic stub models (Phase 7 — NOT YET IMPLEMENTED)
+#
+# The .stub() factory methods on each class produce zero-filled placeholder
+# values.  Certificates issued before Phase 7 ships contain these stubs and
+# carry NO post-quantum cryptographic guarantee.  The HMAC-SHA3-256 codon
+# watermark (TINSELEncoder) provides provenance; WOTS+ and LWE are reserved
+# for the next major release.
 # ---------------------------------------------------------------------------
 
 class WOTSPublicKey(BaseModel):
-    """W-OTS+ public key (WOTS_L=35 chains of WOTS_N=32 bytes each)."""
+    """W-OTS+ public key placeholder (Phase 7 — not yet implemented)."""
 
     chains: list[str]     # WOTS_L hex-encoded 32-byte values
     public_seed: str      # hex-encoded 32-byte seed

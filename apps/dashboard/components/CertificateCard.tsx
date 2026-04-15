@@ -53,7 +53,14 @@ function ConsequenceSummary({ report }: { report: ConsequenceReport }) {
         <GateBadge label="Gate 1: Structural" status={report.gate1.status} />
       )}
       {report.gate2 && (
-        <GateBadge label="Gate 2: Off-Target" status={report.gate2.status} />
+        <div className="space-y-1">
+          <GateBadge label="Gate 2: Composition Heuristic Screen" status={report.gate2.status} />
+          {report.gate2.screening_method === "composition_heuristic_v1" && (
+            <p className="text-[10px] text-amber-600 dark:text-amber-400 pl-3">
+              Heuristic screen only. Full BLAST pathogen database screening is in development (Phase 3).
+            </p>
+          )}
+        </div>
       )}
       {report.gate3 && (
         <GateBadge label="Gate 3: Ecological" status={report.gate3.status} />
@@ -76,7 +83,7 @@ function FailureDetail({ report }: { report: ConsequenceReport }) {
     report.gate1?.status === "fail"
       ? { label: "Gate 1: Structural Analysis", msg: report.gate1.message }
       : report.gate2?.status === "fail"
-        ? { label: "Gate 2: Off-Target Screening", msg: report.gate2.message }
+        ? { label: "Gate 2: Composition Heuristic Screen", msg: report.gate2.message }
         : report.gate3?.status === "fail"
           ? { label: "Gate 3: Ecological Risk", msg: report.gate3.message }
           : null;
@@ -180,6 +187,15 @@ export function CertificateCard({ response }: CertificateCardProps) {
       </div>
 
       <div className="px-6 py-5 space-y-5">
+        {/* Stub crypto notice — shown on every CERTIFIED certificate until Phase 7 */}
+        {certified && (
+          <div className="rounded-lg border border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+            <span className="font-semibold">Notice:</span> Post-quantum signatures (WOTS+ / LWE)
+            are reserved for Phase 7 and are not yet active. This certificate provides
+            HMAC-SHA3-256 codon-watermark provenance only. It is not a legally binding instrument.
+          </div>
+        )}
+
         {/* Chi-squared + carrier info row */}
         {certified && chi_squared != null && (
           <div className="flex flex-wrap gap-4 text-sm">

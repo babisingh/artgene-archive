@@ -39,6 +39,8 @@ export interface BlastHit {
 
 export interface Gate2Result {
   status: GateStatus;
+  /** "composition_heuristic_v1" (current) or "blast_full_v1" (Phase 3) */
+  screening_method: string;
   blast_hits: number | null;
   toxin_probability: number | null;
   allergen_probability: number | null;
@@ -134,7 +136,7 @@ export interface CertificateListResponse {
 export interface RegistrationRequest {
   fasta: string;
   owner_id: string;
-  org_id: string;
+  // org_id is NOT sent — the server derives it from the authenticated API key.
   ethics_code: string;
   host_organism?: string;
 }
@@ -311,6 +313,10 @@ async function apiFetch<T>(
         throw new Error(
           "The requested record was not found. " +
           "It may have been deleted or the ID may be incorrect."
+        );
+      case 409:
+        throw new Error(
+          detail ?? "This sequence has already been registered. Contact support if you believe this is an error."
         );
       case 422:
         throw new Error(

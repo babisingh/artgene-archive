@@ -82,9 +82,9 @@ export default function GettingStartedPage() {
                       outcome: "If Gate 1 fails, Gates 2 and 3 are skipped (fail-fast).",
                     },
                     {
-                      gate: "Gate 2: Off-Target Screening",
-                      detail: "BLAST similarity search against known toxin and pathogen databases. ToxinPred2 and allergen models estimate toxin and allergen probability.",
-                      outcome: "Sequences with high toxin probability or significant BLAST hits to select agents receive a FAIL or WARN.",
+                      gate: "Gate 2: Composition-Based Heuristic Screen",
+                      detail: "Amino acid composition analysis: Kyte-Doolittle hydropathy (GRAVY), cationic/amphipathic toxin scoring, allergen probability estimation, and a curated k-mer screen for known antimicrobial peptide scaffolds. Full BLAST screening against pathogen and toxin databases is in development (Phase 3).",
+                      outcome: "Toxin probability above 0.30, allergen probability above 0.40, or k-mer matches to known toxic scaffolds trigger a FAIL. Allergen probability above 0.30 triggers a WARN.",
                     },
                     {
                       gate: "Gate 3: Ecological Risk",
