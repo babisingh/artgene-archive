@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 
+from sentinel_api.config import settings
 from sentinel_api.routes import analyse, certificates, health, pathways, register, structure
 
 app = FastAPI(
@@ -27,10 +28,12 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    # Restricted to explicit origins — never wildcard with credentials=True.
+    # Set ALLOWED_ORIGINS=https://your-domain.com in production environment.
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "X-API-Key"],
 )
 
 # ── Routes ────────────────────────────────────────────────────────────────

@@ -108,3 +108,6 @@ class ConsequenceReport(BaseModel):
     skipped_gates: list[int] = Field(default_factory=list)
     # Which gate numbers were requested for this run.
     run_gates: tuple[int, ...] = (1, 2, 3)
+    # "real" when production/development adapters ran; "mock" when test stubs ran.
+    # Certificates issued with gate_mode="mock" carry no real biosafety assurance.
+    gate_mode: str = "real"

@@ -488,7 +488,6 @@ export default function HomePage() {
             <span className={`badge ${health.vault === "connected" ? "badge-pass" : "badge-fail"}`}>
               Vault {health.vault}
             </span>
-            <span className="badge badge-skip">{health.env}</span>
           </>
         ) : (
           <span className="badge badge-skip">Connecting…</span>

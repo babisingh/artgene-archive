@@ -70,6 +70,8 @@ export interface ConsequenceReport {
   gate3: Gate3Result | null;
   skipped_gates: number[];
   run_gates: number[];
+  /** "real" = production adapters ran; "mock" = test stubs ran — no real biosafety assurance */
+  gate_mode: string;
 }
 
 export interface CertificateSummary {
@@ -153,7 +155,8 @@ export interface RegistrationResponse {
 export interface HealthResponse {
   status: string;
   version: string;
-  env: string;
+  // env is intentionally absent from the public /health endpoint.
+  // Use /health/detail (authenticated) if env is needed.
   db: string;
   vault: string;
 }

@@ -221,6 +221,13 @@ export function CertificateCard({ response }: CertificateCardProps) {
               </h3>
               <ConsequenceSummary report={consequence_report} />
             </div>
+            {consequence_report.gate_mode === "mock" && (
+              <div className="rounded-lg border border-red-200 dark:border-red-700 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-xs text-red-800 dark:text-red-300 leading-relaxed">
+                <span className="font-semibold">Warning:</span> Biosafety gates ran in mock mode.
+                This certificate carries no real biosafety assurance. Do not use for regulatory or
+                IP purposes.
+              </div>
+            )}
             {!certified && <FailureDetail report={consequence_report} />}
             {certified && consequence_report.overall_status === "warn" && (
               <WarnDetail report={consequence_report} />

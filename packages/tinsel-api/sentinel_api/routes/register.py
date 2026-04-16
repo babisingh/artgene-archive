@@ -210,7 +210,11 @@ async def register_sequence(
     }
     cert_hash = HybridCertificate.compute_hash(cert_fields)
 
-    # ── Step 7: Write certificate ─────────────────────────────────────────
+    # ── Steps 7 + 8: Write certificate + audit log atomically ────────────
+    # Both objects are added to the same session and committed together so
+    # they either both land in the database or both roll back.  No flush()
+    # between them — registry_id is generated in Python, not by a DB sequence,
+    # so there is nothing to flush for ID generation purposes.
     cert = Certificate(
         id=registry_id,
         org_id=org.id,
@@ -231,9 +235,7 @@ async def register_sequence(
         tier=encode_result.config.tier.value,
     )
     db.add(cert)
-    await db.flush()
 
-    # ── Step 8: Audit log entry ───────────────────────────────────────────
     prev_hash = await _prev_entry_hash(db)
     entry_hash = _entry_hash(seq_num, prev_hash, cert_hash)
 
@@ -247,6 +249,10 @@ async def register_sequence(
         timestamp=now,
     )
     db.add(log_entry)
+
+    # Explicit commit — do not rely on the get_db() teardown so the caller
+    # can be certain both rows are durable before the response is returned.
+    await db.commit()
 
     return RegistrationResponse(
         status=CertificateStatus.CERTIFIED,

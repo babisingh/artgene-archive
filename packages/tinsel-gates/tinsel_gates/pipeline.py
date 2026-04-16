@@ -48,6 +48,7 @@ def _build_gate1(env: str) -> Gate1Adapter:
     if env in _REAL_ENVS:
         logger.debug("Gate 1: using ESMFoldGate1Adapter (env=%s)", env)
         return ESMFoldGate1Adapter()
+    logger.debug("Gate 1: using MockGate1Adapter (env=%s)", env)
     return MockGate1Adapter()
 
 
@@ -55,6 +56,7 @@ def _build_gate2(env: str) -> Gate2Adapter:
     if env in _REAL_ENVS:
         logger.debug("Gate 2: using CompositionGate2Adapter (env=%s)", env)
         return CompositionGate2Adapter()
+    logger.debug("Gate 2: using MockGate2Adapter (env=%s)", env)
     return MockGate2Adapter()
 
 
@@ -64,7 +66,16 @@ def _build_gate3(env: str, host_organism: str = "ECOLI") -> Gate3Adapter:
             "Gate 3: using CodonGate3Adapter (env=%s, host=%s)", env, host_organism
         )
         return make_codon_gate3_adapter(host_organism)
+    logger.debug("Gate 3: using MockGate3Adapter (env=%s)", env)
     return MockGate3Adapter()
+
+
+def _gate_mode(env: str, overrides_active: bool) -> str:
+    """Return "mock" if any mock adapters will run, "real" otherwise."""
+    if overrides_active:
+        # Caller injected custom adapters — could be either; label conservatively.
+        return "mock"
+    return "real" if env in _REAL_ENVS else "mock"
 
 
 async def run_consequence_pipeline(
@@ -104,6 +115,17 @@ async def run_consequence_pipeline(
     ConsequenceReport
         Aggregated result with per-gate results and overall status.
     """
+    overrides_active = any(
+        a is not None for a in (gate1_adapter, gate2_adapter, gate3_adapter)
+    )
+    mode = _gate_mode(env, overrides_active)
+    if mode == "mock" and env != "test":
+        logger.warning(
+            "MOCK biosafety gates are active in env=%r. "
+            "Certificates issued will carry gate_mode='mock' — no real biosafety assurance.",
+            env,
+        )
+
     g1: Gate1Adapter = gate1_adapter or _build_gate1(env)
     g2: Gate2Adapter = gate2_adapter or _build_gate2(env)
     g3: Gate3Adapter = gate3_adapter or _build_gate3(env, host_organism)
@@ -131,6 +153,7 @@ async def run_consequence_pipeline(
                 overall_status=GateStatus.FAIL,
                 skipped_gates=skipped,
                 run_gates=run_gates,
+                gate_mode=mode,
             )
 
     # ── Gates 2 + 3 concurrently ─────────────────────────────────────────
@@ -165,4 +188,5 @@ async def run_consequence_pipeline(
         overall_status=overall,
         skipped_gates=skipped,
         run_gates=run_gates,
+        gate_mode=mode,
     )
