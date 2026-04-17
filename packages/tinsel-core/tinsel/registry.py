@@ -61,6 +61,7 @@ class WatermarkTier(StrEnum):
 
 class CertificateStatus(StrEnum):
     CERTIFIED = "CERTIFIED"
+    CERTIFIED_WITH_WARNINGS = "CERTIFIED_WITH_WARNINGS"
     FAILED = "FAILED"
     PENDING = "PENDING"
 

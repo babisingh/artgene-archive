@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from tinsel.registry import AnchorMap, WatermarkConfig
@@ -58,9 +59,17 @@ async def list_certificates(
     org: Organisation = Depends(require_api_key),
 ) -> dict:
     """List certificates for the authenticated organisation (paginated)."""
+    # Only return certs owned by this org OR public certs from any org.
+    # Embargoed certs from other orgs are hidden entirely.
+    from sqlalchemy import or_
     result = await db.execute(
         select(Certificate)
-        .where(Certificate.org_id == org.id)
+        .where(
+            or_(
+                Certificate.org_id == org.id,
+                Certificate.visibility == "public",
+            )
+        )
         .order_by(Certificate.created_at.desc())
         .limit(limit)
         .offset(offset)
@@ -76,6 +85,7 @@ async def list_certificates(
                 "owner_id": c.owner_id,
                 "host_organism": c.host_organism,
                 "timestamp": c.timestamp.isoformat(),
+                "visibility": getattr(c, "visibility", "public"),
             }
             for c in certs
         ],
@@ -83,6 +93,85 @@ async def list_certificates(
         "offset": offset,
         "limit": limit,
     }
+
+
+@router.post("/{registry_id}/publish")
+async def publish_certificate(
+    registry_id: str,
+    db: AsyncSession = Depends(get_db),
+    org: Organisation = Depends(require_api_key),
+) -> dict:
+    """Publish an embargoed certificate, making it visible to all organisations.
+
+    Only the owning organisation can publish its own embargoed certificates.
+    """
+    result = await db.execute(
+        select(Certificate).where(Certificate.id == registry_id)
+    )
+    cert = result.scalars().first()
+    if cert is None or cert.org_id != org.id:
+        raise HTTPException(status_code=404, detail=f"Certificate '{registry_id}' not found")
+
+    if cert.visibility == "public":
+        return {"registry_id": registry_id, "visibility": "public", "message": "Already public"}
+
+    cert.visibility = "public"
+    await db.commit()
+    return {"registry_id": registry_id, "visibility": "public", "message": "Certificate published"}
+
+
+@router.get("/{registry_id}/export")
+async def export_certificate(
+    registry_id: str,
+    db: AsyncSession = Depends(get_db),
+    org: Organisation = Depends(require_api_key),
+) -> JSONResponse:
+    """Export a certificate as a canonical signed JSON document.
+
+    The export includes all certificate fields, watermark metadata, and
+    consequence report.  The response is returned with a Content-Disposition
+    header to trigger a browser download.
+
+    NOTE: Post-quantum signatures (WOTS+/LWE) are Phase 7 stubs and carry
+    no cryptographic guarantee in this release.
+    """
+    result = await db.execute(
+        select(Certificate).where(Certificate.id == registry_id)
+    )
+    cert = result.scalars().first()
+    if cert is None or cert.org_id != org.id:
+        raise HTTPException(status_code=404, detail=f"Certificate '{registry_id}' not found")
+
+    export_doc = {
+        "schema_version": "1.0",
+        "notice": (
+            "Post-quantum signatures (WOTS+/LWE) are Phase 7 placeholders and "
+            "carry no cryptographic guarantee in this release. "
+            "The HMAC-SHA3-256 codon watermark provides provenance only."
+        ),
+        "registry_id": cert.id,
+        "status": cert.status,
+        "tier": cert.tier,
+        "chi_squared": cert.chi_squared,
+        "owner_id": cert.owner_id,
+        "org_id": str(cert.org_id),
+        "ethics_code": cert.ethics_code,
+        "sequence_type": cert.sequence_type,
+        "host_organism": cert.host_organism,
+        "timestamp": cert.timestamp.isoformat(),
+        "certificate_hash": cert.certificate_hash,
+        "watermark_metadata": cert.watermark_metadata,
+        "consequence_report": cert.consequence_report,
+    }
+
+    filename = f"{registry_id}.artgene.json"
+    return JSONResponse(
+        content=export_doc,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Type": "application/json",
+        },
+    )
 
 
 @router.post("/{registry_id}/verify")

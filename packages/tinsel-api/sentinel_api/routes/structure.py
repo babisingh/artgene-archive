@@ -19,9 +19,10 @@ import asyncio
 import logging
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from sentinel_api.rate_limit import rate_limit_demo
 from tinsel_gates.adapters.gate1.esmfold import (
     ESMFOLD_MAX_LENGTH,
     ESMFOLD_TIMEOUT_S,
@@ -57,7 +58,8 @@ class StructureResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 @router.post("/analyse/structure", response_model=StructureResponse, tags=["demo"])
-async def analyse_structure(body: StructureRequest) -> StructureResponse:
+@rate_limit_demo
+async def analyse_structure(request: Request, body: StructureRequest) -> StructureResponse:
     """Fold a protein with ESMFold and return PDB + per-residue pLDDT scores."""
 
     protein = body.protein.upper().strip()
