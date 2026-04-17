@@ -28,7 +28,9 @@ async def get_certificate(
         select(Certificate).where(Certificate.id == registry_id)
     )
     cert = result.scalars().first()
-    if cert is None:
+    # Return 404 for both not-found and wrong-org to avoid confirming existence
+    # of certificates belonging to other organisations.
+    if cert is None or cert.org_id != org.id:
         raise HTTPException(status_code=404, detail=f"Certificate '{registry_id}' not found")
 
     return {
@@ -103,7 +105,8 @@ async def verify_certificate(
         select(Certificate).where(Certificate.id == registry_id)
     )
     cert = result.scalars().first()
-    if cert is None:
+    # Return 404 for both not-found and wrong-org to avoid leaking existence.
+    if cert is None or cert.org_id != org.id:
         raise HTTPException(
             status_code=404, detail=f"Certificate '{registry_id}' not found"
         )

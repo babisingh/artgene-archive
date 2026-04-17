@@ -4,9 +4,10 @@ These models represent the output of each biosafety gate and the
 aggregated ConsequenceReport returned by run_consequence_pipeline().
 
 Gate hierarchy:
-    Gate 1 (Structural)  — ESMFold pLDDT + LinearFold ΔMFE
-    Gate 2 (Off-target)  — NCBI BLAST + ToxinPred2 + AllerTop
-    Gate 3 (Ecological)  — Pathogen screen + HGT score + DriftRadar
+    Gate 1 (Structural)  — ESMFold pLDDT + Nussinov ΔMFE approximation
+    Gate 2 (Off-target)  — Composition-based heuristic screening (v1.0).
+                           Phase 3 will replace with real BLAST + ToxinPred2 + AllerTop.
+    Gate 3 (Ecological)  — Codon-bias HGT scoring + escape probability model
 
 Rule: Gate 1 runs first.  If it FAILs, gates 2 and 3 are skipped.
       If gate 1 passes, gates 2 and 3 execute concurrently.
@@ -48,15 +49,22 @@ class Gate1Result(BaseModel):
 
 
 class Gate2Result(BaseModel):
-    """Off-target gate result (BLAST + ToxinPred2 + AllerTop)."""
+    """Off-target gate result.
+
+    screening_method identifies which backend was used so downstream consumers
+    (certificate viewers, auditors) can assess the strength of the screen:
+      "composition_heuristic_v1" — offline heuristics, 15-motif k-mer screen (current)
+      "blast_full_v1"            — NCBI BLAST + ToxinPred2 + AllerTop (Phase 3)
+    """
 
     status: GateStatus
-    blast_hits: int = 0                           # human off-target hits (E < 1e-5)
-    toxin_probability: float | None = None     # ToxinPred2 score [0, 1]
-    allergen_probability: float | None = None  # AllerTop score [0, 1]
+    screening_method: str = "composition_heuristic_v1"  # always set by adapter
+    blast_hits: int = 0                           # k-mer motif hits (heuristic v1) or BLAST hits (Phase 3)
+    toxin_probability: float | None = None        # heuristic or ToxinPred2 score [0, 1]
+    allergen_probability: float | None = None     # heuristic or AllerTop score [0, 1]
     message: str | None = None
     # Rich visualization fields
-    blast_top_hits: list[dict] | None = None        # top k-mer matches with scores
+    blast_top_hits: list[dict] | None = None        # top motif/BLAST matches with scores
     gravy_score: float | None = None                # Kyte-Doolittle grand avg hydropathy
     amino_acid_composition: dict | None = None      # {AA: fraction} for 20 amino acids
 
@@ -100,3 +108,6 @@ class ConsequenceReport(BaseModel):
     skipped_gates: list[int] = Field(default_factory=list)
     # Which gate numbers were requested for this run.
     run_gates: tuple[int, ...] = (1, 2, 3)
+    # "real" when production/development adapters ran; "mock" when test stubs ran.
+    # Certificates issued with gate_mode="mock" carry no real biosafety assurance.
+    gate_mode: str = "real"

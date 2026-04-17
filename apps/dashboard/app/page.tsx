@@ -164,7 +164,7 @@ const SLIDES = [
     label: "Authenticate",
     title: "Set your API key",
     description:
-      'Click "Set API Key" in the navigation bar and enter the key issued by your organisation administrator. This authenticates every submission and links your certificates to your institution — nothing leaves your browser unencrypted.',
+      'Click "Set API Key" in the navigation bar and enter the key issued by your organisation administrator. This authenticates every submission and links your certificates to your institution. Nothing leaves your browser unencrypted.',
     gradient: "from-blue-500 to-blue-700",
     accent: "#2563eb",
     Icon: IconKey,
@@ -194,7 +194,7 @@ const SLIDES = [
     label: "Screening",
     title: "Three biosafety gates run automatically",
     description:
-      "Gate 1 checks structural safety via ESMFold pLDDT scores and RNA ΔMFE. Gate 2 screens for toxins, allergens and select-agent similarity via BLAST. Gate 3 assesses horizontal gene transfer risk and ecological spread. A fail at Gate 1 skips Gates 2 and 3.",
+      "Gate 1 checks structural safety via ESMFold pLDDT scores and RNA ΔMFE. Gate 2 screens for toxins and allergens using composition-based heuristics (full BLAST pathogen screening in Phase 3). Gate 3 assesses horizontal gene transfer risk and ecological spread. A fail at Gate 1 skips Gates 2 and 3.",
     gradient: "from-amber-500 to-orange-600",
     accent: "#d97706",
     Icon: IconGates,
@@ -204,7 +204,7 @@ const SLIDES = [
     label: "Certified",
     title: "Receive your certificate",
     description:
-      "On success, a unique Registry ID (e.g. AG-2026-000001) is issued with a SHA3-512 certificate hash, watermark tier, χ² codon bias score, and full gate report — a tamper-evident provenance record for regulatory submission or audit.",
+      "On success, a unique Registry ID (e.g. AG-2026-000001) is issued with a SHA3-512 certificate hash, watermark tier, χ² codon bias score, and full gate report, forming a tamper-evident provenance record for regulatory submission or audit.",
     gradient: "from-rose-500 to-pink-700",
     accent: "#be123c",
     Icon: IconCert,
@@ -408,7 +408,7 @@ export default function HomePage() {
               <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20
                               rounded-full px-3 py-1 text-xs font-semibold text-blue-100 tracking-wide">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                TINSEL Registry v1.0 — Now in beta
+                TINSEL Registry v1.0 - Now in beta
               </div>
 
               <h1 className="text-4xl sm:text-5xl font-extrabold leading-[1.1] tracking-tight">
@@ -418,7 +418,7 @@ export default function HomePage() {
 
               <p className="text-blue-100 text-base leading-relaxed max-w-lg">
                 ArtGene embeds invisible, tamper-evident watermarks into synthetic gene sequences
-                and certifies them through automated biosafety screening — creating an auditable
+                and certifies them through automated biosafety screening, creating an auditable
                 chain of custody from lab bench to regulatory submission.
               </p>
 
@@ -451,6 +451,30 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── Demo key callout ──────────────────────────────────────────── */}
+      {!apiKey && (
+        <section className="-mt-8">
+          <div className="rounded-xl border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 px-6 py-5 flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex-1 space-y-1">
+              <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">
+                Testing the application? Use the developer demo key.
+              </p>
+              <p className="text-xs text-blue-700 dark:text-blue-400">
+                Click <strong>Set API Key</strong> in the navigation bar and paste the key below. It gives you full access to register sequences, view certificates, and explore the registry with the local development database.
+              </p>
+            </div>
+            <div className="shrink-0 flex items-center gap-3 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-blue-600 px-4 py-2.5">
+              <code className="font-mono text-sm font-bold text-blue-700 dark:text-blue-300 select-all">
+                tinsel-dev-key-00000000
+              </code>
+              <span className="text-xs text-slate-400 dark:text-slate-500 border-l border-slate-200 dark:border-slate-600 pl-3 whitespace-nowrap">
+                dev only
+              </span>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── Service status ────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 text-sm -mt-10">
         <span className="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wider">
@@ -464,7 +488,6 @@ export default function HomePage() {
             <span className={`badge ${health.vault === "connected" ? "badge-pass" : "badge-fail"}`}>
               Vault {health.vault}
             </span>
-            <span className="badge badge-skip">{health.env}</span>
           </>
         ) : (
           <span className="badge badge-skip">Connecting…</span>
@@ -508,7 +531,7 @@ export default function HomePage() {
             {
               icon: "🔏",
               title: "Steganographic watermarking",
-              body: "TINSEL encodes a cryptographically signed identity payload into the codon usage pattern of a protein — invisible to standard sequence analysis tools, yet mathematically verifiable.",
+              body: "TINSEL encodes a cryptographically signed identity payload into the codon usage pattern of a protein, invisible to standard sequence analysis tools yet mathematically verifiable.",
             },
             {
               icon: "🛡️",

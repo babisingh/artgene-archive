@@ -19,7 +19,7 @@ import { useApiKey } from "../../lib/providers";
 const RegisterSchema = z.object({
   fasta: z.string().min(10, "Paste a valid FASTA sequence (≥ 10 chars)"),
   owner_id: z.string().min(1, "Owner ID is required"),
-  org_id: z.string().min(1, "Organisation ID is required"),
+  // org_id is NOT in the form — it is derived server-side from the API key.
   ethics_code: z.string().min(1, "Ethics code is required"),
   host_organism: z.enum(["ECOLI", "YEAST", "CHO", "INSECT", "PLANT", "HUMAN"]),
 });
@@ -59,7 +59,6 @@ export default function RegisterPage() {
     defaultValues: {
       host_organism: "ECOLI",
       owner_id: "researcher@example.com",
-      org_id: "00000000-0000-0000-0000-000000000001",
       ethics_code: "ETHICS-2026-001",
       fasta: "",
     },
@@ -83,9 +82,9 @@ export default function RegisterPage() {
     const registrationPromise = client.register({
       fasta: data.fasta,
       owner_id: data.owner_id,
-      org_id: data.org_id,
       ethics_code: data.ethics_code,
       host_organism: data.host_organism,
+      // org_id intentionally omitted — server derives it from the API key.
     });
 
     // Minimum display time for Gate 1 stage
@@ -178,22 +177,9 @@ export default function RegisterPage() {
                   )}
                 </div>
 
-                <div>
-                  <label className="label">
-                    Organisation UUID <span className="text-red-500" aria-hidden="true">*</span>
-                  </label>
-                  <input
-                    {...register("org_id")}
-                    className="input font-mono text-xs"
-                    disabled={busy}
-                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                  />
-                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-                    UUID of the registering institution or lab.
-                  </p>
-                  {errors.org_id && (
-                    <p className="mt-1 text-xs text-red-500">{errors.org_id.message}</p>
-                  )}
+                <div className="flex flex-col justify-center rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-3 py-3 text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
+                  <div className="font-semibold mb-0.5">Organisation</div>
+                  Derived automatically from your API key. The sequence will be registered under the organisation that issued your key. Contact your administrator if you need to register under a different organisation.
                 </div>
 
                 <div>

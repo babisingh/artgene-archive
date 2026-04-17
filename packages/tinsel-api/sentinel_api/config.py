@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_VALID_ENVS = frozenset({"test", "development", "production"})
 
 
 class Settings(BaseSettings):
@@ -30,9 +33,27 @@ class Settings(BaseSettings):
     spreading_key: str = "aa" * 32          # 32-byte dev default (hex)
     spreading_key_id: str = "local-dev-key"
 
+    # ── CORS ────────────────────────────────────────────────────────────────
+    # Comma-separated list of allowed origins for CORS.
+    # Dev default: localhost dashboard only.
+    # Production: set ALLOWED_ORIGINS=https://your-domain.com in the environment.
+    # NEVER set to "*" in production — credentials are included in API requests.
+    allowed_origins: list[str] = ["http://localhost:3000", "http://localhost:3001"]
+
     # ── Runtime ────────────────────────────────────────────────────────────
-    sentinel_env: str = "development"       # test | development | production
+    sentinel_env: str = "development"       # must be: test | development | production
     log_level: str = "INFO"
+
+    @field_validator("sentinel_env")
+    @classmethod
+    def _validate_env(cls, v: str) -> str:
+        if v not in _VALID_ENVS:
+            raise ValueError(
+                f"SENTINEL_ENV={v!r} is not recognised. "
+                f"Valid values: {sorted(_VALID_ENVS)}. "
+                "A typo here silently activates mock biosafety gates for all submissions."
+            )
+        return v
 
     # ── AWS ────────────────────────────────────────────────────────────────
     aws_region: str = "eu-west-1"

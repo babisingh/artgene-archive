@@ -51,9 +51,10 @@ router = APIRouter()
 class RegistrationRequest(BaseModel):
     fasta: str
     owner_id: str
-    org_id: str
     ethics_code: str
     host_organism: HostOrganism = HostOrganism.ECOLI
+    # org_id is intentionally NOT a client field — it is always derived from the
+    # authenticated API key via Depends(require_api_key) to prevent spoofing.
 
 
 class RegistrationResponse(BaseModel):
@@ -135,6 +136,28 @@ async def register_sequence(
             message="One or more biosafety gates failed — registration rejected",
         )
 
+    # ── Step 2b: Deduplication check ─────────────────────────────────────
+    # Hash matches TINSELEncoder.sequence_hash(): SHA3-256 of uppercased protein.
+    # We check before watermarking so a duplicate is rejected before spending
+    # vault + ESMFold resources.  Do NOT reveal the existing registry_id in the
+    # error — that would disclose another organisation's registered sequence.
+    pre_hash = hashlib.sha3_256(protein.upper().encode()).hexdigest()
+    dup_result = await db.execute(
+        select(Certificate.id).where(Certificate.sequence_hash == pre_hash).limit(1)
+    )
+    if dup_result.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "SEQUENCE_ALREADY_REGISTERED",
+                "message": (
+                    "This sequence has already been registered in ArtGene Archive. "
+                    "If you believe this is an error, contact support with your "
+                    "ethics code and owner ID."
+                ),
+            },
+        )
+
     # ── Step 3–4: Vault + watermark encoding (v1.0 API) ──────────────────
     vault = get_vault_client()
     spreading_key = await vault.get_spreading_key(settings.spreading_key_id)
@@ -187,7 +210,11 @@ async def register_sequence(
     }
     cert_hash = HybridCertificate.compute_hash(cert_fields)
 
-    # ── Step 7: Write certificate ─────────────────────────────────────────
+    # ── Steps 7 + 8: Write certificate + audit log atomically ────────────
+    # Both objects are added to the same session and committed together so
+    # they either both land in the database or both roll back.  No flush()
+    # between them — registry_id is generated in Python, not by a DB sequence,
+    # so there is nothing to flush for ID generation purposes.
     cert = Certificate(
         id=registry_id,
         org_id=org.id,
@@ -208,9 +235,7 @@ async def register_sequence(
         tier=encode_result.config.tier.value,
     )
     db.add(cert)
-    await db.flush()
 
-    # ── Step 8: Audit log entry ───────────────────────────────────────────
     prev_hash = await _prev_entry_hash(db)
     entry_hash = _entry_hash(seq_num, prev_hash, cert_hash)
 
@@ -224,6 +249,10 @@ async def register_sequence(
         timestamp=now,
     )
     db.add(log_entry)
+
+    # Explicit commit — do not rely on the get_db() teardown so the caller
+    # can be certain both rows are durable before the response is returned.
+    await db.commit()
 
     return RegistrationResponse(
         status=CertificateStatus.CERTIFIED,

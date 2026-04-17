@@ -13,15 +13,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    entrypoint: ["sh", "-c"]
     command: >
-<<<<<<< HEAD
+      "cd /app/packages/tinsel-api &&
+       alembic upgrade head &&
+       python /app/packages/tinsel-api/scripts/seed_dev.py &&
+       uvicorn sentinel_api.main:app --host 0.0.0.0 --port 8000"
       sh -c "cd /app/packages/tinsel-api && alembic upgrade head &&
-=======
       sh -c "cd /app/packages/tinsel-api &&
              alembic upgrade head &&
->>>>>>> f9e77e1088a2e93f15991bac3fd424d36070a099
              python /app/packages/tinsel-api/scripts/seed_dev.py &&
              uvicorn sentinel_api.main:app --host 0.0.0.0 --port 8000"
+
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')\""]
       interval: 10s
@@ -34,10 +37,7 @@ services:
       context: apps/dashboard
       dockerfile: Dockerfile
       args:
-<<<<<<< HEAD
         # Browser-side URL — must be localhost (not docker service name)
-=======
->>>>>>> f9e77e1088a2e93f15991bac3fd424d36070a099
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     ports:
       - "${DASHBOARD_PORT:-3000}:3000"

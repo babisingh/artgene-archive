@@ -469,7 +469,7 @@ function Gate3Panel({ gate3 }: { gate3: Gate3Result }) {
         <div className="text-xs text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700 pt-3">
           <strong>Codon Adaptation Index (CAI)</strong>: Measures how well the coding sequence
           matches the host organism&apos;s preferred codon usage. Low CAI (&lt;0.5) indicates the
-          sequence uses codons that are rare in the host — a classic signature of foreign DNA
+          sequence uses codons that are rare in the host, a classic signature of foreign DNA
           that may have been acquired by horizontal gene transfer.
         </div>
       )}
@@ -593,19 +593,19 @@ export default function CertificatePage({
           </div>
 
           {report.gate1 && (
-            <GateItem title="Gate 1 — Structural Analysis (ESMFold pLDDT)" status={report.gate1.status}>
+            <GateItem title="Gate 1: Structural Analysis (ESMFold pLDDT)" status={report.gate1.status}>
               <Gate1Panel gate1={report.gate1 as Gate1Result} />
             </GateItem>
           )}
 
           {report.gate2 && (
-            <GateItem title="Gate 2 — Off-Target Screening (Toxin / Allergen)" status={report.gate2.status}>
+            <GateItem title="Gate 2: Off-Target Screening (Toxin / Allergen)" status={report.gate2.status}>
               <Gate2Panel gate2={report.gate2 as Gate2Result} />
             </GateItem>
           )}
 
           {report.gate3 && (
-            <GateItem title="Gate 3 — Ecological Risk (HGT / Codon Adaptation)" status={report.gate3.status}>
+            <GateItem title="Gate 3: Ecological Risk (HGT / Codon Adaptation)" status={report.gate3.status}>
               <Gate3Panel gate3={report.gate3 as Gate3Result} />
             </GateItem>
           )}

@@ -39,6 +39,8 @@ export interface BlastHit {
 
 export interface Gate2Result {
   status: GateStatus;
+  /** "composition_heuristic_v1" (current) or "blast_full_v1" (Phase 3) */
+  screening_method: string;
   blast_hits: number | null;
   toxin_probability: number | null;
   allergen_probability: number | null;
@@ -68,6 +70,8 @@ export interface ConsequenceReport {
   gate3: Gate3Result | null;
   skipped_gates: number[];
   run_gates: number[];
+  /** "real" = production adapters ran; "mock" = test stubs ran — no real biosafety assurance */
+  gate_mode: string;
 }
 
 export interface CertificateSummary {
@@ -134,7 +138,7 @@ export interface CertificateListResponse {
 export interface RegistrationRequest {
   fasta: string;
   owner_id: string;
-  org_id: string;
+  // org_id is NOT sent — the server derives it from the authenticated API key.
   ethics_code: string;
   host_organism?: string;
 }
@@ -151,9 +155,115 @@ export interface RegistrationResponse {
 export interface HealthResponse {
   status: string;
   version: string;
-  env: string;
+  // env is intentionally absent from the public /health endpoint.
+  // Use /health/detail (authenticated) if env is needed.
   db: string;
   vault: string;
+}
+
+// ---------------------------------------------------------------------------
+// Demo / Analyse types — /api/v1/analyse and /api/v1/analyse/structure
+// ---------------------------------------------------------------------------
+
+export interface CodonDiff {
+  position: number;
+  amino_acid: string;
+  control_codon: string;
+  watermarked_codon: string;
+}
+
+export interface AnalyseRequest {
+  fasta: string;
+  host_organism?: string;
+}
+
+export interface AnalyseResponse {
+  original_protein: string;
+  sequence_length: number;
+  host_organism: string;
+
+  // DNA comparison
+  control_dna: string;
+  watermarked_dna: string;
+  codon_diffs: CodonDiff[];
+  n_codons_changed: number;
+  n_codons_total: number;
+
+  // Watermark provenance
+  watermark_tier: string;
+  carrier_positions: number;
+
+  // Codon bias (proof of covertness)
+  chi_squared: number;
+  p_value: number;
+  is_covert: boolean;
+  per_aa_deviations: Record<string, number>;
+
+  // mRNA analysis
+  control_mrna: string;
+  watermarked_mrna: string;
+  control_gc: number;
+  watermarked_gc: number;
+  delta_gc: number;
+  control_mfe: number;
+  watermarked_mfe: number;
+  delta_mfe: number;
+  control_dot_bracket: string;
+  watermarked_dot_bracket: string;
+  control_pairs: [number, number][];
+  watermarked_pairs: [number, number][];
+  n_pairs_control: number;
+  n_pairs_watermarked: number;
+}
+
+export interface StructureRequest {
+  protein: string;
+}
+
+export interface StructureResponse {
+  pdb_text: string | null;
+  plddt_mean: number | null;
+  plddt_per_residue: number[] | null;
+  instability_index: number | null;
+  sequence_length: number;
+  fallback: boolean;
+  message: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// No-auth fetch helpers for demo endpoints
+// ---------------------------------------------------------------------------
+
+async function demoFetch<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    let detail: string | null = null;
+    try {
+      const err = await res.json();
+      detail =
+        typeof err?.detail === "string"
+          ? err.detail
+          : JSON.stringify(err?.detail ?? err);
+    } catch {
+      detail = res.statusText || null;
+    }
+    throw new Error(detail ?? `Request failed with status ${res.status}.`);
+  }
+
+  return res.json() as Promise<T>;
+}
+
+export function analyseSequence(req: AnalyseRequest): Promise<AnalyseResponse> {
+  return demoFetch<AnalyseResponse>("/analyse", req);
+}
+
+export function fetchStructure(protein: string): Promise<StructureResponse> {
+  return demoFetch<StructureResponse>("/analyse/structure", { protein });
 }
 
 // ---------------------------------------------------------------------------
@@ -206,6 +316,10 @@ async function apiFetch<T>(
         throw new Error(
           "The requested record was not found. " +
           "It may have been deleted or the ID may be incorrect."
+        );
+      case 409:
+        throw new Error(
+          detail ?? "This sequence has already been registered. Contact support if you believe this is an error."
         );
       case 422:
         throw new Error(

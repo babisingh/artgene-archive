@@ -29,7 +29,7 @@ export default function GettingStartedPage() {
               <>
                 Click <strong>Set API Key</strong> in the navigation bar and enter the key you were
                 issued by your organisation administrator. The key is stored only in your browser session
-                — it is never sent to any third party.
+                and is never sent to any third party.
               </>
             ),
             cta: null,
@@ -59,10 +59,10 @@ export default function GettingStartedPage() {
                 Go to the <Link href="/register" className="text-blue-600 dark:text-blue-400 hover:underline">Register</Link> page
                 and fill in the required metadata:
                 <ul className="mt-2 ml-4 list-disc space-y-1 text-sm text-slate-600 dark:text-slate-400">
-                  <li><strong>Owner ID</strong> — your email or researcher username.</li>
-                  <li><strong>Organisation UUID</strong> — the UUID assigned to your institution.</li>
-                  <li><strong>Ethics Code</strong> — IRB or ethics committee approval reference (e.g. <code>ERC-2026-001</code>).</li>
-                  <li><strong>Host Organism</strong> — the intended expression system, which calibrates biosafety thresholds.</li>
+                  <li><strong>Owner ID</strong>: your email or researcher username.</li>
+                  <li><strong>Organisation UUID</strong>: the UUID assigned to your institution.</li>
+                  <li><strong>Ethics Code</strong>: IRB or ethics committee approval reference (e.g. <code>ERC-2026-001</code>).</li>
+                  <li><strong>Host Organism</strong>: the intended expression system, which calibrates biosafety thresholds.</li>
                 </ul>
               </>
             ),
@@ -77,17 +77,17 @@ export default function GettingStartedPage() {
                 <div className="mt-3 space-y-2">
                   {[
                     {
-                      gate: "Gate 1 — Structural Analysis",
+                      gate: "Gate 1: Structural Analysis",
                       detail: "Uses ESMFold-derived pLDDT scores to assess predicted folding confidence and RNA minimum free energy (ΔMFE). Sequences predicted to fold into dangerous prion-like or amyloid-prone structures are flagged.",
                       outcome: "If Gate 1 fails, Gates 2 and 3 are skipped (fail-fast).",
                     },
                     {
-                      gate: "Gate 2 — Off-Target Screening",
-                      detail: "BLAST similarity search against known toxin and pathogen databases. ToxinPred2 and allergen models estimate toxin and allergen probability.",
-                      outcome: "Sequences with high toxin probability or significant BLAST hits to select agents receive a FAIL or WARN.",
+                      gate: "Gate 2: Composition-Based Heuristic Screen",
+                      detail: "Amino acid composition analysis: Kyte-Doolittle hydropathy (GRAVY), cationic/amphipathic toxin scoring, allergen probability estimation, and a curated k-mer screen for known antimicrobial peptide scaffolds. Full BLAST screening against pathogen and toxin databases is in development (Phase 3).",
+                      outcome: "Toxin probability above 0.30, allergen probability above 0.40, or k-mer matches to known toxic scaffolds trigger a FAIL. Allergen probability above 0.30 triggers a WARN.",
                     },
                     {
-                      gate: "Gate 3 — Ecological Risk",
+                      gate: "Gate 3: Ecological Risk",
                       detail: "Horizontal Gene Transfer (HGT) propensity scoring and DriftRadar ecological-spread modelling estimate environmental containment risk.",
                       outcome: "High HGT score or escape probability triggers a WARN or FAIL at this gate.",
                     },
@@ -114,7 +114,7 @@ export default function GettingStartedPage() {
                 The certificate records:
                 <ul className="mt-2 ml-4 list-disc space-y-1 text-sm text-slate-600 dark:text-slate-400">
                   <li>Watermark <strong>tier</strong> (FULL → MINIMAL) reflecting the error-correction capacity embedded in the codon bias pattern.</li>
-                  <li><strong>χ² score</strong> — statistical measure of codon bias introduced by watermarking. Lower = more covert.</li>
+                  <li><strong>χ² score</strong>: statistical measure of codon bias introduced by watermarking. Lower = more covert.</li>
                   <li><strong>Certificate hash</strong> (SHA3-512) for tamper-evidence.</li>
                   <li>Biosafety gate outcomes for auditing.</li>
                 </ul>

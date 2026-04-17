@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { href: "/register", label: "Register" },
   { href: "/registry", label: "Registry" },
   { href: "/sequences", label: "Sequences" },
+  { href: "/demo",            label: "Demo" },
   { href: "/getting-started", label: "Help" },
 ];
 
@@ -43,8 +44,15 @@ export function Nav() {
       <div className="container mx-auto px-4 max-w-7xl flex items-center gap-6 h-16">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 font-extrabold text-lg text-slate-900 dark:text-white tracking-tight">
-          <span className="text-2xl">🧬</span>
-          <span>ArtGene</span>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M7 3.5C9 7 15 7.5 15 12s-6 5-8 8.5" stroke="#3b82f6" strokeWidth="1.8" strokeLinecap="round" />
+            <path d="M17 3.5C15 7 9 7.5 9 12s6 5 8 8.5" stroke="#8b5cf6" strokeWidth="1.8" strokeLinecap="round" />
+            <line x1="9.5" y1="6.2" x2="14.5" y2="7.2" stroke="#94a3b8" strokeWidth="1.2" strokeLinecap="round" />
+            <line x1="8.8" y1="9.8" x2="15.2" y2="9.8" stroke="#94a3b8" strokeWidth="1.2" strokeLinecap="round" />
+            <line x1="8.8" y1="14.2" x2="15.2" y2="14.2" stroke="#94a3b8" strokeWidth="1.2" strokeLinecap="round" />
+            <line x1="9.5" y1="17.8" x2="14.5" y2="16.8" stroke="#94a3b8" strokeWidth="1.2" strokeLinecap="round" />
+          </svg>
+          <span>ArtGene Archive</span>
         </Link>
 
         {/* Nav links */}

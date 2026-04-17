@@ -1,4 +1,5 @@
 node_modules
 .next
-.git
-*.md
+package-lock.json
+*.tsbuildinfo
+.env*.local

@@ -5,7 +5,7 @@ import "./globals.css";
 import { Nav } from "./nav";
 
 export const metadata: Metadata = {
-  title: "ArtGene Dashboard",
+  title: "ArtGene Archive",
   description: "TINSEL bioinformatics sequence registry platform",
 };
 
@@ -35,8 +35,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 {/* Brand */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white text-lg">
-                    <span>🧬</span>
-                    <span>ArtGene</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path d="M7 3.5C9 7 15 7.5 15 12s-6 5-8 8.5" stroke="#3b82f6" strokeWidth="1.8" strokeLinecap="round" />
+                      <path d="M17 3.5C15 7 9 7.5 9 12s6 5 8 8.5" stroke="#8b5cf6" strokeWidth="1.8" strokeLinecap="round" />
+                      <line x1="9.5" y1="6.2" x2="14.5" y2="7.2" stroke="#94a3b8" strokeWidth="1.2" strokeLinecap="round" />
+                      <line x1="8.8" y1="9.8" x2="15.2" y2="9.8" stroke="#94a3b8" strokeWidth="1.2" strokeLinecap="round" />
+                      <line x1="8.8" y1="14.2" x2="15.2" y2="14.2" stroke="#94a3b8" strokeWidth="1.2" strokeLinecap="round" />
+                      <line x1="9.5" y1="17.8" x2="14.5" y2="16.8" stroke="#94a3b8" strokeWidth="1.2" strokeLinecap="round" />
+                    </svg>
+                    <span>ArtGene Archive</span>
                   </div>
                   <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
                     Traceable Identity Notation for Sequence Encryption + Ledger.
