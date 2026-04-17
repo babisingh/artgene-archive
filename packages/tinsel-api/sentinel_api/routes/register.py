@@ -19,7 +19,7 @@ import hashlib
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,6 +39,7 @@ from sentinel_api.config import settings
 from sentinel_api.db.connection import get_db
 from sentinel_api.db.models import Certificate, Organisation, RegistryAuditLog
 from sentinel_api.dependencies import require_api_key
+from sentinel_api.rate_limit import rate_limit_write
 from sentinel_api.vault import get_vault_client
 
 router = APIRouter()
@@ -48,11 +49,15 @@ router = APIRouter()
 # Request / Response schemas
 # ---------------------------------------------------------------------------
 
+_VALID_VISIBILITIES = frozenset({"public", "embargoed"})
+
+
 class RegistrationRequest(BaseModel):
     fasta: str
     owner_id: str
     ethics_code: str
     host_organism: HostOrganism = HostOrganism.ECOLI
+    visibility: str = "public"
     # org_id is intentionally NOT a client field — it is always derived from the
     # authenticated API key via Depends(require_api_key) to prevent spoofing.
 
@@ -101,12 +106,27 @@ async def _prev_entry_hash(db: AsyncSession) -> str:
 # ---------------------------------------------------------------------------
 
 @router.post("/register", response_model=RegistrationResponse, status_code=201)
+@rate_limit_write
 async def register_sequence(
+    request: Request,
     body: RegistrationRequest,
     db: AsyncSession = Depends(get_db),
     org: Organisation = Depends(require_api_key),
 ) -> RegistrationResponse:
     """Register a sequence and issue a TINSEL certificate if all gates pass."""
+
+    # ── Step 0: Validate visibility ───────────────────────────────────────
+    if body.visibility not in _VALID_VISIBILITIES:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "INVALID_VISIBILITY",
+                "message": (
+                    f"visibility must be one of: {sorted(_VALID_VISIBILITIES)}. "
+                    f"Got: {body.visibility!r}"
+                ),
+            },
+        )
 
     # ── Step 1: Parse FASTA ───────────────────────────────────────────────
     try:
@@ -118,6 +138,21 @@ async def register_sequence(
     # for DNA/RNA sequences we use the sequence as the "protein" placeholder
     # until a translator is wired (Phase 7).
     protein = sequence
+
+    # ── Step 1b: Length cap ───────────────────────────────────────────────
+    _MAX_AA = 5000
+    if len(protein) > _MAX_AA:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "SEQUENCE_TOO_LONG",
+                "message": (
+                    f"Sequence length {len(protein):,} AA exceeds the maximum of "
+                    f"{_MAX_AA:,} AA. Trim your sequence or contact support for "
+                    "bulk registration options."
+                ),
+            },
+        )
 
     # ── Step 2: Consequence pipeline ──────────────────────────────────────
     report = await run_consequence_pipeline(
@@ -135,6 +170,7 @@ async def register_sequence(
             consequence_report=report_dict,
             message="One or more biosafety gates failed — registration rejected",
         )
+    _warn_only = report.overall_status == GateStatus.WARN
 
     # ── Step 2b: Deduplication check ─────────────────────────────────────
     # Hash matches TINSELEncoder.sequence_hash(): SHA3-256 of uppercased protein.
@@ -230,9 +266,10 @@ async def register_sequence(
         lwe_commitment=lwe_com.model_dump(),
         consequence_report=report_dict,
         certificate_hash=cert_hash,
-        status=CertificateStatus.CERTIFIED.value,
+        status=(CertificateStatus.CERTIFIED_WITH_WARNINGS if _warn_only else CertificateStatus.CERTIFIED).value,
         chi_squared=encode_result.codon_bias_metrics.chi_squared,
         tier=encode_result.config.tier.value,
+        visibility=body.visibility,
     )
     db.add(cert)
 
@@ -254,11 +291,16 @@ async def register_sequence(
     # can be certain both rows are durable before the response is returned.
     await db.commit()
 
+    final_status = CertificateStatus.CERTIFIED_WITH_WARNINGS if _warn_only else CertificateStatus.CERTIFIED
     return RegistrationResponse(
-        status=CertificateStatus.CERTIFIED,
+        status=final_status,
         registry_id=registry_id,
         tier=encode_result.config.tier.value,
         chi_squared=encode_result.codon_bias_metrics.chi_squared,
         consequence_report=report_dict,
-        message=f"Sequence certified — {registry_id}",
+        message=(
+            f"Sequence certified with warnings — {registry_id} (manual biosafety review recommended)"
+            if _warn_only else
+            f"Sequence certified — {registry_id}"
+        ),
     )

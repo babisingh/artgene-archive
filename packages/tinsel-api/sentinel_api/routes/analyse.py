@@ -19,7 +19,7 @@ import math
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from tinsel.registry import HostOrganism
 from tinsel.sequence.fasta import normalise
@@ -27,6 +27,7 @@ from tinsel.watermark.encoder import CODON_POOLS, _CODON_TO_AA
 from tinsel.watermark.tinsel_encoder import TINSELEncoder
 
 from sentinel_api.config import settings
+from sentinel_api.rate_limit import rate_limit_demo
 from tinsel_gates.adapters.gate3.codon import _CODON_USAGE, _HOST_MAP
 
 router = APIRouter()
@@ -232,7 +233,8 @@ _HOST_ORGANISM_ENUM = {
 
 
 @router.post("/analyse", response_model=AnalyseResponse, tags=["demo"])
-async def analyse_sequence(body: AnalyseRequest) -> AnalyseResponse:
+@rate_limit_demo
+async def analyse_sequence(request: Request, body: AnalyseRequest) -> AnalyseResponse:
     """Watermark a sequence and return all proof-of-losslessness metrics."""
 
     # ── 1. Parse FASTA ────────────────────────────────────────────────────

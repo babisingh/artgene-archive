@@ -87,18 +87,18 @@ export function IconStructure3D({ className = "w-6 h-6" }: { className?: string 
 
 export const EXAMPLES = [
   {
-    name: "GLP-1",
+    name: "Calmodulin",
     host: "HUMAN",
     badge: "Human",
-    description: "Glucagon-like peptide-1 — diabetes therapy",
-    fasta: ">GLP-1_Human\nHAEGTFTSDVSSYLEGQAAKEFIAWLVKGR",
+    description: "Human calmodulin — calcium signal transducer (149 AA, passes all biosafety gates)",
+    fasta: ">Calmodulin_Human\nMADQLTEEQIAEFKEAFSLFDKDGDGTITTKELGTVMRSLGQNPTEAELQDMINEVDADGNGTIDFPEFLTMMARKMKDTDSEEEIREAFRVFDKDGNGYISAAELRHVMTNLGEKLTDEEVDEMIREADIDGDGQVNYEEFVQMMTAK",
   },
   {
-    name: "Insulin B",
-    host: "CHO",
-    badge: "CHO",
-    description: "Insulin B chain — biopharmaceutical production",
-    fasta: ">Insulin_B_CHO\nFVNQHLCGSHLVEALYLVCGERGFFYTPKT",
+    name: "Adenylate Kinase",
+    host: "ECOLI",
+    badge: "E. coli",
+    description: "E. coli adenylate kinase — phosphotransferase, metabolic enzyme (214 AA)",
+    fasta: ">AdenylateKinase_ECOLI\nMRIILLGAPGAGKGTQAQFIMEKYGIPQISTGDMLRAAVKSGSELGKQAKDIMDAGKLVTDELVIALVKERIAQEDCRNGFLLDGFPRTIPQADAMKEAGINVDYVLEFDVPDELIVDRIVGRRVHAPSGRVYHVKFNPPKVEGKDDVTGEELTTRKDDQEETVRKRLVEYHQMTAPLIGYYSKEAEAGNTKYAKVDGTKPVAEVRADLEKILG",
   },
   {
     name: "GFP",

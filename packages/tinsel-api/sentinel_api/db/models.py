@@ -115,9 +115,13 @@ class Certificate(Base):
     certificate_hash: Mapped[str] = mapped_column(
         String(128), nullable=False, comment="SHA3-512 hex"
     )
-    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False)
     chi_squared: Mapped[float | None] = mapped_column(Float, nullable=True)
     tier: Mapped[str] = mapped_column(String(20), nullable=False)
+    visibility: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="public",
+        comment='"public" = visible to any org query; "embargoed" = owner-only until published'
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

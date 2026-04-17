@@ -8,11 +8,14 @@ AWS Lambda: handler = Mangum(app)            # deployed via Lambda container
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from mangum import Mangum
+from slowapi.errors import RateLimitExceeded
 
 from sentinel_api.config import settings
+from sentinel_api.rate_limit import limiter
 from sentinel_api.routes import analyse, certificates, health, pathways, register, structure
 
 app = FastAPI(
@@ -25,6 +28,24 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# Attach the slowapi limiter state and install the rate-limit error handler.
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+async def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    return JSONResponse(
+        status_code=429,
+        content={
+            "detail": (
+                f"Rate limit exceeded: {exc.detail}. "
+                "Please slow down your requests and try again shortly."
+            )
+        },
+        headers={"Retry-After": "60"},
+    )
+
 
 app.add_middleware(
     CORSMiddleware,

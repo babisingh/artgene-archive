@@ -15,7 +15,7 @@ const BASE = `${API_URL}/api/v1`;
 // ---------------------------------------------------------------------------
 
 export type GateStatus = "pass" | "fail" | "warn" | "skip";
-export type CertificateStatus = "CERTIFIED" | "FAILED" | "PENDING";
+export type CertificateStatus = "CERTIFIED" | "CERTIFIED_WITH_WARNINGS" | "FAILED" | "PENDING";
 
 export interface Gate1Result {
   status: GateStatus;
@@ -141,6 +141,7 @@ export interface RegistrationRequest {
   // org_id is NOT sent — the server derives it from the authenticated API key.
   ethics_code: string;
   host_organism?: string;
+  visibility?: "public" | "embargoed";
 }
 
 export interface RegistrationResponse {
@@ -358,6 +359,9 @@ export function createApiClient(apiKey: string) {
 
     getCertificate: (registryId: string) =>
       apiFetch<Certificate>(`/certificates/${registryId}`, apiKey),
+
+    exportCertificate: (registryId: string) =>
+      apiFetch<Record<string, unknown>>(`/certificates/${registryId}/export`, apiKey),
 
     register: (body: RegistrationRequest) =>
       apiFetch<RegistrationResponse>("/register", apiKey, {

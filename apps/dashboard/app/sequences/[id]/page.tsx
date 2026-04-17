@@ -1,9 +1,11 @@
 "use client";
 
+"use client";
+
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { use } from "react";
+import { use, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -487,7 +489,26 @@ export default function CertificatePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { client, apiKey } = useApiKey();
+  const { client } = useApiKey();
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const data = await client.exportCertificate(id);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${id}.artgene.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export failed:", err);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const { data: cert, isLoading, isError, error } = useQuery({
     queryKey: ["certificate", id],
@@ -550,8 +571,12 @@ export default function CertificatePage({
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`badge ${cert.status === "CERTIFIED" ? "badge-pass" : "badge-fail"} text-sm px-3 py-1`}>
-              {cert.status}
+            <span className={`badge text-sm px-3 py-1 ${
+              cert.status === "CERTIFIED" ? "badge-pass" :
+              cert.status === "CERTIFIED_WITH_WARNINGS" ? "badge-warn" :
+              "badge-fail"
+            }`}>
+              {cert.status === "CERTIFIED_WITH_WARNINGS" ? "CERTIFIED (WARNINGS)" : cert.status}
             </span>
             <span
               className={`badge text-sm px-3 py-1 ${{
@@ -629,10 +654,34 @@ export default function CertificatePage({
         </div>
       )}
 
-      <div className="pt-2">
+      <div className="pt-2 flex items-center gap-3">
         <Link href="/sequences" className="btn-secondary">
           ← Back to registry
         </Link>
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          className="btn-secondary flex items-center gap-1.5"
+        >
+          {exporting ? (
+            <>
+              <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Exporting…
+            </>
+          ) : (
+            <>
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Export JSON
+            </>
+          )}
+        </button>
       </div>
     </div>
   );

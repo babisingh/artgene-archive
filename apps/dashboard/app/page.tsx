@@ -451,29 +451,28 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Demo key callout ──────────────────────────────────────────── */}
-      {!apiKey && (
-        <section className="-mt-8">
-          <div className="rounded-xl border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 px-6 py-5 flex flex-col sm:flex-row sm:items-center gap-4">
-            <div className="flex-1 space-y-1">
-              <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">
-                Testing the application? Use the developer demo key.
-              </p>
-              <p className="text-xs text-blue-700 dark:text-blue-400">
-                Click <strong>Set API Key</strong> in the navigation bar and paste the key below. It gives you full access to register sequences, view certificates, and explore the registry with the local development database.
-              </p>
-            </div>
-            <div className="shrink-0 flex items-center gap-3 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-blue-600 px-4 py-2.5">
-              <code className="font-mono text-sm font-bold text-blue-700 dark:text-blue-300 select-all">
-                tinsel-dev-key-00000000
-              </code>
-              <span className="text-xs text-slate-400 dark:text-slate-500 border-l border-slate-200 dark:border-slate-600 pl-3 whitespace-nowrap">
-                dev only
-              </span>
-            </div>
+      {/* ── Demo key callout — always visible ─────────────────────────── */}
+      <section className="-mt-8">
+        <div className="rounded-xl border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex-1 space-y-1">
+            <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">
+              Developer demo key — use this to explore the registry
+            </p>
+            <p className="text-xs text-blue-700 dark:text-blue-400">
+              Click <strong>Set API Key</strong> in the navigation bar and paste the key below.
+              Gives full access to register sequences, view certificates, and explore the local development database.
+            </p>
           </div>
-        </section>
-      )}
+          <div className="shrink-0 flex items-center gap-3 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-blue-600 px-4 py-2.5 cursor-text select-all">
+            <code className="font-mono text-sm font-bold text-blue-700 dark:text-blue-300 select-all">
+              tinsel-dev-key-00000000
+            </code>
+            <span className="text-xs text-slate-400 dark:text-slate-500 border-l border-slate-200 dark:border-slate-600 pl-3 whitespace-nowrap">
+              dev only
+            </span>
+          </div>
+        </div>
+      </section>
 
       {/* ── Service status ────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 text-sm -mt-10">

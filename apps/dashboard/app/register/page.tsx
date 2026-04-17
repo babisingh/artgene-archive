@@ -22,6 +22,7 @@ const RegisterSchema = z.object({
   // org_id is NOT in the form — it is derived server-side from the API key.
   ethics_code: z.string().min(1, "Ethics code is required"),
   host_organism: z.enum(["ECOLI", "YEAST", "CHO", "INSECT", "PLANT", "HUMAN"]),
+  visibility: z.enum(["public", "embargoed"]).default("public"),
 });
 
 type RegisterForm = z.infer<typeof RegisterSchema>;
@@ -61,6 +62,7 @@ export default function RegisterPage() {
       owner_id: "researcher@example.com",
       ethics_code: "ETHICS-2026-001",
       fasta: "",
+      visibility: "public",
     },
   });
 
@@ -84,6 +86,7 @@ export default function RegisterPage() {
       owner_id: data.owner_id,
       ethics_code: data.ethics_code,
       host_organism: data.host_organism,
+      visibility: data.visibility,
       // org_id intentionally omitted — server derives it from the API key.
     });
 
@@ -212,6 +215,18 @@ export default function RegisterPage() {
                     Intended expression system — affects biosafety gate thresholds.
                   </p>
                 </div>
+              </div>
+              {/* Visibility */}
+              <div>
+                <label className="label">Visibility</label>
+                <select {...register("visibility")} className="input" disabled={busy}>
+                  <option value="public">Public — visible to all organisations</option>
+                  <option value="embargoed">Embargoed — visible to your org only until published</option>
+                </select>
+                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                  Embargoed certificates are registered and watermarked but hidden from other organisations.
+                  You can publish them later from the certificate detail page.
+                </p>
               </div>
               <p className="text-xs text-slate-400 dark:text-slate-500">
                 Fields marked <span className="text-red-500">*</span> are required.
