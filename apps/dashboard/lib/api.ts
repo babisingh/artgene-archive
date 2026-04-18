@@ -211,6 +211,55 @@ export interface CertificateListResponse {
   limit: number;
 }
 
+export interface FrameworkAttestation {
+  framework: string;
+  version: string;
+  fields: Record<string, unknown>;
+}
+
+export interface ComplianceManifest {
+  schema_version: string;
+  generated_at: string;
+  registry_id: string;
+  certificate_hash: string;
+  sequence_hash: string;
+  status: string;
+  certified_at: string;
+  owner_id: string;
+  org_id: string;
+  ethics_code: string;
+  host_organism: string;
+  gate_mode: string;
+  run_gates: number[];
+  skipped_gates: number[];
+  gate_summary: Record<string, string>;
+  databases_queried: DatabaseQueried[];
+  wots_algorithm: string;
+  wots_is_stub: boolean;
+  framework_attestations: FrameworkAttestation[];
+  regulatory_notice: string;
+}
+
+export interface ComplianceVerify {
+  registry_id: string;
+  certificate_hash: string;
+  sequence_hash: string;
+  status: string;
+  certified_at: string;
+  pq_algorithm: string;
+  pq_is_stub: boolean;
+  overall_gate_status: string;
+  screening_databases: string[];
+  verified_at: string;
+}
+
+export function fetchComplianceVerify(registryId: string): Promise<ComplianceVerify> {
+  return fetch(`${BASE}/certificates/${registryId}/compliance/verify`).then((res) => {
+    if (!res.ok) throw new Error(`Compliance verify failed (${res.status})`);
+    return res.json() as Promise<ComplianceVerify>;
+  });
+}
+
 export interface RegistrationRequest {
   fasta: string;
   owner_id: string;
@@ -438,6 +487,12 @@ export function createApiClient(apiKey: string) {
 
     exportCertificate: (registryId: string) =>
       apiFetch<Record<string, unknown>>(`/certificates/${registryId}/export`, apiKey),
+
+    getCompliance: (registryId: string, frameworks = "US_DURC,EU_DUAL_USE") =>
+      apiFetch<ComplianceManifest>(
+        `/certificates/${registryId}/compliance?frameworks=${encodeURIComponent(frameworks)}`,
+        apiKey
+      ),
 
     register: (body: RegistrationRequest) =>
       apiFetch<RegistrationResponse>("/register", apiKey, {

@@ -18,7 +18,9 @@ import {
 import { CodonBiasChart } from "../../../components/CodonBiasChart";
 import { useApiKey } from "../../../lib/providers";
 import type {
+  ApiClient,
   BlastHit,
+  ComplianceManifest,
   DatabaseQueried,
   Gate1Result,
   Gate2Result,
@@ -794,6 +796,188 @@ function Gate4Panel({ gate4 }: { gate4: Gate4Result }) {
 }
 
 // ---------------------------------------------------------------------------
+// Compliance tab — pretty JSON viewer + framework selector + downloads
+// ---------------------------------------------------------------------------
+
+function _syntaxHighlight(json: string): string {
+  return json
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(
+      /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+      (match) => {
+        if (/^"/.test(match)) {
+          if (/:$/.test(match)) {
+            return `<span class="text-slate-600 dark:text-slate-300 font-semibold">${match}</span>`;
+          }
+          return `<span class="text-emerald-700 dark:text-emerald-400">${match}</span>`;
+        }
+        if (/true|false/.test(match)) {
+          return `<span class="text-purple-600 dark:text-purple-400">${match}</span>`;
+        }
+        if (/null/.test(match)) {
+          return `<span class="text-slate-400">${match}</span>`;
+        }
+        return `<span class="text-blue-600 dark:text-blue-400">${match}</span>`;
+      }
+    );
+}
+
+function ComplianceTab({ id, client }: { id: string; client: ApiClient }) {
+  const [frameworks, setFrameworks] = useState<"both" | "US_DURC" | "EU_DUAL_USE">("both");
+  const fwParam = frameworks === "both" ? "US_DURC,EU_DUAL_USE" : frameworks;
+
+  const { data: manifest, isLoading, isError, error } = useQuery({
+    queryKey: ["compliance", id, fwParam],
+    queryFn: () => client.getCompliance(id, fwParam),
+  });
+
+  function downloadFile(ext: "json" | "txt") {
+    if (!manifest) return;
+    const content = JSON.stringify(manifest, null, 2);
+    const blob = new Blob([content], {
+      type: ext === "json" ? "application/json" : "text/plain",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${id}-compliance.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  if (isLoading) {
+    return (
+      <div className="card p-8 text-center text-slate-400 dark:text-slate-500 text-sm">
+        Loading compliance manifest…
+      </div>
+    );
+  }
+  if (isError || !manifest) {
+    return (
+      <div className="card p-6 text-red-500 dark:text-red-400 text-sm">
+        {error instanceof Error ? error.message : "Failed to load compliance manifest"}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Framework selector */}
+      <div className="card p-4 flex flex-wrap items-center gap-3">
+        <span className="text-sm text-slate-500 dark:text-slate-400 shrink-0">Framework:</span>
+        <div className="flex gap-1.5 flex-wrap">
+          {(["both", "US_DURC", "EU_DUAL_USE"] as const).map((fw) => (
+            <button
+              key={fw}
+              onClick={() => setFrameworks(fw)}
+              className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
+                frameworks === fw
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+              }`}
+            >
+              {fw === "both" ? "Both frameworks" : fw}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Attestation status cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {manifest.framework_attestations.map((att) => {
+          const passed =
+            (att.fields.screening_passed as boolean | undefined) ??
+            (att.fields.approved_for_synthesis as boolean | undefined) ??
+            false;
+          return (
+            <div key={att.framework} className="card p-3 text-center">
+              <div className="text-xs text-slate-500 dark:text-slate-400">{att.framework}</div>
+              <div className="text-xs font-mono mt-1 text-slate-500 dark:text-slate-400">
+                {att.version}
+              </div>
+              <div
+                className={`text-sm font-bold mt-2 ${
+                  passed
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-red-500 dark:text-red-400"
+                }`}
+              >
+                {passed ? "ATTESTED" : "REJECTED"}
+              </div>
+            </div>
+          );
+        })}
+        <div className="card p-3 text-center">
+          <div className="text-xs text-slate-500 dark:text-slate-400">Databases Screened</div>
+          <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+            {manifest.databases_queried.length}
+          </div>
+        </div>
+        <div className="card p-3 text-center">
+          <div className="text-xs text-slate-500 dark:text-slate-400">PQ Signing</div>
+          <div
+            className={`text-xs font-mono mt-2 font-medium ${
+              manifest.wots_is_stub
+                ? "text-slate-400 dark:text-slate-500"
+                : "text-teal-600 dark:text-teal-400"
+            }`}
+          >
+            {manifest.wots_is_stub ? "stub" : "WOTS+"}
+          </div>
+        </div>
+      </div>
+
+      {/* Regulatory notice */}
+      <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 p-3 text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+        ⚠ {manifest.regulatory_notice}
+      </div>
+
+      {/* Download buttons */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => downloadFile("json")}
+          className="btn-secondary text-sm flex items-center gap-1.5"
+        >
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download .json
+        </button>
+        <button
+          onClick={() => downloadFile("txt")}
+          className="btn-secondary text-sm flex items-center gap-1.5"
+        >
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download .txt
+        </button>
+      </div>
+
+      {/* Pretty JSON viewer */}
+      <div>
+        <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+          Full manifest
+        </div>
+        <pre
+          className="text-xs font-mono overflow-auto max-h-[560px] p-4 bg-slate-50 dark:bg-slate-900/60 rounded-lg border border-slate-200 dark:border-slate-700 leading-relaxed"
+          // Safe: content is API-returned JSON serialised by us; HTML is escaped before highlighting
+          dangerouslySetInnerHTML={{
+            __html: _syntaxHighlight(JSON.stringify(manifest, null, 2)),
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -803,8 +987,9 @@ export default function CertificatePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { client } = useApiKey();
+  const { client, apiKey } = useApiKey();
   const [exporting, setExporting] = useState(false);
+  const [activeTab, setActiveTab] = useState<"gates" | "watermark" | "compliance">("gates");
 
   async function handleExport() {
     setExporting(true);
@@ -937,8 +1122,31 @@ export default function CertificatePage({
         </div>
       </div>
 
+      {/* Tab bar */}
+      <div className="flex border-b border-slate-200 dark:border-slate-700">
+        {(
+          [
+            { key: "gates", label: "Biosafety Gates" },
+            { key: "watermark", label: "Watermark" },
+            { key: "compliance", label: "Compliance" },
+          ] as const
+        ).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+              activeTab === key
+                ? "border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 -mb-px"
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Consequence report */}
-      {report ? (
+      {activeTab === "gates" && report && (
         <div className="space-y-3">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
@@ -991,17 +1199,30 @@ export default function CertificatePage({
             </p>
           )}
         </div>
-      ) : (
+      )}
+
+      {activeTab === "gates" && !report && (
         <div className="card p-6 text-slate-500 dark:text-slate-400 text-sm">
           No biosafety report available.
         </div>
       )}
 
       {/* Watermark codon bias */}
-      {cert.watermark_metadata && (
-        <div className="card p-6">
-          <CodonBiasChart watermark={cert.watermark_metadata as WatermarkMetadata} />
-        </div>
+      {activeTab === "watermark" && (
+        cert.watermark_metadata ? (
+          <div className="card p-6">
+            <CodonBiasChart watermark={cert.watermark_metadata as WatermarkMetadata} />
+          </div>
+        ) : (
+          <div className="card p-6 text-slate-500 dark:text-slate-400 text-sm">
+            No watermark metadata available.
+          </div>
+        )
+      )}
+
+      {/* Compliance attestation */}
+      {activeTab === "compliance" && (
+        <ComplianceTab id={id} client={client} />
       )}
 
       <div className="pt-2 flex items-center gap-3">

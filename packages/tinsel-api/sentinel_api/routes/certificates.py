@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from tinsel.compliance import build_compliance_manifest
 from tinsel.crypto import ALGORITHM_WOTS, PQSigner
 from tinsel.registry import AnchorMap, WatermarkConfig
 from tinsel.watermark.decoder import TINSELDecoder
@@ -274,4 +277,85 @@ async def verify_certificate(
         "tier": vr.tier.value,
         "watermark_id": vr.watermark_id,
         "failure_reason": vr.failure_reason,
+    }
+
+
+@router.get("/{registry_id}/compliance")
+async def get_compliance_manifest(
+    registry_id: str,
+    frameworks: str = Query("US_DURC,EU_DUAL_USE", description="Comma-separated framework IDs"),
+    db: AsyncSession = Depends(get_db),
+    org: Organisation = Depends(require_api_key),
+) -> dict:
+    """Full compliance attestation manifest (authenticated).
+
+    Returns a ComplianceManifest with one FrameworkAttestation per requested
+    framework.  Supported values: ``US_DURC``, ``EU_DUAL_USE``.
+    """
+    result = await db.execute(
+        select(Certificate).where(Certificate.id == registry_id)
+    )
+    cert = result.scalars().first()
+    if cert is None or cert.org_id != org.id:
+        raise HTTPException(status_code=404, detail=f"Certificate '{registry_id}' not found")
+
+    fw_list = [f.strip() for f in frameworks.split(",") if f.strip()]
+    cert_data = {
+        "registry_id": cert.id,
+        "certificate_hash": cert.certificate_hash,
+        "sequence_hash": cert.sequence_hash,
+        "status": cert.status,
+        "timestamp": cert.timestamp.isoformat(),
+        "owner_id": cert.owner_id,
+        "org_id": str(cert.org_id),
+        "ethics_code": cert.ethics_code,
+        "host_organism": cert.host_organism,
+        "consequence_report": cert.consequence_report,
+        "wots_public_key": cert.wots_public_key or {},
+    }
+    manifest = build_compliance_manifest(cert_data, frameworks=fw_list)
+    return manifest.model_dump()
+
+
+@router.get("/{registry_id}/compliance/verify")
+async def verify_compliance_public(
+    registry_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Public minimal compliance proof — no authentication required.
+
+    Only available for certificates with ``visibility = 'public'``.
+    Returns a tamper-evident summary suitable for third-party verification
+    (e.g. by DNA synthesis providers).  Does not expose gate internals or
+    sequence data.
+    """
+    result = await db.execute(
+        select(Certificate).where(
+            Certificate.id == registry_id,
+            Certificate.visibility == "public",
+        )
+    )
+    cert = result.scalars().first()
+    if cert is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Certificate '{registry_id}' not found or not publicly visible",
+        )
+
+    pk_dict = cert.wots_public_key or {}
+    report = cert.consequence_report or {}
+    gate2 = report.get("gate2") or {}
+    databases = gate2.get("databases_queried") or []
+
+    return {
+        "registry_id": cert.id,
+        "certificate_hash": cert.certificate_hash,
+        "sequence_hash": cert.sequence_hash,
+        "status": cert.status,
+        "certified_at": cert.timestamp.isoformat(),
+        "pq_algorithm": pk_dict.get("algorithm_id", "stub_zero_v1"),
+        "pq_is_stub": pk_dict.get("is_stub", True),
+        "overall_gate_status": report.get("overall_status", "skip"),
+        "screening_databases": [db.get("name") for db in databases if db.get("name")],
+        "verified_at": datetime.now(UTC).isoformat(),
     }
