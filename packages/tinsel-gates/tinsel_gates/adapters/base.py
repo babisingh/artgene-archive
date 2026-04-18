@@ -1,4 +1,4 @@
-"""Abstract base classes for the three consequence gate adapters.
+"""Abstract base classes for the four consequence gate adapters.
 
 Every gate has two implementations:
     Real{Gate}Adapter   — makes actual HTTP/API calls (Phase 2+)
@@ -10,7 +10,7 @@ Selection is controlled by the ``env`` parameter to
 
 from abc import ABC, abstractmethod
 
-from tinsel.consequence import Gate1Result, Gate2Result, Gate3Result
+from tinsel.consequence import Gate1Result, Gate2Result, Gate3Result, Gate4Result
 
 
 class Gate1Adapter(ABC):
@@ -24,13 +24,13 @@ class Gate1Adapter(ABC):
 
 
 class Gate2Adapter(ABC):
-    """Off-target gate — NCBI BLAST + ToxinPred2 + AllerTop."""
+    """Off-target gate — composition + SecureDNA DOPRF + IBBIS commec."""
 
     mock_mode: bool = False
 
     @abstractmethod
     async def run(self, dna: str, protein: str) -> Gate2Result:
-        """Screen for human off-target hits, toxicity, and allergenicity."""
+        """Screen for off-target hits, toxicity, allergenicity via chained databases."""
 
 
 class Gate3Adapter(ABC):
@@ -41,3 +41,17 @@ class Gate3Adapter(ABC):
     @abstractmethod
     async def run(self, dna: str, protein: str) -> Gate3Result:
         """Assess ecological risk: pathogens, horizontal gene transfer, drift."""
+
+
+class Gate4Adapter(ABC):
+    """Functional analogue gate — protein language model embedding similarity.
+
+    Detects AI-designed variants that have diverged from known dangerous sequences
+    yet retain dangerous function.  Operates in embedding space, not sequence space.
+    """
+
+    mock_mode: bool = False
+
+    @abstractmethod
+    async def run(self, dna: str, protein: str) -> Gate4Result:
+        """Compute embedding similarity to known dangerous protein families."""

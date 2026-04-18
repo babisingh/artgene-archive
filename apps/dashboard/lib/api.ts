@@ -104,11 +104,42 @@ export interface Gate3Result {
   hgt_risk_factors: string[] | null;
 }
 
+export interface Gate4Hit {
+  family: string;
+  organism: string;
+  uniprot: string;
+  category: string;
+  similarity: number;
+  threshold_fail: number;
+  threshold_warn: number;
+  status: "fail" | "warn" | "pass";
+}
+
+export interface Gate4Result {
+  status: GateStatus;
+  /**
+   * "composition_fingerprint_v1" — 420-D amino acid + dipeptide vector (demo/dev)
+   * "esm2_cosine_v1"             — ESM-2 650M mean-pooled embeddings (production)
+   * "mock_v1"                    — test mock
+   */
+  method: string;
+  query_dimensions: number;
+  references_screened: number;
+  threshold_fail: number;
+  threshold_warn: number;
+  max_similarity: number | null;
+  top_hits: Gate4Hit[];
+  message: string | null;
+  /** Explains demo vs production method and threshold values */
+  note: string | null;
+}
+
 export interface ConsequenceReport {
   overall_status: GateStatus;
   gate1: Gate1Result | null;
   gate2: Gate2Result | null;
   gate3: Gate3Result | null;
+  gate4: Gate4Result | null;
   skipped_gates: number[];
   run_gates: number[];
   /** "real" = production adapters ran; "mock" = test stubs ran — no real biosafety assurance */

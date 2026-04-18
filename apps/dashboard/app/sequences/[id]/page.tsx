@@ -23,6 +23,8 @@ import type {
   Gate1Result,
   Gate2Result,
   Gate3Result,
+  Gate4Hit,
+  Gate4Result,
   GateStatus,
   IBBISHit,
   SecureDNAHit,
@@ -641,6 +643,157 @@ function Gate3Panel({ gate3 }: { gate3: Gate3Result }) {
 }
 
 // ---------------------------------------------------------------------------
+// Gate 4 — functional analogue detection (embedding cosine similarity)
+// ---------------------------------------------------------------------------
+
+function SimilarityBar({
+  value,
+  thresholdFail,
+  thresholdWarn,
+}: {
+  value: number;
+  thresholdFail: number;
+  thresholdWarn: number;
+}) {
+  const pct = Math.round(value * 100);
+  const failPct = Math.round(thresholdFail * 100);
+  const warnPct = Math.round(thresholdWarn * 100);
+  const barColor =
+    value >= thresholdFail ? "bg-red-500" :
+    value >= thresholdWarn ? "bg-amber-400" :
+    "bg-emerald-500";
+
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs">
+        <span className="text-slate-600 dark:text-slate-300">Max cosine similarity</span>
+        <span className={`font-mono font-bold ${value >= thresholdFail ? "text-red-500" : value >= thresholdWarn ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+          {value.toFixed(4)}
+        </span>
+      </div>
+      <div className="relative h-3 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+        <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+        {/* Threshold markers */}
+        <div
+          className="absolute top-0 bottom-0 w-0.5 bg-amber-500/70"
+          style={{ left: `${warnPct}%` }}
+          title={`WARN threshold: ${thresholdWarn}`}
+        />
+        <div
+          className="absolute top-0 bottom-0 w-0.5 bg-red-500/70"
+          style={{ left: `${failPct}%` }}
+          title={`FAIL threshold: ${thresholdFail}`}
+        />
+      </div>
+      <div className="flex justify-between text-xs text-slate-400">
+        <span>0.0</span>
+        <span className="text-amber-500">WARN ≥{thresholdWarn}</span>
+        <span className="text-red-500">FAIL ≥{thresholdFail}</span>
+        <span>1.0</span>
+      </div>
+    </div>
+  );
+}
+
+function Gate4Panel({ gate4 }: { gate4: Gate4Result }) {
+  const isProd = gate4.method === "esm2_cosine_v1";
+  const maxSim = gate4.max_similarity ?? 0;
+
+  return (
+    <div className="space-y-5">
+      {/* Method badge + note */}
+      <div className="flex items-start gap-3">
+        <span className={`text-xs px-2 py-1 rounded border font-mono shrink-0 ${isProd ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-700" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700"}`}>
+          {gate4.method}
+        </span>
+        <div className="text-xs text-slate-500 dark:text-slate-400 flex-1">
+          {gate4.note && <p className="italic">{gate4.note}</p>}
+        </div>
+      </div>
+
+      {/* Summary metrics */}
+      <div className="grid grid-cols-3 gap-3">
+        <StatCard
+          label="References screened"
+          value={String(gate4.references_screened)}
+          sub="dangerous families"
+        />
+        <StatCard
+          label="Embedding dimensions"
+          value={String(gate4.query_dimensions)}
+          sub={isProd ? "ESM-2 mean-pool" : "AA + dipeptide"}
+        />
+        <StatCard
+          label="Max similarity"
+          value={maxSim.toFixed(4)}
+          sub={`FAIL ≥ ${gate4.threshold_fail}`}
+          color={
+            maxSim >= gate4.threshold_fail ? "text-red-500" :
+            maxSim >= gate4.threshold_warn ? "text-amber-600 dark:text-amber-400" :
+            "text-emerald-600 dark:text-emerald-400"
+          }
+        />
+      </div>
+
+      {/* Cosine similarity gauge with threshold markers */}
+      <SimilarityBar
+        value={maxSim}
+        thresholdFail={gate4.threshold_fail}
+        thresholdWarn={gate4.threshold_warn}
+      />
+
+      {/* Per-family similarity table */}
+      {gate4.top_hits.length > 0 && (
+        <div>
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+            Reference Family Similarity Scores
+          </h4>
+          <div className="space-y-2">
+            {gate4.top_hits.map((hit: Gate4Hit, i: number) => {
+              const hitColor =
+                hit.status === "fail" ? "border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20" :
+                hit.status === "warn" ? "border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20" :
+                "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800";
+              const simColor =
+                hit.status === "fail" ? "text-red-600 dark:text-red-400" :
+                hit.status === "warn" ? "text-amber-600 dark:text-amber-400" :
+                "text-emerald-600 dark:text-emerald-400";
+
+              return (
+                <div key={i} className={`flex items-center gap-3 p-2.5 rounded border text-xs ${hitColor}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-slate-800 dark:text-slate-200 truncate">{hit.family}</div>
+                    <div className="text-slate-500 dark:text-slate-400">{hit.organism} · {hit.category}</div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className={`font-mono font-bold text-sm ${simColor}`}>{hit.similarity.toFixed(4)}</div>
+                    <div className="text-slate-400 text-[10px]">UniProt: {hit.uniprot}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Scientific context */}
+      <div className="text-xs text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700 pt-3 space-y-1">
+        <p>
+          <strong>Gate 4</strong> detects AI-designed protein variants that retain dangerous biological function
+          but have diverged from known sequences (the Microsoft/Science 2025 challenge). It operates in
+          embedding space — not sequence space — so it catches variants that evade Gates 1–3.
+        </p>
+        <p>
+          Cosine similarity ≥ <span className="text-red-500 font-mono">{gate4.threshold_fail}</span> → FAIL &nbsp;|&nbsp;
+          ≥ <span className="text-amber-500 font-mono">{gate4.threshold_warn}</span> → WARN &nbsp;|&nbsp;
+          &lt; <span className="text-emerald-500 font-mono">{gate4.threshold_warn}</span> → PASS
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -800,6 +953,19 @@ export default function CertificatePage({
           {report.gate3 && (
             <GateItem title="Gate 3: Ecological Risk (HGT / Codon Adaptation)" status={report.gate3.status}>
               <Gate3Panel gate3={report.gate3 as Gate3Result} />
+            </GateItem>
+          )}
+
+          {report.gate4 && (
+            <GateItem
+              title={
+                report.gate4.method === "esm2_cosine_v1"
+                  ? "Gate 4: Functional Analogue Detection (ESM-2 Embedding Cosine Similarity)"
+                  : "Gate 4: Functional Analogue Detection (Composition Fingerprint · Demo)"
+              }
+              status={report.gate4.status}
+            >
+              <Gate4Panel gate4={report.gate4 as Gate4Result} />
             </GateItem>
           )}
 

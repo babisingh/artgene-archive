@@ -1,4 +1,4 @@
-"""Unit tests for run_consequence_pipeline() — 8 test cases.
+"""Unit tests for run_consequence_pipeline() — 10 test cases.
 
 All tests run in mock mode (env="test") so no network calls are made.
 Adapter behaviour is controlled via dependency injection: pass a
@@ -6,14 +6,16 @@ configured Mock{Gate}Adapter to force the desired outcome.
 
 Test matrix
 -----------
-1. All gates pass         — default mock adapters, everything green
-2. Gate 1 FAIL            — gates 2+3 skipped (fail-fast)
-3. Gate 2 FAIL (toxin)    — ToxinPred2 probability above threshold
-4. Gate 2 FAIL (BLAST)    — off-target human protein hits detected
-5. Gate 3 FAIL (HGT)      — horizontal gene transfer score above threshold
-6. Gate 3 FAIL (pathogen) — known pathogen sequence match
-7. run_gates=(1,)         — gate 1 only; gates 2+3 are None, not skipped
+1. All gates pass             — default mock adapters, everything green
+2. Gate 1 FAIL                — gates 2+3+4 skipped (fail-fast)
+3. Gate 2 FAIL (toxin)        — ToxinPred2 probability above threshold
+4. Gate 2 FAIL (BLAST)        — off-target human protein hits detected
+5. Gate 3 FAIL (HGT)          — horizontal gene transfer score above threshold
+6. Gate 3 FAIL (pathogen)     — known pathogen sequence match
+7. run_gates=(1,)             — gate 1 only; gates 2+3+4 are None, not skipped
 8. ConsequenceReport fields fully populated — every field non-None
+9. Gate 4 FAIL (similarity)   — functional analogue detected above threshold
+10. Gate 4 WARN (similarity)  — moderate functional similarity, below FAIL
 """
 
 import pytest
@@ -22,6 +24,7 @@ from tinsel.models import GateStatus
 from tinsel_gates.adapters.gate1 import MockGate1Adapter
 from tinsel_gates.adapters.gate2 import MockGate2Adapter
 from tinsel_gates.adapters.gate3 import MockGate3Adapter
+from tinsel_gates.adapters.gate4 import MockGate4Adapter
 from tinsel_gates.pipeline import run_consequence_pipeline
 
 # ---------------------------------------------------------------------------
@@ -68,9 +71,11 @@ async def test_gate1_fail_skips_downstream() -> None:
     assert report.gate1.status == GateStatus.FAIL
     assert report.gate2 is None, "Gate 2 should be skipped when gate 1 fails"
     assert report.gate3 is None, "Gate 3 should be skipped when gate 1 fails"
+    assert report.gate4 is None, "Gate 4 should be skipped when gate 1 fails"
     assert report.overall_status == GateStatus.FAIL
     assert 2 in report.skipped_gates
     assert 3 in report.skipped_gates
+    assert 4 in report.skipped_gates
 
 
 # ---------------------------------------------------------------------------
@@ -176,6 +181,7 @@ async def test_run_gate1_only() -> None:
     assert report.gate1.status == GateStatus.PASS
     assert report.gate2 is None, "Gate 2 was not requested"
     assert report.gate3 is None, "Gate 3 was not requested"
+    assert report.gate4 is None, "Gate 4 was not requested"
     # Not skipped — simply not requested
     assert report.skipped_gates == []
     assert report.overall_status == GateStatus.PASS
@@ -209,8 +215,57 @@ async def test_consequence_report_fully_populated() -> None:
     assert report.gate3.escape_probability is not None
     assert report.gate3.message is not None
 
+    # Gate 4 functional embedding fields
+    assert report.gate4 is not None
+    assert report.gate4.method is not None
+    assert report.gate4.references_screened is not None
+    assert report.gate4.max_similarity is not None
+    assert report.gate4.message is not None
+
     # Top-level report fields
     assert report.overall_status is not None
     assert isinstance(report.skipped_gates, list)
     assert isinstance(report.run_gates, tuple)
-    assert set(report.run_gates) == {1, 2, 3}
+    assert set(report.run_gates) == {1, 2, 3, 4}
+
+
+# ---------------------------------------------------------------------------
+# Test 9 — Gate 4 FAIL via functional similarity
+# ---------------------------------------------------------------------------
+
+async def test_gate4_fail_functional_similarity() -> None:
+    analogue_g4 = MockGate4Adapter(max_similarity=0.92)  # 0.92 >= 0.85 → FAIL
+
+    report = await run_consequence_pipeline(
+        protein=PROTEIN,
+        dna=DNA,
+        env="test",
+        gate4_adapter=analogue_g4,
+    )
+
+    assert report.gate1.status == GateStatus.PASS
+    assert report.gate4 is not None
+    assert report.gate4.status == GateStatus.FAIL
+    assert report.gate4.max_similarity == pytest.approx(0.92)
+    assert report.overall_status == GateStatus.FAIL
+    assert report.skipped_gates == []  # gates 2 and 3 still ran
+
+
+# ---------------------------------------------------------------------------
+# Test 10 — Gate 4 WARN via moderate similarity
+# ---------------------------------------------------------------------------
+
+async def test_gate4_warn_moderate_similarity() -> None:
+    moderate_g4 = MockGate4Adapter(max_similarity=0.75)  # 0.70 ≤ 0.75 < 0.85 → WARN
+
+    report = await run_consequence_pipeline(
+        protein=PROTEIN,
+        dna=DNA,
+        env="test",
+        gate4_adapter=moderate_g4,
+    )
+
+    assert report.gate4 is not None
+    assert report.gate4.status == GateStatus.WARN
+    assert report.gate4.max_similarity == pytest.approx(0.75)
+    assert report.overall_status == GateStatus.WARN
