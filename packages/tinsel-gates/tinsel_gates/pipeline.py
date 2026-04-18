@@ -35,7 +35,7 @@ from tinsel.models import GateStatus
 
 from tinsel_gates.adapters.base import Gate1Adapter, Gate2Adapter, Gate3Adapter
 from tinsel_gates.adapters.gate1 import ESMFoldGate1Adapter, MockGate1Adapter
-from tinsel_gates.adapters.gate2 import CompositionGate2Adapter, MockGate2Adapter
+from tinsel_gates.adapters.gate2 import ChainedGate2Adapter, CompositionGate2Adapter, MockGate2Adapter
 from tinsel_gates.adapters.gate3 import MockGate3Adapter
 from tinsel_gates.adapters.gate3.codon import make_codon_gate3_adapter
 
@@ -54,8 +54,8 @@ def _build_gate1(env: str) -> Gate1Adapter:
 
 def _build_gate2(env: str) -> Gate2Adapter:
     if env in _REAL_ENVS:
-        logger.debug("Gate 2: using CompositionGate2Adapter (env=%s)", env)
-        return CompositionGate2Adapter()
+        logger.debug("Gate 2: using ChainedGate2Adapter (composition + SecureDNA + IBBIS, env=%s)", env)
+        return ChainedGate2Adapter(use_mock_external=True)
     logger.debug("Gate 2: using MockGate2Adapter (env=%s)", env)
     return MockGate2Adapter()
 

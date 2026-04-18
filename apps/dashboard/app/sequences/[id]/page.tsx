@@ -19,10 +19,13 @@ import { CodonBiasChart } from "../../../components/CodonBiasChart";
 import { useApiKey } from "../../../lib/providers";
 import type {
   BlastHit,
+  DatabaseQueried,
   Gate1Result,
   Gate2Result,
   Gate3Result,
   GateStatus,
+  IBBISHit,
+  SecureDNAHit,
   WatermarkMetadata,
 } from "../../../lib/api";
 
@@ -283,83 +286,241 @@ function AminoAcidCompositionChart({ comp }: { comp: Record<string, number> }) {
   );
 }
 
-function Gate2Panel({ gate2 }: { gate2: Gate2Result }) {
+// ---------------------------------------------------------------------------
+// Gate 2 — databases queried summary strip
+// ---------------------------------------------------------------------------
+
+function DbStatusPill({ db }: { db: DatabaseQueried }) {
+  const color =
+    db.status === "fail" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-700" :
+    db.status === "warn" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-700" :
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-700";
+  const icon = db.status === "fail" ? "✗" : db.status === "warn" ? "⚠" : "✓";
   return (
-    <div className="space-y-4">
-      {gate2.message && (
-        <p className="text-sm text-slate-600 dark:text-slate-300">{gate2.message}</p>
-      )}
+    <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded border ${color}`}>
+      <span className="font-bold">{icon}</span>
+      <span className="font-medium">{db.name}</span>
+      {db.version && <span className="opacity-60">v{db.version}</span>}
+    </div>
+  );
+}
 
-      {/* Gauge bars */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-3">
-          {gate2.toxin_probability != null && (
-            <GaugeBar
-              label="Toxin probability"
-              value={gate2.toxin_probability}
-              failAt={0.30}
-              fmt={(v) => `${(v * 100).toFixed(1)}%`}
-            />
-          )}
-          {gate2.allergen_probability != null && (
-            <GaugeBar
-              label="Allergen probability"
-              value={gate2.allergen_probability}
-              failAt={0.40}
-              warnAt={0.30}
-              fmt={(v) => `${(v * 100).toFixed(1)}%`}
-            />
-          )}
-          {gate2.gravy_score != null && (
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-600 dark:text-slate-300">GRAVY score</span>
-                <span className={`font-mono font-semibold ${gate2.gravy_score > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                  {gate2.gravy_score > 0 ? "+" : ""}{gate2.gravy_score.toFixed(3)}
-                </span>
-              </div>
-              <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-700 relative overflow-hidden">
-                {/* Centre line at 50% */}
-                <div className="absolute left-1/2 top-0 bottom-0 w-px bg-slate-400/50" />
-                <div
-                  className={`h-full absolute ${gate2.gravy_score >= 0 ? "left-1/2 bg-amber-400" : "right-1/2 bg-blue-400"}`}
-                  style={{ width: `${Math.min(50, Math.abs(gate2.gravy_score) * 11)}%` }}
-                />
-              </div>
-              <p className="text-xs text-slate-400">Kyte-Doolittle; &gt;0 = hydrophobic</p>
-            </div>
-          )}
-        </div>
+// ---------------------------------------------------------------------------
+// Gate 2 — SecureDNA DOPRF panel
+// ---------------------------------------------------------------------------
 
-        {/* Toxin k-mer hits */}
-        <div>
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
-            Toxin motif matches ({gate2.blast_hits ?? 0})
-          </h4>
-          {gate2.blast_top_hits && gate2.blast_top_hits.length > 0 ? (
-            <div className="space-y-1">
-              {gate2.blast_top_hits.map((hit: BlastHit) => (
-                <div
-                  key={`${hit.motif}-${hit.position}`}
-                  className="flex items-start gap-2 text-xs p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
-                >
-                  <span className="font-mono text-red-700 dark:text-red-400 shrink-0">{hit.motif}</span>
-                  <span className="text-slate-600 dark:text-slate-300 truncate">{hit.description}</span>
-                  <span className="ml-auto font-mono text-slate-500 shrink-0">pos.{hit.position}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-emerald-600 dark:text-emerald-400">
-              No toxin motif matches detected
-            </p>
-          )}
+function SecureDNAPanel({ gate2 }: { gate2: Gate2Result }) {
+  if (!gate2.secureDNA_checked) return null;
+  const status = gate2.secureDNA_status;
+  const hits = gate2.secureDNA_hits ?? [];
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          SecureDNA DOPRF
+        </h4>
+        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <span>{gate2.secureDNA_windows_screened} × 30-bp windows</span>
+          {status && <StatusBadge status={status} />}
         </div>
       </div>
 
+      {hits.length > 0 ? (
+        <div className="space-y-1">
+          {hits.map((h: SecureDNAHit, i: number) => (
+            <div
+              key={i}
+              className="flex items-start gap-2 text-xs p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
+            >
+              <span className="font-bold text-red-600 dark:text-red-400 shrink-0">HAZARD</span>
+              <span className="text-slate-700 dark:text-slate-200 flex-1">{h.hazard_label}</span>
+              <span className="font-mono text-slate-400 shrink-0">pos.{h.position}</span>
+              <span className="font-mono text-slate-400 shrink-0 text-[10px]">token:{h.doprf_token}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-emerald-600 dark:text-emerald-400">
+          No hazardous 30-mer windows detected across {gate2.secureDNA_windows_screened} windows
+        </p>
+      )}
+
+      <p className="text-xs text-slate-400">
+        Cryptographic DOPRF protocol — query sequence is never revealed to the hazard database server.
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Gate 2 — IBBIS commec HMM panel
+// ---------------------------------------------------------------------------
+
+function IBBISPanel({ gate2 }: { gate2: Gate2Result }) {
+  if (!gate2.ibbis_checked) return null;
+  const status = gate2.ibbis_status;
+  const hits = gate2.ibbis_hits ?? [];
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          IBBIS commec HMM Profiles
+        </h4>
+        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <span>{gate2.ibbis_families_screened} families</span>
+          {status && <StatusBadge status={status} />}
+        </div>
+      </div>
+
+      {gate2.ibbis_families_screened === 0 ? (
+        <p className="text-xs text-slate-400 italic">
+          Sequence too short for HMM scoring (&lt;50 AA / 150 bp minimum)
+        </p>
+      ) : hits.length > 0 ? (
+        <div className="space-y-1">
+          {hits.map((h: IBBISHit, i: number) => (
+            <div
+              key={i}
+              className="flex items-start gap-2 text-xs p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
+            >
+              <div className="flex-1 space-y-0.5">
+                <div className="font-medium text-red-700 dark:text-red-400">{h.family_name}</div>
+                <div className="text-slate-500 dark:text-slate-400">
+                  {h.hmm_accession} · E-value: {h.evalue.toExponential(1)} · sig: <span className="font-mono">{h.matched_signature}</span>
+                </div>
+              </div>
+              <span className="font-mono text-slate-400 shrink-0">pos.{h.hit_position}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-emerald-600 dark:text-emerald-400">
+          No dangerous protein family homology detected across {gate2.ibbis_families_screened} HMM profiles
+        </p>
+      )}
+
+      <p className="text-xs text-slate-400">
+        HMM profile search detects functional homology to dangerous protein families — catches AI-designed
+        variants that evade sequence-based screening.
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Gate 2 — main panel (composition + SecureDNA + IBBIS)
+// ---------------------------------------------------------------------------
+
+function Gate2Panel({ gate2 }: { gate2: Gate2Result }) {
+  const isChained = gate2.screening_method === "chained_v1";
+
+  return (
+    <div className="space-y-5">
+      {/* Databases queried strip */}
+      {isChained && gate2.databases_queried && gate2.databases_queried.length > 0 && (
+        <div>
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+            Databases Queried
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {gate2.databases_queried.map((db: DatabaseQueried, i: number) => (
+              <DbStatusPill key={i} db={db} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Composition layer */}
+      <div className="space-y-4">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          Composition Heuristic
+        </h4>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-3">
+            {gate2.toxin_probability != null && (
+              <GaugeBar
+                label="Toxin probability"
+                value={gate2.toxin_probability}
+                failAt={0.30}
+                fmt={(v) => `${(v * 100).toFixed(1)}%`}
+              />
+            )}
+            {gate2.allergen_probability != null && (
+              <GaugeBar
+                label="Allergen probability"
+                value={gate2.allergen_probability}
+                failAt={0.40}
+                warnAt={0.30}
+                fmt={(v) => `${(v * 100).toFixed(1)}%`}
+              />
+            )}
+            {gate2.gravy_score != null && (
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-600 dark:text-slate-300">GRAVY score</span>
+                  <span className={`font-mono font-semibold ${gate2.gravy_score > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                    {gate2.gravy_score > 0 ? "+" : ""}{gate2.gravy_score.toFixed(3)}
+                  </span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-700 relative overflow-hidden">
+                  <div className="absolute left-1/2 top-0 bottom-0 w-px bg-slate-400/50" />
+                  <div
+                    className={`h-full absolute ${gate2.gravy_score >= 0 ? "left-1/2 bg-amber-400" : "right-1/2 bg-blue-400"}`}
+                    style={{ width: `${Math.min(50, Math.abs(gate2.gravy_score) * 11)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-slate-400">Kyte-Doolittle; &gt;0 = hydrophobic</p>
+              </div>
+            )}
+          </div>
+
+          {/* Toxin k-mer hits */}
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+              Toxin motif matches ({gate2.blast_hits ?? 0})
+            </h4>
+            {gate2.blast_top_hits && gate2.blast_top_hits.length > 0 ? (
+              <div className="space-y-1">
+                {gate2.blast_top_hits.map((hit: BlastHit) => (
+                  <div
+                    key={`${hit.motif}-${hit.position}`}
+                    className="flex items-start gap-2 text-xs p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
+                  >
+                    <span className="font-mono text-red-700 dark:text-red-400 shrink-0">{hit.motif}</span>
+                    <span className="text-slate-600 dark:text-slate-300 truncate">{hit.description}</span>
+                    <span className="ml-auto font-mono text-slate-500 shrink-0">pos.{hit.position}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                No toxin motif matches detected
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* SecureDNA layer */}
+      {isChained && (
+        <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+          <SecureDNAPanel gate2={gate2} />
+        </div>
+      )}
+
+      {/* IBBIS layer */}
+      {isChained && (
+        <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+          <IBBISPanel gate2={gate2} />
+        </div>
+      )}
+
       {/* Amino acid composition chart */}
       {gate2.amino_acid_composition && (
-        <div>
+        <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
           <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
             Amino acid composition
           </h4>
@@ -624,7 +785,14 @@ export default function CertificatePage({
           )}
 
           {report.gate2 && (
-            <GateItem title="Gate 2: Off-Target Screening (Toxin / Allergen)" status={report.gate2.status}>
+            <GateItem
+              title={
+                report.gate2.screening_method === "chained_v1"
+                  ? "Gate 2: Off-Target Screening (Composition + SecureDNA DOPRF + IBBIS commec)"
+                  : "Gate 2: Off-Target Screening (Toxin / Allergen)"
+              }
+              status={report.gate2.status}
+            >
               <Gate2Panel gate2={report.gate2 as Gate2Result} />
             </GateItem>
           )}

@@ -53,7 +53,8 @@ class Gate2Result(BaseModel):
 
     screening_method identifies which backend was used so downstream consumers
     (certificate viewers, auditors) can assess the strength of the screen:
-      "composition_heuristic_v1" — offline heuristics, 15-motif k-mer screen (current)
+      "composition_heuristic_v1" — offline heuristics, 15-motif k-mer screen
+      "chained_v1"               — composition + SecureDNA DOPRF + IBBIS commec (current)
       "blast_full_v1"            — NCBI BLAST + ToxinPred2 + AllerTop (Phase 3)
     """
 
@@ -67,6 +68,22 @@ class Gate2Result(BaseModel):
     blast_top_hits: list[dict] | None = None        # top motif/BLAST matches with scores
     gravy_score: float | None = None                # Kyte-Doolittle grand avg hydropathy
     amino_acid_composition: dict | None = None      # {AA: fraction} for 20 amino acids
+
+    # ── SecureDNA DOPRF screening ──────────────────────────────────────────
+    secureDNA_checked: bool = False
+    secureDNA_windows_screened: int = 0
+    secureDNA_hits: list[dict] = Field(default_factory=list)
+    secureDNA_status: GateStatus | None = None
+
+    # ── IBBIS commec HMM screening ─────────────────────────────────────────
+    ibbis_checked: bool = False
+    ibbis_families_screened: int = 0
+    ibbis_hits: list[dict] = Field(default_factory=list)
+    ibbis_status: GateStatus | None = None
+
+    # ── Audit: which databases were actually queried ────────────────────────
+    # Each entry: {name, version, method, windows_screened|families_screened, status, queried_at}
+    databases_queried: list[dict] = Field(default_factory=list)
 
     @field_validator("toxin_probability", "allergen_probability")
     @classmethod

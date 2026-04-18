@@ -37,18 +37,59 @@ export interface BlastHit {
   score: number;
 }
 
+export interface SecureDNAHit {
+  position: number;
+  window_length: number;
+  doprf_token: string;
+  hazard_label: string;
+  confidence: number;
+}
+
+export interface IBBISHit {
+  family_id: string;
+  family_name: string;
+  hmm_accession: string;
+  evalue: number;
+  matched_signature: string;
+  hit_position: number;
+}
+
+export interface DatabaseQueried {
+  name: string;
+  version: string;
+  method: string;
+  status: GateStatus;
+  windows_screened?: number;
+  families_screened?: number;
+  db_version?: string;
+  queried_at?: string;
+  note?: string;
+}
+
 export interface Gate2Result {
   status: GateStatus;
-  /** "composition_heuristic_v1" (current) or "blast_full_v1" (Phase 3) */
+  /** "composition_heuristic_v1" | "chained_v1" | "blast_full_v1" */
   screening_method: string;
   blast_hits: number | null;
   toxin_probability: number | null;
   allergen_probability: number | null;
   message: string | null;
-  // Rich visualization fields
+  // Composition rich visualization fields
   blast_top_hits: BlastHit[] | null;
   gravy_score: number | null;
   amino_acid_composition: Record<string, number> | null;
+  // SecureDNA DOPRF results
+  secureDNA_checked: boolean;
+  secureDNA_windows_screened: number;
+  secureDNA_hits: SecureDNAHit[];
+  secureDNA_status: GateStatus | null;
+  // IBBIS commec HMM results
+  ibbis_checked: boolean;
+  ibbis_families_screened: number;
+  ibbis_hits: IBBISHit[];
+  ibbis_status: GateStatus | null;
+  // Audit: databases queried (for compliance manifest)
+  databases_queried: DatabaseQueried[];
 }
 
 export interface Gate3Result {
