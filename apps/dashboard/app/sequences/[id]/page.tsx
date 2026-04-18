@@ -18,11 +18,18 @@ import {
 import { CodonBiasChart } from "../../../components/CodonBiasChart";
 import { useApiKey } from "../../../lib/providers";
 import type {
+  ApiClient,
   BlastHit,
+  ComplianceManifest,
+  DatabaseQueried,
   Gate1Result,
   Gate2Result,
   Gate3Result,
+  Gate4Hit,
+  Gate4Result,
   GateStatus,
+  IBBISHit,
+  SecureDNAHit,
   WatermarkMetadata,
 } from "../../../lib/api";
 
@@ -283,83 +290,241 @@ function AminoAcidCompositionChart({ comp }: { comp: Record<string, number> }) {
   );
 }
 
-function Gate2Panel({ gate2 }: { gate2: Gate2Result }) {
+// ---------------------------------------------------------------------------
+// Gate 2 — databases queried summary strip
+// ---------------------------------------------------------------------------
+
+function DbStatusPill({ db }: { db: DatabaseQueried }) {
+  const color =
+    db.status === "fail" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-700" :
+    db.status === "warn" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-700" :
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-700";
+  const icon = db.status === "fail" ? "✗" : db.status === "warn" ? "⚠" : "✓";
   return (
-    <div className="space-y-4">
-      {gate2.message && (
-        <p className="text-sm text-slate-600 dark:text-slate-300">{gate2.message}</p>
-      )}
+    <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded border ${color}`}>
+      <span className="font-bold">{icon}</span>
+      <span className="font-medium">{db.name}</span>
+      {db.version && <span className="opacity-60">v{db.version}</span>}
+    </div>
+  );
+}
 
-      {/* Gauge bars */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-3">
-          {gate2.toxin_probability != null && (
-            <GaugeBar
-              label="Toxin probability"
-              value={gate2.toxin_probability}
-              failAt={0.30}
-              fmt={(v) => `${(v * 100).toFixed(1)}%`}
-            />
-          )}
-          {gate2.allergen_probability != null && (
-            <GaugeBar
-              label="Allergen probability"
-              value={gate2.allergen_probability}
-              failAt={0.40}
-              warnAt={0.30}
-              fmt={(v) => `${(v * 100).toFixed(1)}%`}
-            />
-          )}
-          {gate2.gravy_score != null && (
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-600 dark:text-slate-300">GRAVY score</span>
-                <span className={`font-mono font-semibold ${gate2.gravy_score > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                  {gate2.gravy_score > 0 ? "+" : ""}{gate2.gravy_score.toFixed(3)}
-                </span>
-              </div>
-              <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-700 relative overflow-hidden">
-                {/* Centre line at 50% */}
-                <div className="absolute left-1/2 top-0 bottom-0 w-px bg-slate-400/50" />
-                <div
-                  className={`h-full absolute ${gate2.gravy_score >= 0 ? "left-1/2 bg-amber-400" : "right-1/2 bg-blue-400"}`}
-                  style={{ width: `${Math.min(50, Math.abs(gate2.gravy_score) * 11)}%` }}
-                />
-              </div>
-              <p className="text-xs text-slate-400">Kyte-Doolittle; &gt;0 = hydrophobic</p>
-            </div>
-          )}
-        </div>
+// ---------------------------------------------------------------------------
+// Gate 2 — SecureDNA DOPRF panel
+// ---------------------------------------------------------------------------
 
-        {/* Toxin k-mer hits */}
-        <div>
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
-            Toxin motif matches ({gate2.blast_hits ?? 0})
-          </h4>
-          {gate2.blast_top_hits && gate2.blast_top_hits.length > 0 ? (
-            <div className="space-y-1">
-              {gate2.blast_top_hits.map((hit: BlastHit) => (
-                <div
-                  key={`${hit.motif}-${hit.position}`}
-                  className="flex items-start gap-2 text-xs p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
-                >
-                  <span className="font-mono text-red-700 dark:text-red-400 shrink-0">{hit.motif}</span>
-                  <span className="text-slate-600 dark:text-slate-300 truncate">{hit.description}</span>
-                  <span className="ml-auto font-mono text-slate-500 shrink-0">pos.{hit.position}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-emerald-600 dark:text-emerald-400">
-              No toxin motif matches detected
-            </p>
-          )}
+function SecureDNAPanel({ gate2 }: { gate2: Gate2Result }) {
+  if (!gate2.secureDNA_checked) return null;
+  const status = gate2.secureDNA_status;
+  const hits = gate2.secureDNA_hits ?? [];
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          SecureDNA DOPRF
+        </h4>
+        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <span>{gate2.secureDNA_windows_screened} × 30-bp windows</span>
+          {status && <StatusBadge status={status} />}
         </div>
       </div>
 
+      {hits.length > 0 ? (
+        <div className="space-y-1">
+          {hits.map((h: SecureDNAHit, i: number) => (
+            <div
+              key={i}
+              className="flex items-start gap-2 text-xs p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
+            >
+              <span className="font-bold text-red-600 dark:text-red-400 shrink-0">HAZARD</span>
+              <span className="text-slate-700 dark:text-slate-200 flex-1">{h.hazard_label}</span>
+              <span className="font-mono text-slate-400 shrink-0">pos.{h.position}</span>
+              <span className="font-mono text-slate-400 shrink-0 text-[10px]">token:{h.doprf_token}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-emerald-600 dark:text-emerald-400">
+          No hazardous 30-mer windows detected across {gate2.secureDNA_windows_screened} windows
+        </p>
+      )}
+
+      <p className="text-xs text-slate-400">
+        Cryptographic DOPRF protocol — query sequence is never revealed to the hazard database server.
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Gate 2 — IBBIS commec HMM panel
+// ---------------------------------------------------------------------------
+
+function IBBISPanel({ gate2 }: { gate2: Gate2Result }) {
+  if (!gate2.ibbis_checked) return null;
+  const status = gate2.ibbis_status;
+  const hits = gate2.ibbis_hits ?? [];
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          IBBIS commec HMM Profiles
+        </h4>
+        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <span>{gate2.ibbis_families_screened} families</span>
+          {status && <StatusBadge status={status} />}
+        </div>
+      </div>
+
+      {gate2.ibbis_families_screened === 0 ? (
+        <p className="text-xs text-slate-400 italic">
+          Sequence too short for HMM scoring (&lt;50 AA / 150 bp minimum)
+        </p>
+      ) : hits.length > 0 ? (
+        <div className="space-y-1">
+          {hits.map((h: IBBISHit, i: number) => (
+            <div
+              key={i}
+              className="flex items-start gap-2 text-xs p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
+            >
+              <div className="flex-1 space-y-0.5">
+                <div className="font-medium text-red-700 dark:text-red-400">{h.family_name}</div>
+                <div className="text-slate-500 dark:text-slate-400">
+                  {h.hmm_accession} · E-value: {h.evalue.toExponential(1)} · sig: <span className="font-mono">{h.matched_signature}</span>
+                </div>
+              </div>
+              <span className="font-mono text-slate-400 shrink-0">pos.{h.hit_position}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-emerald-600 dark:text-emerald-400">
+          No dangerous protein family homology detected across {gate2.ibbis_families_screened} HMM profiles
+        </p>
+      )}
+
+      <p className="text-xs text-slate-400">
+        HMM profile search detects functional homology to dangerous protein families — catches AI-designed
+        variants that evade sequence-based screening.
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Gate 2 — main panel (composition + SecureDNA + IBBIS)
+// ---------------------------------------------------------------------------
+
+function Gate2Panel({ gate2 }: { gate2: Gate2Result }) {
+  const isChained = gate2.screening_method === "chained_v1";
+
+  return (
+    <div className="space-y-5">
+      {/* Databases queried strip */}
+      {isChained && gate2.databases_queried && gate2.databases_queried.length > 0 && (
+        <div>
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+            Databases Queried
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {gate2.databases_queried.map((db: DatabaseQueried, i: number) => (
+              <DbStatusPill key={i} db={db} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Composition layer */}
+      <div className="space-y-4">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          Composition Heuristic
+        </h4>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-3">
+            {gate2.toxin_probability != null && (
+              <GaugeBar
+                label="Toxin probability"
+                value={gate2.toxin_probability}
+                failAt={0.30}
+                fmt={(v) => `${(v * 100).toFixed(1)}%`}
+              />
+            )}
+            {gate2.allergen_probability != null && (
+              <GaugeBar
+                label="Allergen probability"
+                value={gate2.allergen_probability}
+                failAt={0.40}
+                warnAt={0.30}
+                fmt={(v) => `${(v * 100).toFixed(1)}%`}
+              />
+            )}
+            {gate2.gravy_score != null && (
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-600 dark:text-slate-300">GRAVY score</span>
+                  <span className={`font-mono font-semibold ${gate2.gravy_score > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                    {gate2.gravy_score > 0 ? "+" : ""}{gate2.gravy_score.toFixed(3)}
+                  </span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-700 relative overflow-hidden">
+                  <div className="absolute left-1/2 top-0 bottom-0 w-px bg-slate-400/50" />
+                  <div
+                    className={`h-full absolute ${gate2.gravy_score >= 0 ? "left-1/2 bg-amber-400" : "right-1/2 bg-blue-400"}`}
+                    style={{ width: `${Math.min(50, Math.abs(gate2.gravy_score) * 11)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-slate-400">Kyte-Doolittle; &gt;0 = hydrophobic</p>
+              </div>
+            )}
+          </div>
+
+          {/* Toxin k-mer hits */}
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+              Toxin motif matches ({gate2.blast_hits ?? 0})
+            </h4>
+            {gate2.blast_top_hits && gate2.blast_top_hits.length > 0 ? (
+              <div className="space-y-1">
+                {gate2.blast_top_hits.map((hit: BlastHit) => (
+                  <div
+                    key={`${hit.motif}-${hit.position}`}
+                    className="flex items-start gap-2 text-xs p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
+                  >
+                    <span className="font-mono text-red-700 dark:text-red-400 shrink-0">{hit.motif}</span>
+                    <span className="text-slate-600 dark:text-slate-300 truncate">{hit.description}</span>
+                    <span className="ml-auto font-mono text-slate-500 shrink-0">pos.{hit.position}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                No toxin motif matches detected
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* SecureDNA layer */}
+      {isChained && (
+        <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+          <SecureDNAPanel gate2={gate2} />
+        </div>
+      )}
+
+      {/* IBBIS layer */}
+      {isChained && (
+        <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+          <IBBISPanel gate2={gate2} />
+        </div>
+      )}
+
       {/* Amino acid composition chart */}
       {gate2.amino_acid_composition && (
-        <div>
+        <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
           <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
             Amino acid composition
           </h4>
@@ -480,6 +645,339 @@ function Gate3Panel({ gate3 }: { gate3: Gate3Result }) {
 }
 
 // ---------------------------------------------------------------------------
+// Gate 4 — functional analogue detection (embedding cosine similarity)
+// ---------------------------------------------------------------------------
+
+function SimilarityBar({
+  value,
+  thresholdFail,
+  thresholdWarn,
+}: {
+  value: number;
+  thresholdFail: number;
+  thresholdWarn: number;
+}) {
+  const pct = Math.round(value * 100);
+  const failPct = Math.round(thresholdFail * 100);
+  const warnPct = Math.round(thresholdWarn * 100);
+  const barColor =
+    value >= thresholdFail ? "bg-red-500" :
+    value >= thresholdWarn ? "bg-amber-400" :
+    "bg-emerald-500";
+
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs">
+        <span className="text-slate-600 dark:text-slate-300">Max cosine similarity</span>
+        <span className={`font-mono font-bold ${value >= thresholdFail ? "text-red-500" : value >= thresholdWarn ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+          {value.toFixed(4)}
+        </span>
+      </div>
+      <div className="relative h-3 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+        <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+        {/* Threshold markers */}
+        <div
+          className="absolute top-0 bottom-0 w-0.5 bg-amber-500/70"
+          style={{ left: `${warnPct}%` }}
+          title={`WARN threshold: ${thresholdWarn}`}
+        />
+        <div
+          className="absolute top-0 bottom-0 w-0.5 bg-red-500/70"
+          style={{ left: `${failPct}%` }}
+          title={`FAIL threshold: ${thresholdFail}`}
+        />
+      </div>
+      <div className="flex justify-between text-xs text-slate-400">
+        <span>0.0</span>
+        <span className="text-amber-500">WARN ≥{thresholdWarn}</span>
+        <span className="text-red-500">FAIL ≥{thresholdFail}</span>
+        <span>1.0</span>
+      </div>
+    </div>
+  );
+}
+
+function Gate4Panel({ gate4 }: { gate4: Gate4Result }) {
+  const isProd = gate4.method === "esm2_cosine_v1";
+  const maxSim = gate4.max_similarity ?? 0;
+
+  return (
+    <div className="space-y-5">
+      {/* Method badge + note */}
+      <div className="flex items-start gap-3">
+        <span className={`text-xs px-2 py-1 rounded border font-mono shrink-0 ${isProd ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-700" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700"}`}>
+          {gate4.method}
+        </span>
+        <div className="text-xs text-slate-500 dark:text-slate-400 flex-1">
+          {gate4.note && <p className="italic">{gate4.note}</p>}
+        </div>
+      </div>
+
+      {/* Summary metrics */}
+      <div className="grid grid-cols-3 gap-3">
+        <StatCard
+          label="References screened"
+          value={String(gate4.references_screened)}
+          sub="dangerous families"
+        />
+        <StatCard
+          label="Embedding dimensions"
+          value={String(gate4.query_dimensions)}
+          sub={isProd ? "ESM-2 mean-pool" : "AA + dipeptide"}
+        />
+        <StatCard
+          label="Max similarity"
+          value={maxSim.toFixed(4)}
+          sub={`FAIL ≥ ${gate4.threshold_fail}`}
+          color={
+            maxSim >= gate4.threshold_fail ? "text-red-500" :
+            maxSim >= gate4.threshold_warn ? "text-amber-600 dark:text-amber-400" :
+            "text-emerald-600 dark:text-emerald-400"
+          }
+        />
+      </div>
+
+      {/* Cosine similarity gauge with threshold markers */}
+      <SimilarityBar
+        value={maxSim}
+        thresholdFail={gate4.threshold_fail}
+        thresholdWarn={gate4.threshold_warn}
+      />
+
+      {/* Per-family similarity table */}
+      {gate4.top_hits.length > 0 && (
+        <div>
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+            Reference Family Similarity Scores
+          </h4>
+          <div className="space-y-2">
+            {gate4.top_hits.map((hit: Gate4Hit, i: number) => {
+              const hitColor =
+                hit.status === "fail" ? "border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20" :
+                hit.status === "warn" ? "border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20" :
+                "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800";
+              const simColor =
+                hit.status === "fail" ? "text-red-600 dark:text-red-400" :
+                hit.status === "warn" ? "text-amber-600 dark:text-amber-400" :
+                "text-emerald-600 dark:text-emerald-400";
+
+              return (
+                <div key={i} className={`flex items-center gap-3 p-2.5 rounded border text-xs ${hitColor}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-slate-800 dark:text-slate-200 truncate">{hit.family}</div>
+                    <div className="text-slate-500 dark:text-slate-400">{hit.organism} · {hit.category}</div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className={`font-mono font-bold text-sm ${simColor}`}>{hit.similarity.toFixed(4)}</div>
+                    <div className="text-slate-400 text-[10px]">UniProt: {hit.uniprot}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Scientific context */}
+      <div className="text-xs text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700 pt-3 space-y-1">
+        <p>
+          <strong>Gate 4</strong> detects AI-designed protein variants that retain dangerous biological function
+          but have diverged from known sequences (the Microsoft/Science 2025 challenge). It operates in
+          embedding space — not sequence space — so it catches variants that evade Gates 1–3.
+        </p>
+        <p>
+          Cosine similarity ≥ <span className="text-red-500 font-mono">{gate4.threshold_fail}</span> → FAIL &nbsp;|&nbsp;
+          ≥ <span className="text-amber-500 font-mono">{gate4.threshold_warn}</span> → WARN &nbsp;|&nbsp;
+          &lt; <span className="text-emerald-500 font-mono">{gate4.threshold_warn}</span> → PASS
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Compliance tab — pretty JSON viewer + framework selector + downloads
+// ---------------------------------------------------------------------------
+
+function _syntaxHighlight(json: string): string {
+  return json
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(
+      /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+      (match) => {
+        if (/^"/.test(match)) {
+          if (/:$/.test(match)) {
+            return `<span class="text-slate-600 dark:text-slate-300 font-semibold">${match}</span>`;
+          }
+          return `<span class="text-emerald-700 dark:text-emerald-400">${match}</span>`;
+        }
+        if (/true|false/.test(match)) {
+          return `<span class="text-purple-600 dark:text-purple-400">${match}</span>`;
+        }
+        if (/null/.test(match)) {
+          return `<span class="text-slate-400">${match}</span>`;
+        }
+        return `<span class="text-blue-600 dark:text-blue-400">${match}</span>`;
+      }
+    );
+}
+
+function ComplianceTab({ id, client }: { id: string; client: ApiClient }) {
+  const [frameworks, setFrameworks] = useState<"both" | "US_DURC" | "EU_DUAL_USE">("both");
+  const fwParam = frameworks === "both" ? "US_DURC,EU_DUAL_USE" : frameworks;
+
+  const { data: manifest, isLoading, isError, error } = useQuery({
+    queryKey: ["compliance", id, fwParam],
+    queryFn: () => client.getCompliance(id, fwParam),
+  });
+
+  function downloadFile(ext: "json" | "txt") {
+    if (!manifest) return;
+    const content = JSON.stringify(manifest, null, 2);
+    const blob = new Blob([content], {
+      type: ext === "json" ? "application/json" : "text/plain",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${id}-compliance.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  if (isLoading) {
+    return (
+      <div className="card p-8 text-center text-slate-400 dark:text-slate-500 text-sm">
+        Loading compliance manifest…
+      </div>
+    );
+  }
+  if (isError || !manifest) {
+    return (
+      <div className="card p-6 text-red-500 dark:text-red-400 text-sm">
+        {error instanceof Error ? error.message : "Failed to load compliance manifest"}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Framework selector */}
+      <div className="card p-4 flex flex-wrap items-center gap-3">
+        <span className="text-sm text-slate-500 dark:text-slate-400 shrink-0">Framework:</span>
+        <div className="flex gap-1.5 flex-wrap">
+          {(["both", "US_DURC", "EU_DUAL_USE"] as const).map((fw) => (
+            <button
+              key={fw}
+              onClick={() => setFrameworks(fw)}
+              className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
+                frameworks === fw
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+              }`}
+            >
+              {fw === "both" ? "Both frameworks" : fw}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Attestation status cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {manifest.framework_attestations.map((att) => {
+          const passed =
+            (att.fields.screening_passed as boolean | undefined) ??
+            (att.fields.approved_for_synthesis as boolean | undefined) ??
+            false;
+          return (
+            <div key={att.framework} className="card p-3 text-center">
+              <div className="text-xs text-slate-500 dark:text-slate-400">{att.framework}</div>
+              <div className="text-xs font-mono mt-1 text-slate-500 dark:text-slate-400">
+                {att.version}
+              </div>
+              <div
+                className={`text-sm font-bold mt-2 ${
+                  passed
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-red-500 dark:text-red-400"
+                }`}
+              >
+                {passed ? "ATTESTED" : "REJECTED"}
+              </div>
+            </div>
+          );
+        })}
+        <div className="card p-3 text-center">
+          <div className="text-xs text-slate-500 dark:text-slate-400">Databases Screened</div>
+          <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+            {manifest.databases_queried.length}
+          </div>
+        </div>
+        <div className="card p-3 text-center">
+          <div className="text-xs text-slate-500 dark:text-slate-400">PQ Signing</div>
+          <div
+            className={`text-xs font-mono mt-2 font-medium ${
+              manifest.wots_is_stub
+                ? "text-slate-400 dark:text-slate-500"
+                : "text-teal-600 dark:text-teal-400"
+            }`}
+          >
+            {manifest.wots_is_stub ? "stub" : "WOTS+"}
+          </div>
+        </div>
+      </div>
+
+      {/* Regulatory notice */}
+      <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 p-3 text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+        ⚠ {manifest.regulatory_notice}
+      </div>
+
+      {/* Download buttons */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => downloadFile("json")}
+          className="btn-secondary text-sm flex items-center gap-1.5"
+        >
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download .json
+        </button>
+        <button
+          onClick={() => downloadFile("txt")}
+          className="btn-secondary text-sm flex items-center gap-1.5"
+        >
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download .txt
+        </button>
+      </div>
+
+      {/* Pretty JSON viewer */}
+      <div>
+        <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+          Full manifest
+        </div>
+        <pre
+          className="text-xs font-mono overflow-auto max-h-[560px] p-4 bg-slate-50 dark:bg-slate-900/60 rounded-lg border border-slate-200 dark:border-slate-700 leading-relaxed"
+          // Safe: content is API-returned JSON serialised by us; HTML is escaped before highlighting
+          dangerouslySetInnerHTML={{
+            __html: _syntaxHighlight(JSON.stringify(manifest, null, 2)),
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -489,8 +987,9 @@ export default function CertificatePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { client } = useApiKey();
+  const { client, apiKey } = useApiKey();
   const [exporting, setExporting] = useState(false);
+  const [activeTab, setActiveTab] = useState<"gates" | "watermark" | "compliance">("gates");
 
   async function handleExport() {
     setExporting(true);
@@ -589,6 +1088,16 @@ export default function CertificatePage({
             >
               {cert.tier}
             </span>
+            {/* Post-quantum signature badge */}
+            {cert.pq_is_stub === false ? (
+              <span className="badge text-sm px-3 py-1 bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300 font-mono">
+                ✓ WOTS+ (PQ)
+              </span>
+            ) : (
+              <span className="badge text-sm px-3 py-1 bg-slate-100 text-slate-500 dark:bg-slate-700/50 dark:text-slate-400 font-mono" title="Pre-Session-3 certificate — PQ signature is a zero-filled stub">
+                ⚠ PQ stub
+              </span>
+            )}
           </div>
         </div>
 
@@ -604,11 +1113,40 @@ export default function CertificatePage({
             label="Cert Hash (SHA3-512)"
             value={<span className="text-xs">{cert.certificate_hash.slice(0, 32)}…</span>}
           />
+          {cert.pq_algorithm && cert.pq_is_stub === false && (
+            <Field
+              label="PQ Algorithm"
+              value={<span className="text-xs font-mono text-teal-700 dark:text-teal-400">{cert.pq_algorithm}</span>}
+            />
+          )}
         </div>
       </div>
 
+      {/* Tab bar */}
+      <div className="flex border-b border-slate-200 dark:border-slate-700">
+        {(
+          [
+            { key: "gates", label: "Biosafety Gates" },
+            { key: "watermark", label: "Watermark" },
+            { key: "compliance", label: "Compliance" },
+          ] as const
+        ).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+              activeTab === key
+                ? "border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 -mb-px"
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Consequence report */}
-      {report ? (
+      {activeTab === "gates" && report && (
         <div className="space-y-3">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
@@ -624,7 +1162,14 @@ export default function CertificatePage({
           )}
 
           {report.gate2 && (
-            <GateItem title="Gate 2: Off-Target Screening (Toxin / Allergen)" status={report.gate2.status}>
+            <GateItem
+              title={
+                report.gate2.screening_method === "chained_v1"
+                  ? "Gate 2: Off-Target Screening (Composition + SecureDNA DOPRF + IBBIS commec)"
+                  : "Gate 2: Off-Target Screening (Toxin / Allergen)"
+              }
+              status={report.gate2.status}
+            >
               <Gate2Panel gate2={report.gate2 as Gate2Result} />
             </GateItem>
           )}
@@ -635,23 +1180,49 @@ export default function CertificatePage({
             </GateItem>
           )}
 
+          {report.gate4 && (
+            <GateItem
+              title={
+                report.gate4.method === "esm2_cosine_v1"
+                  ? "Gate 4: Functional Analogue Detection (ESM-2 Embedding Cosine Similarity)"
+                  : "Gate 4: Functional Analogue Detection (Composition Fingerprint · Demo)"
+              }
+              status={report.gate4.status}
+            >
+              <Gate4Panel gate4={report.gate4 as Gate4Result} />
+            </GateItem>
+          )}
+
           {report.skipped_gates.length > 0 && (
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Gates {report.skipped_gates.join(", ")} were skipped (Gate 1 fail-fast).
             </p>
           )}
         </div>
-      ) : (
+      )}
+
+      {activeTab === "gates" && !report && (
         <div className="card p-6 text-slate-500 dark:text-slate-400 text-sm">
           No biosafety report available.
         </div>
       )}
 
       {/* Watermark codon bias */}
-      {cert.watermark_metadata && (
-        <div className="card p-6">
-          <CodonBiasChart watermark={cert.watermark_metadata as WatermarkMetadata} />
-        </div>
+      {activeTab === "watermark" && (
+        cert.watermark_metadata ? (
+          <div className="card p-6">
+            <CodonBiasChart watermark={cert.watermark_metadata as WatermarkMetadata} />
+          </div>
+        ) : (
+          <div className="card p-6 text-slate-500 dark:text-slate-400 text-sm">
+            No watermark metadata available.
+          </div>
+        )
+      )}
+
+      {/* Compliance attestation */}
+      {activeTab === "compliance" && (
+        <ComplianceTab id={id} client={client} />
       )}
 
       <div className="pt-2 flex items-center gap-3">

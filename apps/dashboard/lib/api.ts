@@ -37,18 +37,59 @@ export interface BlastHit {
   score: number;
 }
 
+export interface SecureDNAHit {
+  position: number;
+  window_length: number;
+  doprf_token: string;
+  hazard_label: string;
+  confidence: number;
+}
+
+export interface IBBISHit {
+  family_id: string;
+  family_name: string;
+  hmm_accession: string;
+  evalue: number;
+  matched_signature: string;
+  hit_position: number;
+}
+
+export interface DatabaseQueried {
+  name: string;
+  version: string;
+  method: string;
+  status: GateStatus;
+  windows_screened?: number;
+  families_screened?: number;
+  db_version?: string;
+  queried_at?: string;
+  note?: string;
+}
+
 export interface Gate2Result {
   status: GateStatus;
-  /** "composition_heuristic_v1" (current) or "blast_full_v1" (Phase 3) */
+  /** "composition_heuristic_v1" | "chained_v1" | "blast_full_v1" */
   screening_method: string;
   blast_hits: number | null;
   toxin_probability: number | null;
   allergen_probability: number | null;
   message: string | null;
-  // Rich visualization fields
+  // Composition rich visualization fields
   blast_top_hits: BlastHit[] | null;
   gravy_score: number | null;
   amino_acid_composition: Record<string, number> | null;
+  // SecureDNA DOPRF results
+  secureDNA_checked: boolean;
+  secureDNA_windows_screened: number;
+  secureDNA_hits: SecureDNAHit[];
+  secureDNA_status: GateStatus | null;
+  // IBBIS commec HMM results
+  ibbis_checked: boolean;
+  ibbis_families_screened: number;
+  ibbis_hits: IBBISHit[];
+  ibbis_status: GateStatus | null;
+  // Audit: databases queried (for compliance manifest)
+  databases_queried: DatabaseQueried[];
 }
 
 export interface Gate3Result {
@@ -63,11 +104,42 @@ export interface Gate3Result {
   hgt_risk_factors: string[] | null;
 }
 
+export interface Gate4Hit {
+  family: string;
+  organism: string;
+  uniprot: string;
+  category: string;
+  similarity: number;
+  threshold_fail: number;
+  threshold_warn: number;
+  status: "fail" | "warn" | "pass";
+}
+
+export interface Gate4Result {
+  status: GateStatus;
+  /**
+   * "composition_fingerprint_v1" — 420-D amino acid + dipeptide vector (demo/dev)
+   * "esm2_cosine_v1"             — ESM-2 650M mean-pooled embeddings (production)
+   * "mock_v1"                    — test mock
+   */
+  method: string;
+  query_dimensions: number;
+  references_screened: number;
+  threshold_fail: number;
+  threshold_warn: number;
+  max_similarity: number | null;
+  top_hits: Gate4Hit[];
+  message: string | null;
+  /** Explains demo vs production method and threshold values */
+  note: string | null;
+}
+
 export interface ConsequenceReport {
   overall_status: GateStatus;
   gate1: Gate1Result | null;
   gate2: Gate2Result | null;
   gate3: Gate3Result | null;
+  gate4: Gate4Result | null;
   skipped_gates: number[];
   run_gates: number[];
   /** "real" = production adapters ran; "mock" = test stubs ran — no real biosafety assurance */
@@ -126,6 +198,10 @@ export interface Certificate extends CertificateSummary {
   certificate_hash: string;
   watermark_metadata: WatermarkMetadata | null;
   consequence_report: ConsequenceReport | null;
+  /** Post-quantum signature algorithm ID, e.g. "wots_plus_sha3_256_w256_l35" */
+  pq_algorithm: string;
+  /** True for pre-Session-3 certificates with zero-filled stubs */
+  pq_is_stub: boolean;
 }
 
 export interface CertificateListResponse {
@@ -133,6 +209,55 @@ export interface CertificateListResponse {
   count: number;
   offset: number;
   limit: number;
+}
+
+export interface FrameworkAttestation {
+  framework: string;
+  version: string;
+  fields: Record<string, unknown>;
+}
+
+export interface ComplianceManifest {
+  schema_version: string;
+  generated_at: string;
+  registry_id: string;
+  certificate_hash: string;
+  sequence_hash: string;
+  status: string;
+  certified_at: string;
+  owner_id: string;
+  org_id: string;
+  ethics_code: string;
+  host_organism: string;
+  gate_mode: string;
+  run_gates: number[];
+  skipped_gates: number[];
+  gate_summary: Record<string, string>;
+  databases_queried: DatabaseQueried[];
+  wots_algorithm: string;
+  wots_is_stub: boolean;
+  framework_attestations: FrameworkAttestation[];
+  regulatory_notice: string;
+}
+
+export interface ComplianceVerify {
+  registry_id: string;
+  certificate_hash: string;
+  sequence_hash: string;
+  status: string;
+  certified_at: string;
+  pq_algorithm: string;
+  pq_is_stub: boolean;
+  overall_gate_status: string;
+  screening_databases: string[];
+  verified_at: string;
+}
+
+export function fetchComplianceVerify(registryId: string): Promise<ComplianceVerify> {
+  return fetch(`${BASE}/certificates/${registryId}/compliance/verify`).then((res) => {
+    if (!res.ok) throw new Error(`Compliance verify failed (${res.status})`);
+    return res.json() as Promise<ComplianceVerify>;
+  });
 }
 
 export interface RegistrationRequest {
@@ -362,6 +487,12 @@ export function createApiClient(apiKey: string) {
 
     exportCertificate: (registryId: string) =>
       apiFetch<Record<string, unknown>>(`/certificates/${registryId}/export`, apiKey),
+
+    getCompliance: (registryId: string, frameworks = "US_DURC,EU_DUAL_USE") =>
+      apiFetch<ComplianceManifest>(
+        `/certificates/${registryId}/compliance?frameworks=${encodeURIComponent(frameworks)}`,
+        apiKey
+      ),
 
     register: (body: RegistrationRequest) =>
       apiFetch<RegistrationResponse>("/register", apiKey, {

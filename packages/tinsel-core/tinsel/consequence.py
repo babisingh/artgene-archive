@@ -5,12 +5,13 @@ aggregated ConsequenceReport returned by run_consequence_pipeline().
 
 Gate hierarchy:
     Gate 1 (Structural)  — ESMFold pLDDT + Nussinov ΔMFE approximation
-    Gate 2 (Off-target)  — Composition-based heuristic screening (v1.0).
-                           Phase 3 will replace with real BLAST + ToxinPred2 + AllerTop.
+    Gate 2 (Off-target)  — Chained: composition + SecureDNA DOPRF + IBBIS commec HMM
     Gate 3 (Ecological)  — Codon-bias HGT scoring + escape probability model
+    Gate 4 (Functional)  — Protein language model embedding cosine similarity
+                           Detects AI-designed variants that evade sequence-based screens.
 
-Rule: Gate 1 runs first.  If it FAILs, gates 2 and 3 are skipped.
-      If gate 1 passes, gates 2 and 3 execute concurrently.
+Rule: Gate 1 runs first.  If it FAILs, gates 2, 3, 4 are skipped.
+      If gate 1 passes, gates 2, 3, 4 execute concurrently.
 """
 
 from __future__ import annotations
@@ -53,7 +54,8 @@ class Gate2Result(BaseModel):
 
     screening_method identifies which backend was used so downstream consumers
     (certificate viewers, auditors) can assess the strength of the screen:
-      "composition_heuristic_v1" — offline heuristics, 15-motif k-mer screen (current)
+      "composition_heuristic_v1" — offline heuristics, 15-motif k-mer screen
+      "chained_v1"               — composition + SecureDNA DOPRF + IBBIS commec (current)
       "blast_full_v1"            — NCBI BLAST + ToxinPred2 + AllerTop (Phase 3)
     """
 
@@ -67,6 +69,22 @@ class Gate2Result(BaseModel):
     blast_top_hits: list[dict] | None = None        # top motif/BLAST matches with scores
     gravy_score: float | None = None                # Kyte-Doolittle grand avg hydropathy
     amino_acid_composition: dict | None = None      # {AA: fraction} for 20 amino acids
+
+    # ── SecureDNA DOPRF screening ──────────────────────────────────────────
+    secureDNA_checked: bool = False
+    secureDNA_windows_screened: int = 0
+    secureDNA_hits: list[dict] = Field(default_factory=list)
+    secureDNA_status: GateStatus | None = None
+
+    # ── IBBIS commec HMM screening ─────────────────────────────────────────
+    ibbis_checked: bool = False
+    ibbis_families_screened: int = 0
+    ibbis_hits: list[dict] = Field(default_factory=list)
+    ibbis_status: GateStatus | None = None
+
+    # ── Audit: which databases were actually queried ────────────────────────
+    # Each entry: {name, version, method, windows_screened|families_screened, status, queried_at}
+    databases_queried: list[dict] = Field(default_factory=list)
 
     @field_validator("toxin_probability", "allergen_probability")
     @classmethod
@@ -97,17 +115,43 @@ class Gate3Result(BaseModel):
         return v
 
 
+class Gate4Result(BaseModel):
+    """Functional analogue detection gate result (Gate 4).
+
+    Detects AI-designed protein variants that retain dangerous function but
+    have diverged far enough from known sequences to evade Gates 1-3.
+
+    method identifies the embedding backend:
+      "composition_fingerprint_v1" — amino acid + dipeptide composition vector
+                                      (420-D; used in demo/dev for zero-dependency scoring)
+      "esm2_cosine_v1"             — ESM-2 650M language model embeddings (production)
+    """
+
+    status: GateStatus
+    method: str = "composition_fingerprint_v1"
+    query_dimensions: int = 0           # dimensionality of the query embedding vector
+    references_screened: int = 0        # number of dangerous family reference embeddings compared
+    threshold_fail: float = 0.85        # cosine similarity ≥ this → FAIL
+    threshold_warn: float = 0.70        # cosine similarity ≥ this → WARN
+    max_similarity: float | None = None # highest cosine similarity across all references
+    top_hits: list[dict] = Field(default_factory=list)
+    # Each hit: {family, organism, uniprot, similarity, threshold_fail, status}
+    message: str | None = None
+    note: str | None = None             # explains demo vs production method
+
+
 class ConsequenceReport(BaseModel):
-    """Aggregated output of the three-gate biosafety consequence pipeline."""
+    """Aggregated output of the four-gate biosafety consequence pipeline."""
 
     gate1: Gate1Result | None = None
     gate2: Gate2Result | None = None
     gate3: Gate3Result | None = None
+    gate4: Gate4Result | None = None
     overall_status: GateStatus
     # Gates present in run_gates that were skipped because gate 1 failed.
     skipped_gates: list[int] = Field(default_factory=list)
     # Which gate numbers were requested for this run.
-    run_gates: tuple[int, ...] = (1, 2, 3)
+    run_gates: tuple[int, ...] = (1, 2, 3, 4)
     # "real" when production/development adapters ran; "mock" when test stubs ran.
     # Certificates issued with gate_mode="mock" carry no real biosafety assurance.
     gate_mode: str = "real"
