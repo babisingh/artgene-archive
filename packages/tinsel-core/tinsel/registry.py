@@ -226,22 +226,35 @@ class CapacityReport(BaseModel):
 # ---------------------------------------------------------------------------
 
 class WOTSPublicKey(BaseModel):
-    """W-OTS+ public key placeholder (Phase 7 — not yet implemented)."""
+    """W-OTS+ public key (n=32, w=256, L=35 chains).
 
-    chains: list[str]     # WOTS_L hex-encoded 32-byte values
-    public_seed: str      # hex-encoded 32-byte seed
+    Real certificates have is_stub=False and algorithm_id set.
+    Legacy pre-Phase-7 stubs have is_stub=True and zero-filled chains.
+    """
+
+    chains: list[str]       # WOTS_L hex-encoded 32-byte values
+    public_seed: str        # hex-encoded 32-byte seed for bitmask generation
+    algorithm_id: str = "stub_zero_v1"
+    is_stub: bool = True
 
     @classmethod
     def stub(cls) -> WOTSPublicKey:
-        return cls(chains=["00" * 32] * 35, public_seed="00" * 32)
+        return cls(
+            chains=["00" * 32] * 35,
+            public_seed="00" * 32,
+            algorithm_id="stub_zero_v1",
+            is_stub=True,
+        )
 
 
 class WOTSSignature(BaseModel):
     """W-OTS+ one-time signature."""
 
-    signature_chains: list[str]  # WOTS_L hex-encoded 32-byte values
+    signature_chains: list[str]     # WOTS_L hex-encoded 32-byte values
     public_seed: str
-    message_hash: str            # hex-encoded SHA3-256 of signed material
+    message_hash: str               # hex-encoded SHA3-256 of signed material
+    algorithm_id: str = "stub_zero_v1"
+    is_stub: bool = True
 
     @classmethod
     def stub(cls, message_hash: str = "00" * 32) -> WOTSSignature:
@@ -249,6 +262,8 @@ class WOTSSignature(BaseModel):
             signature_chains=["00" * 32] * 35,
             public_seed="00" * 32,
             message_hash=message_hash,
+            algorithm_id="stub_zero_v1",
+            is_stub=True,
         )
 
 

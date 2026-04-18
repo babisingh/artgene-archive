@@ -23,6 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from tinsel.crypto import PQSigner
 from tinsel.registry import (
     CertificateStatus,
     HostOrganism,
@@ -223,14 +224,14 @@ async def register_sequence(
         )
     seq_hash = encoder.sequence_hash(protein)
 
-    # ── Step 5: Stub WOTS+ / LWE (Phase 7 replaces these) ────────────────
+    # ── Step 5: Post-quantum WOTS+ signing ───────────────────────────────
+    # cert_hash is computed in step 6, but we pre-compute signed_material here
+    # (cert_hash itself is derived from cert_fields without the PQ sig, to avoid
+    # a circular dependency: sig signs the hash, hash doesn't include the sig).
     signed_material = hashlib.sha3_256(
         seq_hash.encode() + registry_id.encode()
     ).hexdigest()
-
-    wots_pub = WOTSPublicKey.stub()
-    wots_sig = WOTSSignature.stub(message_hash=signed_material)
-    lwe_com = LWECommitmentData.stub()
+    lwe_com = LWECommitmentData.stub()  # LWE: Phase 4 (compliance session)
 
     # ── Step 6: Certificate hash ──────────────────────────────────────────
     cert_fields = {
@@ -245,6 +246,14 @@ async def register_sequence(
         "chi_squared": encode_result.codon_bias_metrics.chi_squared,
     }
     cert_hash = HybridCertificate.compute_hash(cert_fields)
+
+    # ── Step 6b: WOTS+ post-quantum signature over cert_hash ─────────────
+    # The PQSigner derives a per-certificate keypair deterministically from
+    # (spreading_key, registry_id) so the private key is never stored.
+    pq_signer = PQSigner(master_seed=spreading_key)
+    pk_dict, sig_dict = pq_signer.sign_certificate(registry_id, cert_hash)
+    wots_pub = WOTSPublicKey(**pk_dict)
+    wots_sig = WOTSSignature(**sig_dict)
 
     # ── Steps 7 + 8: Write certificate + audit log atomically ────────────
     # Both objects are added to the same session and committed together so

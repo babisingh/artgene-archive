@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from tinsel.crypto import ALGORITHM_WOTS, PQSigner
 from tinsel.registry import AnchorMap, WatermarkConfig
 from tinsel.watermark.decoder import TINSELDecoder
 
@@ -34,6 +35,7 @@ async def get_certificate(
     if cert is None or cert.org_id != org.id:
         raise HTTPException(status_code=404, detail=f"Certificate '{registry_id}' not found")
 
+    pk_dict = cert.wots_public_key or {}
     return {
         "registry_id": cert.id,
         "status": cert.status,
@@ -48,6 +50,8 @@ async def get_certificate(
         "certificate_hash": cert.certificate_hash,
         "watermark_metadata": cert.watermark_metadata,
         "consequence_report": cert.consequence_report,
+        "pq_algorithm": pk_dict.get("algorithm_id", "stub_zero_v1"),
+        "pq_is_stub": pk_dict.get("is_stub", True),
     }
 
 
@@ -142,13 +146,14 @@ async def export_certificate(
     if cert is None or cert.org_id != org.id:
         raise HTTPException(status_code=404, detail=f"Certificate '{registry_id}' not found")
 
+    # ── Determine PQ signature status ─────────────────────────────────────
+    pk_dict  = cert.wots_public_key  or {}
+    sig_dict = cert.wots_signature   or {}
+    pq_is_real = not pk_dict.get("is_stub", True)
+    pq_algorithm = pk_dict.get("algorithm_id", "stub_zero_v1")
+
     export_doc = {
-        "schema_version": "1.0",
-        "notice": (
-            "Post-quantum signatures (WOTS+/LWE) are Phase 7 placeholders and "
-            "carry no cryptographic guarantee in this release. "
-            "The HMAC-SHA3-256 codon watermark provides provenance only."
-        ),
+        "schema_version": "1.1",
         "registry_id": cert.id,
         "status": cert.status,
         "tier": cert.tier,
@@ -162,6 +167,23 @@ async def export_certificate(
         "certificate_hash": cert.certificate_hash,
         "watermark_metadata": cert.watermark_metadata,
         "consequence_report": cert.consequence_report,
+        "pq_signature": {
+            "algorithm": pq_algorithm,
+            "is_stub": not pq_is_real,
+            "public_key": {
+                "chains": pk_dict.get("chains", []),
+                "public_seed": pk_dict.get("public_seed", ""),
+            } if pq_is_real else None,
+            "signature": {
+                "chains": sig_dict.get("signature_chains", []),
+                "message_hash": sig_dict.get("message_hash", ""),
+            } if pq_is_real else None,
+            "notice": (
+                None if pq_is_real else
+                "Pre-session-3 certificate: PQ signature is a zero-filled stub. "
+                "Re-register to obtain a real WOTS+ signature."
+            ),
+        },
     }
 
     filename = f"{registry_id}.artgene.json"

@@ -198,6 +198,10 @@ export interface Certificate extends CertificateSummary {
   certificate_hash: string;
   watermark_metadata: WatermarkMetadata | null;
   consequence_report: ConsequenceReport | null;
+  /** Post-quantum signature algorithm ID, e.g. "wots_plus_sha3_256_w256_l35" */
+  pq_algorithm: string;
+  /** True for pre-Session-3 certificates with zero-filled stubs */
+  pq_is_stub: boolean;
 }
 
 export interface CertificateListResponse {

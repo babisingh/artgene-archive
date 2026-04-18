@@ -903,6 +903,16 @@ export default function CertificatePage({
             >
               {cert.tier}
             </span>
+            {/* Post-quantum signature badge */}
+            {cert.pq_is_stub === false ? (
+              <span className="badge text-sm px-3 py-1 bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300 font-mono">
+                ✓ WOTS+ (PQ)
+              </span>
+            ) : (
+              <span className="badge text-sm px-3 py-1 bg-slate-100 text-slate-500 dark:bg-slate-700/50 dark:text-slate-400 font-mono" title="Pre-Session-3 certificate — PQ signature is a zero-filled stub">
+                ⚠ PQ stub
+              </span>
+            )}
           </div>
         </div>
 
@@ -918,6 +928,12 @@ export default function CertificatePage({
             label="Cert Hash (SHA3-512)"
             value={<span className="text-xs">{cert.certificate_hash.slice(0, 32)}…</span>}
           />
+          {cert.pq_algorithm && cert.pq_is_stub === false && (
+            <Field
+              label="PQ Algorithm"
+              value={<span className="text-xs font-mono text-teal-700 dark:text-teal-400">{cert.pq_algorithm}</span>}
+            />
+          )}
         </div>
       </div>
 
