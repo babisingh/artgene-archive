@@ -20,7 +20,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from tinsel.fragment import Fragment, assemble, find_overlaps, parse_multi_fasta
 from tinsel.registry import HostOrganism
 from tinsel.sequence.fasta import normalise
 from tinsel.watermark.encoder import CODON_POOLS, _CODON_TO_AA
@@ -344,4 +345,216 @@ async def analyse_sequence(request: Request, body: AnalyseRequest) -> AnalyseRes
         watermarked_pairs=[[i, j] for i, j in wm_pairs],
         n_pairs_control=len(ctrl_pairs),
         n_pairs_watermarked=len(wm_pairs),
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /analyse/fragments — multi-fragment assembly risk screen (no auth)
+# ---------------------------------------------------------------------------
+
+_PRIVACY_NOTICE = (
+    "Sequences submitted to this endpoint are analysed in memory only and are not "
+    "stored, logged, or cached. No record of this submission is retained by ArtGene Archive."
+)
+
+_MAX_FRAGMENTS = 50
+_MIN_OVERLAP   = 20
+_MAX_SEQ_LEN   = 5_000   # per-fragment cap (AA)
+
+
+class FragmentsRequest(BaseModel):
+    fragments_fasta: str = Field(
+        description="Multi-FASTA input. Each >header line starts a new fragment. "
+                    f"Maximum {_MAX_FRAGMENTS} fragments, each up to {_MAX_SEQ_LEN} AA."
+    )
+    host_organism: str = "ECOLI"
+
+
+class FragmentScreenResult(BaseModel):
+    header: str
+    sequence_length: int
+    gate2_status: str
+    gate4_status: str
+    overall_status: str
+    message: str | None = None
+
+
+class AssemblyResult(BaseModel):
+    contigs_found: int
+    assembled_length: int
+    gate2_status: str
+    gate4_status: str
+    gate2_message: str | None
+    gate4_message: str | None
+    overall_status: str
+    risk_verdict: str   # "SAFE" | "WARN" | "BLOCKED"
+
+
+class FragmentsResponse(BaseModel):
+    privacy_notice: str = _PRIVACY_NOTICE
+    fragment_count: int
+    fragment_results: list[FragmentScreenResult]
+    assembly_detected: bool
+    overlaps_found: int
+    assembled_result: AssemblyResult | None
+    message: str
+
+
+@router.post("/analyse/fragments", tags=["demo"])
+@rate_limit_demo
+async def analyse_fragments(request: Request, body: FragmentsRequest) -> FragmentsResponse:
+    """Screen multiple fragments and their assembled product for biosafety risks.
+
+    No authentication required. Sequences are **never stored** — all analysis
+    runs in memory only.
+    """
+    from tinsel_gates.pipeline import run_consequence_pipeline
+
+    # ── 1. Parse fragments ────────────────────────────────────────────────
+    try:
+        fragments = parse_multi_fasta(body.fragments_fasta, max_fragments=_MAX_FRAGMENTS)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    # Validate individual fragment lengths
+    for frag in fragments:
+        if len(frag.sequence) > _MAX_SEQ_LEN:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Fragment '{frag.header}' exceeds {_MAX_SEQ_LEN} AA limit "
+                       f"({len(frag.sequence)} AA).",
+            )
+        if len(frag.sequence) < 3:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Fragment '{frag.header}' is too short (minimum 3 AA).",
+            )
+
+    env = settings.sentinel_env
+
+    # ── 2. Screen each fragment individually (Gates 2+4 only) ────────────
+    fragment_results: list[FragmentScreenResult] = []
+    for frag in fragments:
+        report = await run_consequence_pipeline(
+            protein=frag.sequence,
+            dna="",
+            env=env,
+            run_gates=(2, 4),
+        )
+        g2 = report.gate2
+        g4 = report.gate4
+        g2_status = g2.status if g2 else "skip"
+        g4_status = g4.status if g4 else "skip"
+
+        statuses = [s for s in (g2_status, g4_status) if s != "skip"]
+        if "fail" in statuses:
+            overall = "fail"
+        elif "warn" in statuses:
+            overall = "warn"
+        else:
+            overall = "pass"
+
+        msg_parts = []
+        if g2 and g2.message:
+            msg_parts.append(f"Gate 2: {g2.message}")
+        if g4 and g4.message:
+            msg_parts.append(f"Gate 4: {g4.message}")
+
+        fragment_results.append(FragmentScreenResult(
+            header=frag.header,
+            sequence_length=len(frag.sequence),
+            gate2_status=g2_status,
+            gate4_status=g4_status,
+            overall_status=overall,
+            message="; ".join(msg_parts) if msg_parts else None,
+        ))
+
+    # ── 3. Overlap detection + assembly ──────────────────────────────────
+    overlaps = find_overlaps(fragments, min_overlap=_MIN_OVERLAP)
+    contigs  = assemble(fragments, overlaps)
+
+    if not contigs:
+        summary = (
+            f"{len(fragments)} fragment(s) screened individually — no assembly overlap detected "
+            f"(minimum {_MIN_OVERLAP} AA overlap required)."
+        )
+        any_fail = any(r.overall_status == "fail" for r in fragment_results)
+        any_warn = any(r.overall_status == "warn" for r in fragment_results)
+        msg = (
+            "One or more individual fragments failed biosafety screening."
+            if any_fail else
+            "One or more individual fragments raised biosafety warnings."
+            if any_warn else
+            summary
+        )
+        return FragmentsResponse(
+            fragment_count=len(fragments),
+            fragment_results=fragment_results,
+            assembly_detected=False,
+            overlaps_found=0,
+            assembled_result=None,
+            message=msg,
+        )
+
+    # ── 4. Screen assembled contig(s) through Gates 2+4 ──────────────────
+    # Use the longest contig as the primary risk target
+    primary_contig = max(contigs, key=len)
+
+    assembly_report = await run_consequence_pipeline(
+        protein=primary_contig,
+        dna="",
+        env=env,
+        run_gates=(2, 4),
+    )
+
+    ag2 = assembly_report.gate2
+    ag4 = assembly_report.gate4
+    ag2_status = ag2.status if ag2 else "skip"
+    ag4_status = ag4.status if ag4 else "skip"
+
+    a_statuses = [s for s in (ag2_status, ag4_status) if s != "skip"]
+    if "fail" in a_statuses:
+        a_overall = "fail"
+        risk_verdict = "BLOCKED"
+    elif "warn" in a_statuses:
+        a_overall = "warn"
+        risk_verdict = "WARN"
+    else:
+        a_overall = "pass"
+        risk_verdict = "SAFE"
+
+    assembled_result = AssemblyResult(
+        contigs_found=len(contigs),
+        assembled_length=len(primary_contig),
+        gate2_status=ag2_status,
+        gate4_status=ag4_status,
+        gate2_message=ag2.message if ag2 else None,
+        gate4_message=ag4.message if ag4 else None,
+        overall_status=a_overall,
+        risk_verdict=risk_verdict,
+    )
+
+    if risk_verdict == "BLOCKED":
+        msg = (
+            "BLOCKED: these fragments, when assembled, produce a sequence that fails "
+            "biosafety screening. Synthesis is not recommended."
+        )
+    elif risk_verdict == "WARN":
+        msg = (
+            "WARNING: the assembled product raised biosafety concerns. "
+            "Manual review is recommended before proceeding with synthesis."
+        )
+    else:
+        msg = (
+            f"Assembly of {len(fragments)} fragment(s) into a {len(primary_contig)}-AA contig "
+            "passed biosafety screening."
+        )
+
+    return FragmentsResponse(
+        fragment_count=len(fragments),
+        fragment_results=fragment_results,
+        assembly_detected=True,
+        overlaps_found=len(overlaps),
+        assembled_result=assembled_result,
+        message=msg,
     )

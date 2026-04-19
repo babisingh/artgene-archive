@@ -30,6 +30,7 @@ import type {
   GateStatus,
   IBBISHit,
   SecureDNAHit,
+  SynthesisAuthDocument,
   WatermarkMetadata,
 } from "../../../lib/api";
 
@@ -978,6 +979,213 @@ function ComplianceTab({ id, client }: { id: string; client: ApiClient }) {
 }
 
 // ---------------------------------------------------------------------------
+// Synthesizer tab — TINSEL-SAD-1.0 document viewer + revocation
+// ---------------------------------------------------------------------------
+
+function SadDecisionBanner({ sad }: { sad: SynthesisAuthDocument }) {
+  const mi = sad.machine_instructions;
+  const sa = sad.synthesis_authorization;
+
+  const color = mi.proceed_with_synthesis
+    ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-700/40 text-emerald-800 dark:text-emerald-300"
+    : mi.hold_for_review
+    ? "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700/40 text-amber-800 dark:text-amber-300"
+    : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700/40 text-red-800 dark:text-red-300";
+
+  const icon = mi.proceed_with_synthesis ? "✓" : mi.hold_for_review ? "⚠" : "✗";
+
+  return (
+    <div className={`rounded-lg border p-4 space-y-2 ${color}`}>
+      <div className="flex items-center gap-2">
+        <span className="text-xl font-bold">{icon}</span>
+        <div>
+          <div className="font-bold text-base">
+            {sa.decision} — {sa.authorization_level}
+          </div>
+          <div className="text-sm">{sa.decision_reason}</div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs pt-1">
+        <div className="card p-2 text-center">
+          <div className="text-slate-500 dark:text-slate-400">Valid from</div>
+          <div className="font-mono font-medium text-slate-900 dark:text-white mt-0.5">
+            {new Date(sa.valid_from).toLocaleDateString()}
+          </div>
+        </div>
+        <div className="card p-2 text-center">
+          <div className="text-slate-500 dark:text-slate-400">Valid until</div>
+          <div className="font-mono font-medium text-slate-900 dark:text-white mt-0.5">
+            {new Date(sa.valid_until).toLocaleDateString()}
+          </div>
+        </div>
+        <div className="card p-2 text-center">
+          <div className="text-slate-500 dark:text-slate-400">Host</div>
+          <div className="font-medium text-slate-900 dark:text-white mt-0.5">{sa.host_organism}</div>
+        </div>
+        <div className="card p-2 text-center">
+          <div className="text-slate-500 dark:text-slate-400">BSO required</div>
+          <div className={`font-bold mt-0.5 ${sa.requires_biosafety_officer_countersign ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+            {sa.requires_biosafety_officer_countersign ? "YES" : "No"}
+          </div>
+        </div>
+      </div>
+      {mi.special_handling_notes && (
+        <p className="text-xs font-medium border-t border-current/20 pt-2">{mi.special_handling_notes}</p>
+      )}
+    </div>
+  );
+}
+
+function SynthesizerTab({
+  id,
+  client,
+  onRevoked,
+}: {
+  id: string;
+  client: ApiClient;
+  onRevoked: () => void;
+}) {
+  const [revoking, setRevoking] = useState(false);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
+  const [revoked, setRevoked] = useState(false);
+
+  const { data: sad, isLoading, isError, error } = useQuery({
+    queryKey: ["synthesis-auth", id],
+    queryFn: () => client.getSynthesisAuth(id),
+  });
+
+  async function handleRevoke() {
+    if (!confirm(`Revoke certificate ${id}? This is permanent and cannot be undone.`)) return;
+    setRevoking(true);
+    setRevokeError(null);
+    try {
+      await client.revokeCertificate(id);
+      setRevoked(true);
+      onRevoked();
+    } catch (err) {
+      setRevokeError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setRevoking(false);
+    }
+  }
+
+  function downloadSad() {
+    if (!sad) return;
+    const blob = new Blob([JSON.stringify(sad, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${id}-synthesis-auth.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  if (isLoading) {
+    return (
+      <div className="card p-8 text-center text-slate-400 dark:text-slate-500 text-sm">
+        Loading synthesis authorization…
+      </div>
+    );
+  }
+  if (isError || !sad) {
+    return (
+      <div className="card p-6 text-red-500 dark:text-red-400 text-sm">
+        {error instanceof Error ? error.message : "Failed to load synthesis authorization document"}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Spec version + issuer */}
+      <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+        <span className="font-mono bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700">
+          {sad.spec_version}
+        </span>
+        <span>issued by {sad.issued_by}</span>
+        <span>at {new Date(sad.issued_at).toLocaleString()}</span>
+      </div>
+
+      {/* Decision banner */}
+      <SadDecisionBanner sad={sad} />
+
+      {/* Machine instructions summary */}
+      <div className="card p-4">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">
+          Machine Instructions
+          <span className="ml-2 text-xs font-normal text-slate-400">(synthesizer firmware reads these fields)</span>
+        </h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+          {(
+            [
+              { key: "proceed_with_synthesis", label: "Proceed" },
+              { key: "hold_for_review", label: "Hold" },
+              { key: "reject", label: "Reject" },
+              { key: "log_for_regulatory_audit", label: "Log audit" },
+            ] as const
+          ).map(({ key, label }) => {
+            const val = sad.machine_instructions[key];
+            return (
+              <div key={key} className="card p-2 text-center">
+                <div className="text-slate-500 dark:text-slate-400">{label}</div>
+                <div className={`font-bold text-sm mt-1 font-mono ${val ? (key === "reject" ? "text-red-500" : key === "hold_for_review" ? "text-amber-500" : "text-emerald-600 dark:text-emerald-400") : "text-slate-400"}`}>
+                  {String(val)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Action row */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <button onClick={downloadSad} className="btn-secondary text-sm flex items-center gap-1.5">
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download SAD (.json)
+        </button>
+        {!revoked && (
+          <button
+            onClick={handleRevoke}
+            disabled={revoking}
+            className="px-3 py-1.5 text-sm rounded border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+          >
+            {revoking ? "Revoking…" : "Revoke Certificate"}
+          </button>
+        )}
+        {revoked && (
+          <span className="text-sm text-red-500 dark:text-red-400 font-medium">Certificate revoked</span>
+        )}
+      </div>
+      {revokeError && (
+        <p className="text-xs text-red-500 dark:text-red-400">{revokeError}</p>
+      )}
+
+      {/* Regulatory notice */}
+      <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 p-3 text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+        ⚠ {sad.notice}
+      </div>
+
+      {/* Full SAD JSON viewer */}
+      <div>
+        <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+          Full TINSEL-SAD-1.0 document
+        </div>
+        <pre
+          className="text-xs font-mono overflow-auto max-h-[560px] p-4 bg-slate-50 dark:bg-slate-900/60 rounded-lg border border-slate-200 dark:border-slate-700 leading-relaxed"
+          dangerouslySetInnerHTML={{
+            __html: _syntaxHighlight(JSON.stringify(sad, null, 2)),
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -989,7 +1197,7 @@ export default function CertificatePage({
   const { id } = use(params);
   const { client, apiKey } = useApiKey();
   const [exporting, setExporting] = useState(false);
-  const [activeTab, setActiveTab] = useState<"gates" | "watermark" | "compliance">("gates");
+  const [activeTab, setActiveTab] = useState<"gates" | "watermark" | "compliance" | "synthesizer">("gates");
 
   async function handleExport() {
     setExporting(true);
@@ -1129,6 +1337,7 @@ export default function CertificatePage({
             { key: "gates", label: "Biosafety Gates" },
             { key: "watermark", label: "Watermark" },
             { key: "compliance", label: "Compliance" },
+            { key: "synthesizer", label: "Synthesizer" },
           ] as const
         ).map(({ key, label }) => (
           <button
@@ -1223,6 +1432,15 @@ export default function CertificatePage({
       {/* Compliance attestation */}
       {activeTab === "compliance" && (
         <ComplianceTab id={id} client={client} />
+      )}
+
+      {/* Synthesizer / SAD */}
+      {activeTab === "synthesizer" && (
+        <SynthesizerTab
+          id={id}
+          client={client}
+          onRevoked={() => setActiveTab("gates")}
+        />
       )}
 
       <div className="pt-2 flex items-center gap-3">

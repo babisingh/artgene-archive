@@ -261,3 +261,40 @@ class APIKey(Base):
     )
 
     organisation: Mapped[Organisation] = relationship(back_populates="api_keys")
+
+
+# ---------------------------------------------------------------------------
+# fragment_kmer_index  (privacy-preserving overlap detection)
+# ---------------------------------------------------------------------------
+
+class FragmentKmerIndex(Base):
+    """SHA3-256 hashes of 20-mer subsequences from registered sequences.
+
+    Enables cross-time, cross-session fragment assembly risk detection:
+    when a new sequence is submitted for registration its k-mers are
+    checked against this index.  Raw k-mer sequences are never stored —
+    only their hashes — so this table cannot be used to reconstruct any
+    registered sequence.
+
+    Only sequences ≤ 1,500 AA/nt are indexed (longer sequences are
+    screened directly rather than as synthesisable fragments).
+    """
+
+    __tablename__ = "fragment_kmer_index"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    registry_id: Mapped[str] = mapped_column(
+        String(20), nullable=False, comment="Certificate registry ID that owns this k-mer"
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False
+    )
+    kmer_hash: Mapped[str] = mapped_column(
+        String(64), nullable=False,
+        comment="SHA3-256 hex of the 20-mer (raw k-mer is never stored)"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

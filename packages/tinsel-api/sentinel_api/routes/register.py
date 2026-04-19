@@ -38,7 +38,7 @@ from tinsel_gates.pipeline import run_consequence_pipeline
 
 from sentinel_api.config import settings
 from sentinel_api.db.connection import get_db
-from sentinel_api.db.models import Certificate, Organisation, RegistryAuditLog
+from sentinel_api.db.models import Certificate, FragmentKmerIndex, Organisation, RegistryAuditLog
 from sentinel_api.dependencies import require_api_key
 from sentinel_api.rate_limit import rate_limit_write
 from sentinel_api.vault import get_vault_client
@@ -103,6 +103,115 @@ async def _prev_entry_hash(db: AsyncSession) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Fragment assembly risk helpers
+# ---------------------------------------------------------------------------
+
+_KMER_SIZE = 20
+_KMER_STEP = 3      # stride — balances index size vs detection sensitivity
+_KMER_MAX_LEN = 1_500   # only index sequences ≤ 1,500 AA (synthesis-scale fragments)
+
+
+def _kmer_hashes(sequence: str) -> set[str]:
+    """SHA3-256 hashes of all overlapping 20-mers (step=3) in *sequence*."""
+    seq = sequence.upper()
+    result: set[str] = set()
+    for i in range(0, len(seq) - _KMER_SIZE + 1, _KMER_STEP):
+        result.add(hashlib.sha3_256(seq[i : i + _KMER_SIZE].encode()).hexdigest())
+    return result
+
+
+async def _check_fragment_assembly_risk(
+    db: AsyncSession, sequence: str, env: str
+) -> None:
+    """Raise HTTP 422 if *sequence* + any archived sequence assembles into a dangerous product.
+
+    Only checks sequences ≤ _KMER_MAX_LEN AA (longer sequences are not synthesis fragments).
+    The error message never reveals which archived sequence was involved.
+    """
+    if len(sequence) > _KMER_MAX_LEN:
+        return
+
+    hashes = _kmer_hashes(sequence)
+    if not hashes:
+        return
+
+    match_result = await db.execute(
+        select(FragmentKmerIndex.registry_id)
+        .where(FragmentKmerIndex.kmer_hash.in_(list(hashes)))
+        .distinct()
+        .limit(10)
+    )
+    matching_ids = [row[0] for row in match_result.fetchall()]
+    if not matching_ids:
+        return
+
+    from tinsel.fragment import Fragment, assemble, find_overlaps
+    from tinsel.models import GateStatus
+
+    for registry_id in matching_ids:
+        cert_res = await db.execute(
+            select(Certificate).where(Certificate.id == registry_id)
+        )
+        archived = cert_res.scalars().first()
+        if not archived:
+            continue
+
+        archived_seq: str = (archived.watermark_metadata or {}).get("original_protein", "")
+        if not archived_seq or archived_seq.upper() == sequence.upper():
+            continue
+
+        frags = [Fragment("new", sequence), Fragment("archived", archived_seq)]
+        overlaps = find_overlaps(frags, min_overlap=_KMER_SIZE)
+        if not overlaps:
+            continue
+
+        contigs = assemble(frags, overlaps)
+        for contig in contigs:
+            report = await run_consequence_pipeline(
+                protein=contig,
+                dna="",
+                env=env,
+                run_gates=(2, 4),
+            )
+            if report.overall_status == GateStatus.FAIL:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "code": "FRAGMENT_ASSEMBLY_RISK",
+                        "message": (
+                            "Your sequence, when combined with a sequence already in "
+                            "the archive, assembles into a product that fails biosafety "
+                            "screening. Registration rejected."
+                        ),
+                    },
+                )
+
+
+def _add_kmer_index_rows(
+    db: AsyncSession,
+    registry_id: str,
+    org_id: uuid.UUID,
+    sequence: str,
+) -> None:
+    """Add k-mer index rows for *sequence* to the session (not yet committed)."""
+    if len(sequence) > _KMER_MAX_LEN:
+        return
+
+    seen: set[str] = set()
+    seq = sequence.upper()
+    for i in range(0, len(seq) - _KMER_SIZE + 1, _KMER_STEP):
+        h = hashlib.sha3_256(seq[i : i + _KMER_SIZE].encode()).hexdigest()
+        if h not in seen:
+            seen.add(h)
+            db.add(FragmentKmerIndex(
+                id=uuid.uuid4(),
+                registry_id=registry_id,
+                org_id=org_id,
+                kmer_hash=h,
+            ))
+
+
+# ---------------------------------------------------------------------------
 # Endpoint
 # ---------------------------------------------------------------------------
 
@@ -154,6 +263,12 @@ async def register_sequence(
                 ),
             },
         )
+
+    # ── Step 1c: Fragment assembly cross-check ────────────────────────────
+    # Checks new sequence against the k-mer index of all archived sequences.
+    # Raises HTTP 422 (FRAGMENT_ASSEMBLY_RISK) without revealing which
+    # archived sequence caused the match.
+    await _check_fragment_assembly_risk(db, protein, settings.sentinel_env)
 
     # ── Step 2: Consequence pipeline ──────────────────────────────────────
     report = await run_consequence_pipeline(
@@ -296,8 +411,11 @@ async def register_sequence(
     )
     db.add(log_entry)
 
+    # Index k-mers for future assembly risk cross-checks (same transaction).
+    _add_kmer_index_rows(db, registry_id, org.id, protein)
+
     # Explicit commit — do not rely on the get_db() teardown so the caller
-    # can be certain both rows are durable before the response is returned.
+    # can be certain all rows are durable before the response is returned.
     await db.commit()
 
     final_status = CertificateStatus.CERTIFIED_WITH_WARNINGS if _warn_only else CertificateStatus.CERTIFIED

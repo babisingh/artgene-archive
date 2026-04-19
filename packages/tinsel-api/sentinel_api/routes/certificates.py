@@ -10,7 +10,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from tinsel.compliance import build_compliance_manifest
 from tinsel.crypto import ALGORITHM_WOTS, PQSigner
-from tinsel.registry import AnchorMap, WatermarkConfig
+from tinsel.registry import AnchorMap, CertificateStatus, WatermarkConfig
+from tinsel.synthesis_auth import build_synthesis_auth_document
 from tinsel.watermark.decoder import TINSELDecoder
 
 from sentinel_api.config import settings
@@ -20,6 +21,44 @@ from sentinel_api.dependencies import require_api_key
 from sentinel_api.vault import get_vault_client
 
 router = APIRouter()
+
+
+@router.get("/lookup")
+async def lookup_by_sequence_hash(
+    sequence_hash: str = Query(..., description="SHA3-256 hex digest of the protein sequence"),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Public sequence-hash lookup — no authentication required.
+
+    Returns minimal registry metadata for certificates whose ``sequence_hash``
+    matches the supplied digest.  Only publicly visible certificates are
+    returned.  Sequence data is never included in the response.
+    """
+    result = await db.execute(
+        select(Certificate).where(
+            Certificate.sequence_hash == sequence_hash,
+            Certificate.visibility == "public",
+        )
+    )
+    certs = result.scalars().all()
+    if not certs:
+        raise HTTPException(
+            status_code=404,
+            detail="No public certificate found for the supplied sequence hash.",
+        )
+    return {
+        "results": [
+            {
+                "registry_id": c.id,
+                "status": c.status,
+                "tier": c.tier,
+                "certified_at": c.timestamp.isoformat(),
+                "host_organism": c.host_organism,
+            }
+            for c in certs
+        ],
+        "count": len(certs),
+    }
 
 
 @router.get("/{registry_id}")
@@ -358,4 +397,70 @@ async def verify_compliance_public(
         "overall_gate_status": report.get("overall_status", "skip"),
         "screening_databases": [db.get("name") for db in databases if db.get("name")],
         "verified_at": datetime.now(UTC).isoformat(),
+    }
+
+
+@router.get("/{registry_id}/synthesis-auth")
+async def get_synthesis_auth(
+    registry_id: str,
+    db: AsyncSession = Depends(get_db),
+    org: Organisation = Depends(require_api_key),
+) -> dict:
+    """Return a TINSEL-SAD-1.0 Synthesis Authorization Document.
+
+    Synthesizer firmware reads ``machine_instructions.proceed_with_synthesis``
+    to decide whether to proceed.  The full regulatory detail (US DURC,
+    EU Directive 2000/54/EC) is included for audit trail purposes.
+    """
+    result = await db.execute(
+        select(Certificate).where(Certificate.id == registry_id)
+    )
+    cert = result.scalars().first()
+    if cert is None or cert.org_id != org.id:
+        raise HTTPException(status_code=404, detail=f"Certificate '{registry_id}' not found")
+
+    cert_data = {
+        "registry_id": cert.id,
+        "sequence_hash": cert.sequence_hash,
+        "certificate_hash": cert.certificate_hash,
+        "status": cert.status,
+        "timestamp": cert.timestamp.isoformat(),
+        "host_organism": cert.host_organism,
+        "consequence_report": cert.consequence_report or {},
+        "wots_public_key": cert.wots_public_key or {},
+        "watermark_metadata": cert.watermark_metadata or {},
+    }
+    sad = build_synthesis_auth_document(cert_data)
+    return sad.model_dump()
+
+
+@router.post("/{registry_id}/revoke")
+async def revoke_certificate(
+    registry_id: str,
+    db: AsyncSession = Depends(get_db),
+    org: Organisation = Depends(require_api_key),
+) -> dict:
+    """Revoke a certificate — permanently blocks synthesis authorisation.
+
+    Only the owning organisation can revoke its own certificates.  Revocation
+    is irreversible.  The certificate status is set to REVOKED and any
+    subsequent synthesis-auth request will return ``machine_instructions.reject = true``.
+    """
+    result = await db.execute(
+        select(Certificate).where(Certificate.id == registry_id)
+    )
+    cert = result.scalars().first()
+    if cert is None or cert.org_id != org.id:
+        raise HTTPException(status_code=404, detail=f"Certificate '{registry_id}' not found")
+
+    if cert.status == CertificateStatus.REVOKED:
+        return {"registry_id": registry_id, "status": "REVOKED", "message": "Already revoked"}
+
+    cert.status = CertificateStatus.REVOKED
+    await db.commit()
+    return {
+        "registry_id": registry_id,
+        "status": "REVOKED",
+        "revoked_at": datetime.now(UTC).isoformat(),
+        "message": "Certificate revoked. Synthesis authorisation is permanently blocked.",
     }
