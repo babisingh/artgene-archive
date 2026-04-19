@@ -393,6 +393,49 @@ export function fetchStructure(protein: string): Promise<StructureResponse> {
 }
 
 // ---------------------------------------------------------------------------
+// Fragment assembly risk types + fetch helper
+// ---------------------------------------------------------------------------
+
+export interface FragmentScreenResult {
+  header: string;
+  sequence_length: number;
+  gate2_status: GateStatus;
+  gate4_status: GateStatus;
+  overall_status: GateStatus;
+  message: string | null;
+}
+
+export interface AssemblyResult {
+  contigs_found: number;
+  assembled_length: number;
+  gate2_status: GateStatus;
+  gate4_status: GateStatus;
+  gate2_message: string | null;
+  gate4_message: string | null;
+  overall_status: GateStatus;
+  risk_verdict: "SAFE" | "WARN" | "BLOCKED";
+}
+
+export interface FragmentsRequest {
+  fragments_fasta: string;
+  host_organism?: string;
+}
+
+export interface FragmentsResponse {
+  privacy_notice: string;
+  fragment_count: number;
+  fragment_results: FragmentScreenResult[];
+  assembly_detected: boolean;
+  overlaps_found: number;
+  assembled_result: AssemblyResult | null;
+  message: string;
+}
+
+export function analyseFragments(req: FragmentsRequest): Promise<FragmentsResponse> {
+  return demoFetch<FragmentsResponse>("/analyse/fragments", req);
+}
+
+// ---------------------------------------------------------------------------
 // Fetch helper
 // ---------------------------------------------------------------------------
 
