@@ -15,7 +15,7 @@ const BASE = `${API_URL}/api/v1`;
 // ---------------------------------------------------------------------------
 
 export type GateStatus = "pass" | "fail" | "warn" | "skip";
-export type CertificateStatus = "CERTIFIED" | "CERTIFIED_WITH_WARNINGS" | "FAILED" | "PENDING";
+export type CertificateStatus = "CERTIFIED" | "CERTIFIED_WITH_WARNINGS" | "FAILED" | "PENDING" | "REVOKED";
 
 export interface Gate1Result {
   status: GateStatus;
@@ -258,6 +258,71 @@ export function fetchComplianceVerify(registryId: string): Promise<ComplianceVer
     if (!res.ok) throw new Error(`Compliance verify failed (${res.status})`);
     return res.json() as Promise<ComplianceVerify>;
   });
+}
+
+// ---------------------------------------------------------------------------
+// Sequence hash lookup (public, no auth)
+// ---------------------------------------------------------------------------
+
+export interface CertificateLookupItem {
+  registry_id: string;
+  status: CertificateStatus;
+  tier: string;
+  certified_at: string;
+  host_organism: string;
+}
+
+export interface CertificateLookupResponse {
+  results: CertificateLookupItem[];
+  count: number;
+}
+
+export function lookupBySequenceHash(sequenceHash: string): Promise<CertificateLookupResponse> {
+  return fetch(`${BASE}/certificates/lookup?sequence_hash=${encodeURIComponent(sequenceHash)}`).then(
+    (res) => {
+      if (!res.ok) throw new Error(`Lookup failed (${res.status})`);
+      return res.json() as Promise<CertificateLookupResponse>;
+    }
+  );
+}
+
+// ---------------------------------------------------------------------------
+// TINSEL-SAD-1.0 types
+// ---------------------------------------------------------------------------
+
+export interface MachineInstructions {
+  proceed_with_synthesis: boolean;
+  hold_for_review: boolean;
+  reject: boolean;
+  log_for_regulatory_audit: boolean;
+  special_handling_notes: string | null;
+}
+
+export interface SynthesisAuthorizationDoc {
+  authorized: boolean;
+  authorization_level: "FULL" | "CONDITIONAL" | "DENIED";
+  decision: "PROCEED" | "HOLD" | "REJECT";
+  decision_reason: string;
+  requires_biosafety_officer_countersign: boolean;
+  valid_from: string;
+  valid_until: string;
+  host_organism: string;
+  max_synthesis_length_bp: number | null;
+}
+
+export interface SynthesisAuthDocument {
+  spec_version: string;
+  issued_by: string;
+  issued_at: string;
+  registry_id: string;
+  sequence_hash: string;
+  certificate_hash: string;
+  synthesis_authorization: SynthesisAuthorizationDoc;
+  regulatory_clearance: Record<string, unknown>;
+  screening_record: Record<string, unknown>;
+  cryptographic_proof: Record<string, unknown>;
+  machine_instructions: MachineInstructions;
+  notice: string;
 }
 
 export interface RegistrationRequest {
@@ -542,6 +607,16 @@ export function createApiClient(apiKey: string) {
         method: "POST",
         body: JSON.stringify(body),
       }),
+
+    getSynthesisAuth: (registryId: string) =>
+      apiFetch<SynthesisAuthDocument>(`/certificates/${registryId}/synthesis-auth`, apiKey),
+
+    revokeCertificate: (registryId: string) =>
+      apiFetch<{ registry_id: string; status: string; revoked_at?: string; message: string }>(
+        `/certificates/${registryId}/revoke`,
+        apiKey,
+        { method: "POST" }
+      ),
   };
 }
 

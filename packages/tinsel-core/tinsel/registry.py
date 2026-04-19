@@ -64,6 +64,7 @@ class CertificateStatus(StrEnum):
     CERTIFIED_WITH_WARNINGS = "CERTIFIED_WITH_WARNINGS"
     FAILED = "FAILED"
     PENDING = "PENDING"
+    REVOKED = "REVOKED"
 
 
 class HostOrganism(StrEnum):

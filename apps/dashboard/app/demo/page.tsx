@@ -533,6 +533,87 @@ function ResultsSection({
         </div>
       </div>
 
+      {/* Panel 6: Synthesizer View — TINSEL-SAD mock preview */}
+      <div className="card p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <svg className="w-5 h-5 text-slate-500 dark:text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+            <line x1="8" y1="21" x2="16" y2="21" />
+            <line x1="12" y1="17" x2="12" y2="21" />
+          </svg>
+          <h2 className="font-semibold text-lg text-slate-900 dark:text-white">Synthesizer View</h2>
+          <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 text-amber-700 dark:text-amber-400 font-medium">
+            MOCK PREVIEW
+          </span>
+        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          After registering your sequence, a benchtop synthesizer can look up the registry by sequence hash
+          and receive a <strong className="text-slate-700 dark:text-slate-200">TINSEL-SAD-1.0</strong> Synthesis
+          Authorization Document. Synthesizer firmware reads{" "}
+          <span className="font-mono text-blue-700 dark:text-blue-400">machine_instructions.proceed_with_synthesis</span>{" "}
+          to decide whether to proceed. This is a preview of what that document would look like.
+        </p>
+        <div className="rounded-lg border-2 border-dashed border-slate-200 dark:border-slate-700 p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/30">
+          {/* Decision banner mock */}
+          <div className="rounded-lg border bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-700/40 p-4 space-y-2">
+            <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
+              <span className="text-xl font-bold">✓</span>
+              <div>
+                <div className="font-bold text-base">PROCEED — FULL</div>
+                <div className="text-sm">All biosafety gates passed. Certificate CERTIFIED.</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs pt-1">
+              {[
+                { label: "Valid from", value: new Date().toLocaleDateString() },
+                { label: "Valid until", value: new Date(Date.now() + 365 * 86400000).toLocaleDateString() },
+                { label: "Host", value: data.host_organism },
+                { label: "BSO required", value: "No" },
+              ].map(({ label, value }) => (
+                <div key={label} className="card p-2 text-center">
+                  <div className="text-slate-500 dark:text-slate-400">{label}</div>
+                  <div className="font-medium text-slate-900 dark:text-white mt-0.5 font-mono">{value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Machine instructions mock */}
+          <div className="card p-4">
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">
+              Machine Instructions
+              <span className="ml-2 text-xs font-normal text-slate-400">(synthesizer firmware reads these fields)</span>
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              {[
+                { key: "proceed_with_synthesis", label: "Proceed", value: "true", color: "text-emerald-600 dark:text-emerald-400" },
+                { key: "hold_for_review", label: "Hold", value: "false", color: "text-slate-400" },
+                { key: "reject", label: "Reject", value: "false", color: "text-slate-400" },
+                { key: "log_for_regulatory_audit", label: "Log audit", value: "true", color: "text-emerald-600 dark:text-emerald-400" },
+              ].map(({ key, label, value, color }) => (
+                <div key={key} className="card p-2 text-center">
+                  <div className="text-slate-500 dark:text-slate-400">{label}</div>
+                  <div className={`font-bold text-sm mt-1 font-mono ${color}`}>{value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* SAD fields preview */}
+          <div className="text-xs space-y-1 font-mono text-slate-500 dark:text-slate-400">
+            <div><span className="text-slate-400">spec_version:</span> <span className="text-emerald-700 dark:text-emerald-400">&quot;TINSEL-SAD-1.0&quot;</span></div>
+            <div><span className="text-slate-400">watermark_tier:</span> <span className="text-emerald-700 dark:text-emerald-400">&quot;{data.watermark_tier}&quot;</span></div>
+            <div><span className="text-slate-400">carrier_positions:</span> <span className="text-blue-600 dark:text-blue-400">{data.carrier_positions}</span></div>
+            <div><span className="text-slate-400">pq_is_stub:</span> <span className="text-purple-600 dark:text-purple-400">false</span> <span className="text-slate-400 font-sans italic text-[10px]">← after registration</span></div>
+          </div>
+        </div>
+        <p className="text-xs text-slate-400 dark:text-slate-500">
+          This mock uses your analysed sequence data. The real SAD is only issued after registration
+          and includes your Registry ID, certificate hash, full US DURC + EU Directive 2000/54/EC clearance,
+          and a 12-month validity window.
+        </p>
+      </div>
+
       {/* What's Next section */}
       <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 overflow-hidden">
         <div className="bg-gradient-to-r from-blue-600 to-violet-600 px-6 py-5">
