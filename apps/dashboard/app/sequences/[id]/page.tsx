@@ -1,7 +1,5 @@
 "use client";
 
-"use client";
-
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";

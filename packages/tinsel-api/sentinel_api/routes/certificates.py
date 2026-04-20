@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,13 +18,16 @@ from sentinel_api.config import settings
 from sentinel_api.db.connection import get_db
 from sentinel_api.db.models import Certificate, Organisation
 from sentinel_api.dependencies import require_api_key
+from sentinel_api.rate_limit import rate_limit_read, rate_limit_write
 from sentinel_api.vault import get_vault_client
 
 router = APIRouter()
 
 
 @router.get("/lookup")
+@rate_limit_read
 async def lookup_by_sequence_hash(
+    request: Request,
     sequence_hash: str = Query(..., description="SHA3-256 hex digest of the protein sequence"),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -62,7 +65,9 @@ async def lookup_by_sequence_hash(
 
 
 @router.get("/{registry_id}")
+@rate_limit_read
 async def get_certificate(
+    request: Request,
     registry_id: str,
     db: AsyncSession = Depends(get_db),
     org: Organisation = Depends(require_api_key),
@@ -72,9 +77,10 @@ async def get_certificate(
         select(Certificate).where(Certificate.id == registry_id)
     )
     cert = result.scalars().first()
-    # Return 404 for both not-found and wrong-org to avoid confirming existence
-    # of certificates belonging to other organisations.
-    if cert is None or cert.org_id != org.id:
+    # Public certs are visible to any authenticated org.
+    # Embargoed certs are only visible to the owning org (same silent-404 behaviour
+    # as the list endpoint to avoid confirming existence of another org's embargoed data).
+    if cert is None or (cert.org_id != org.id and cert.visibility != "public"):
         raise HTTPException(status_code=404, detail=f"Certificate '{registry_id}' not found")
 
     pk_dict = cert.wots_public_key or {}
@@ -98,7 +104,9 @@ async def get_certificate(
 
 
 @router.get("/")
+@rate_limit_read
 async def list_certificates(
+    request: Request,
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
@@ -142,7 +150,9 @@ async def list_certificates(
 
 
 @router.post("/{registry_id}/publish")
+@rate_limit_write
 async def publish_certificate(
+    request: Request,
     registry_id: str,
     db: AsyncSession = Depends(get_db),
     org: Organisation = Depends(require_api_key),
@@ -167,7 +177,9 @@ async def publish_certificate(
 
 
 @router.get("/{registry_id}/export")
+@rate_limit_read
 async def export_certificate(
+    request: Request,
     registry_id: str,
     db: AsyncSession = Depends(get_db),
     org: Organisation = Depends(require_api_key),
@@ -185,7 +197,7 @@ async def export_certificate(
         select(Certificate).where(Certificate.id == registry_id)
     )
     cert = result.scalars().first()
-    if cert is None or cert.org_id != org.id:
+    if cert is None or (cert.org_id != org.id and cert.visibility != "public"):
         raise HTTPException(status_code=404, detail=f"Certificate '{registry_id}' not found")
 
     # ── Determine PQ signature status ─────────────────────────────────────
@@ -239,7 +251,9 @@ async def export_certificate(
 
 
 @router.post("/{registry_id}/verify")
+@rate_limit_write
 async def verify_certificate(
+    request: Request,
     registry_id: str,
     db: AsyncSession = Depends(get_db),
     org: Organisation = Depends(require_api_key),
@@ -258,8 +272,8 @@ async def verify_certificate(
         select(Certificate).where(Certificate.id == registry_id)
     )
     cert = result.scalars().first()
-    # Return 404 for both not-found and wrong-org to avoid leaking existence.
-    if cert is None or cert.org_id != org.id:
+    # Public certs are verifiable by any authenticated org.
+    if cert is None or (cert.org_id != org.id and cert.visibility != "public"):
         raise HTTPException(
             status_code=404, detail=f"Certificate '{registry_id}' not found"
         )
@@ -320,7 +334,9 @@ async def verify_certificate(
 
 
 @router.get("/{registry_id}/compliance")
+@rate_limit_read
 async def get_compliance_manifest(
+    request: Request,
     registry_id: str,
     frameworks: str = Query("US_DURC,EU_DUAL_USE", description="Comma-separated framework IDs"),
     db: AsyncSession = Depends(get_db),
@@ -335,7 +351,7 @@ async def get_compliance_manifest(
         select(Certificate).where(Certificate.id == registry_id)
     )
     cert = result.scalars().first()
-    if cert is None or cert.org_id != org.id:
+    if cert is None or (cert.org_id != org.id and cert.visibility != "public"):
         raise HTTPException(status_code=404, detail=f"Certificate '{registry_id}' not found")
 
     fw_list = [f.strip() for f in frameworks.split(",") if f.strip()]
@@ -401,7 +417,9 @@ async def verify_compliance_public(
 
 
 @router.get("/{registry_id}/synthesis-auth")
+@rate_limit_read
 async def get_synthesis_auth(
+    request: Request,
     registry_id: str,
     db: AsyncSession = Depends(get_db),
     org: Organisation = Depends(require_api_key),
@@ -416,7 +434,7 @@ async def get_synthesis_auth(
         select(Certificate).where(Certificate.id == registry_id)
     )
     cert = result.scalars().first()
-    if cert is None or cert.org_id != org.id:
+    if cert is None or (cert.org_id != org.id and cert.visibility != "public"):
         raise HTTPException(status_code=404, detail=f"Certificate '{registry_id}' not found")
 
     cert_data = {
@@ -435,7 +453,9 @@ async def get_synthesis_auth(
 
 
 @router.post("/{registry_id}/revoke")
+@rate_limit_write
 async def revoke_certificate(
+    request: Request,
     registry_id: str,
     db: AsyncSession = Depends(get_db),
     org: Organisation = Depends(require_api_key),
