@@ -44,6 +44,15 @@ class Settings(BaseSettings):
     sentinel_env: str = "development"       # must be: test | development | production
     log_level: str = "INFO"
 
+    @field_validator("allowed_origins", mode="before")
+    @classmethod
+    def _parse_allowed_origins(cls, v: object) -> list[str]:
+        if isinstance(v, list):
+            return v
+        if not v:
+            return ["http://localhost:3000", "http://localhost:3001"]
+        return [origin.strip() for origin in str(v).split(",") if origin.strip()]
+
     @field_validator("sentinel_env")
     @classmethod
     def _validate_env(cls, v: str) -> str:
