@@ -13,6 +13,8 @@ RUN pip install --no-cache-dir \
         packages/tinsel-gates \
         packages/tinsel-api
 
-# Default: run the API server directly
-# docker-compose overrides this with the alembic migration prefix
-CMD ["uvicorn", "sentinel_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Make startup script executable
+RUN chmod +x /app/packages/tinsel-api/scripts/start.sh
+
+# start.sh: runs `alembic upgrade head` then starts uvicorn on $PORT (Railway injects this)
+CMD ["/app/packages/tinsel-api/scripts/start.sh"]
