@@ -51,7 +51,7 @@ app.add_middleware(
     CORSMiddleware,
     # Restricted to explicit origins — never wildcard with credentials=True.
     # Set ALLOWED_ORIGINS=https://your-domain.com in production environment.
-    allow_origins=settings.allowed_origins,
+    allow_origins=settings.parsed_allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "X-API-Key"],
