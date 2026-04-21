@@ -34,24 +34,32 @@ class Settings(BaseSettings):
     spreading_key_id: str = "local-dev-key"
 
     # ── CORS ────────────────────────────────────────────────────────────────
-    # Comma-separated list of allowed origins for CORS.
+    # Comma-separated string of allowed origins for CORS.
+    # Stored as a plain string to prevent pydantic-settings from attempting
+    # JSON parsing on the raw environment variable value.
     # Dev default: localhost dashboard only.
     # Production: set ALLOWED_ORIGINS=https://your-domain.com in the environment.
     # NEVER set to "*" in production — credentials are included in API requests.
-    allowed_origins: list[str] = ["http://localhost:3000", "http://localhost:3001"]
+    allowed_origins: str = "http://localhost:3000,http://localhost:3001"
+
+    @field_validator("allowed_origins", mode="before")
+    @classmethod
+    def _parse_allowed_origins(cls, v: object) -> str:
+        """Normalise the raw env value to a non-empty comma-separated string."""
+        if not v:
+            return "http://localhost:3000,http://localhost:3001"
+        if isinstance(v, list):
+            return ",".join(str(o).strip() for o in v if str(o).strip())
+        return str(v)
+
+    @property
+    def parsed_allowed_origins(self) -> list[str]:
+        """Return allowed origins as a list, suitable for CORSMiddleware."""
+        return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
 
     # ── Runtime ────────────────────────────────────────────────────────────
     sentinel_env: str = "development"       # must be: test | development | production
     log_level: str = "INFO"
-
-    @field_validator("allowed_origins", mode="before")
-    @classmethod
-    def _parse_allowed_origins(cls, v: object) -> list[str]:
-        if isinstance(v, list):
-            return v
-        if not v:
-            return ["http://localhost:3000", "http://localhost:3001"]
-        return [origin.strip() for origin in str(v).split(",") if origin.strip()]
 
     @field_validator("sentinel_env")
     @classmethod
