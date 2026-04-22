@@ -5,33 +5,13 @@ import Link from "next/link";
 import { useState } from "react";
 import { useApiKey } from "../../lib/providers";
 import type { CertificateSummary } from "../../lib/api";
+import { StatusBadge, TierBadge } from "../../components/CertBadges";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 const PAGE_SIZE = 20;
-
-// ---------------------------------------------------------------------------
-// Status / tier badges
-// ---------------------------------------------------------------------------
-
-function StatusBadge({ status }: { status: string }) {
-  const cls =
-    status === "CERTIFIED" ? "badge-pass" : status === "FAILED" ? "badge-fail" : "badge-skip";
-  return <span className={cls}>{status}</span>;
-}
-
-function TierBadge({ tier }: { tier: string }) {
-  const cls = {
-    FULL: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-400",
-    STANDARD: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400",
-    REDUCED: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400",
-    MINIMAL: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300",
-    REJECTED: "badge-fail",
-  }[tier] ?? "badge-skip";
-  return <span className={`badge ${cls}`}>{tier}</span>;
-}
 
 // ---------------------------------------------------------------------------
 // Row skeleton

@@ -1197,10 +1197,12 @@ export default function CertificatePage({
   const { id } = use(params);
   const { client, apiKey } = useApiKey();
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"gates" | "watermark" | "compliance" | "synthesizer">("gates");
 
   async function handleExport() {
     setExporting(true);
+    setExportError(null);
     try {
       const data = await client.exportCertificate(id);
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -1211,7 +1213,7 @@ export default function CertificatePage({
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error("Export failed:", err);
+      setExportError(err instanceof Error ? err.message : "Export failed — please try again.");
     } finally {
       setExporting(false);
     }
@@ -1443,34 +1445,40 @@ export default function CertificatePage({
         />
       )}
 
-      <div className="pt-2 flex items-center gap-3">
-        <Link href="/sequences" className="btn-secondary">
-          ← Back to registry
-        </Link>
-        <button
-          onClick={handleExport}
-          disabled={exporting}
-          className="btn-secondary flex items-center gap-1.5"
-        >
-          {exporting ? (
-            <>
-              <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              Exporting…
-            </>
-          ) : (
-            <>
-              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              Export JSON
-            </>
-          )}
-        </button>
+      <div className="pt-2 space-y-2">
+        <div className="flex items-center gap-3">
+          <Link href="/sequences" className="btn-secondary">
+            ← Back to registry
+          </Link>
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            aria-busy={exporting}
+            className="btn-secondary flex items-center gap-1.5"
+          >
+            {exporting ? (
+              <>
+                <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Exporting…
+              </>
+            ) : (
+              <>
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Export JSON
+              </>
+            )}
+          </button>
+        </div>
+        {exportError && (
+          <p className="text-xs text-red-500" role="alert">{exportError}</p>
+        )}
       </div>
     </div>
   );
