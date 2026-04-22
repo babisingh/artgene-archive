@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+from datetime import datetime, timezone
 
 from fastapi import Depends, Header, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sentinel_api.db.connection import get_db
@@ -41,5 +42,11 @@ async def require_api_key(
             detail="Invalid or revoked API key",
             headers={"WWW-Authenticate": "ApiKey"},
         )
+
+    await db.execute(
+        update(APIKey)
+        .where(APIKey.key_hash == key_hash, APIKey.revoked_at.is_(None))
+        .values(last_used_at=datetime.now(timezone.utc))
+    )
 
     return org

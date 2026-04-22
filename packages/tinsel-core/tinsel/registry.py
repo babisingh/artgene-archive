@@ -274,10 +274,11 @@ class LWECommitmentData(BaseModel):
     b_vector: list[int]  # length n=64
     A_seed: str          # hex-encoded seed for the public matrix A
     n_bits: int = 64
+    not_implemented: bool = False
 
     @classmethod
     def stub(cls) -> LWECommitmentData:
-        return cls(b_vector=[0] * 64, A_seed="00" * 32, n_bits=64)
+        return cls(b_vector=[0] * 64, A_seed="00" * 32, n_bits=64, not_implemented=True)
 
 
 class MerkleProof(BaseModel):

@@ -1,4 +1,4 @@
-"""SQLAlchemy 2.0 ORM models — five append-friendly tables.
+"""SQLAlchemy 2.0 ORM models.
 
 Tables
 ------
@@ -7,6 +7,7 @@ certificates        — issued TINSEL certificates (one per sequence+owner pair)
 registry_audit_log  — tamper-evident append-only log (blockchain-style)
 pathways            — multi-gene Merkle pathway bundles
 api_keys            — per-organisation API key records
+fragment_kmer_index — SHA3-256 hashes of 20-mer subsequences (assembly risk detection)
 
 CRITICAL: registry_audit_log must NEVER be updated or deleted.
           The AppendOnlyMixin enforces this at the ORM layer.
@@ -199,38 +200,6 @@ class Pathway(Base):
     )
 
     organisation: Mapped[Organisation] = relationship(back_populates="pathways")
-
-
-# ---------------------------------------------------------------------------
-# api_keys
-# ---------------------------------------------------------------------------
-
-# ---------------------------------------------------------------------------
-# sequences  (tinsel_api CRUD store)
-# ---------------------------------------------------------------------------
-
-class Sequence(Base):
-    """Persistent store for raw sequence records (tinsel_api routes)."""
-
-    __tablename__ = "sequences"
-
-    id: Mapped[str] = mapped_column(
-        String(255), primary_key=True, comment="Caller-supplied sequence identifier"
-    )
-    sequence: Mapped[str] = mapped_column(
-        String, nullable=False, comment="Raw nucleotide or amino-acid sequence"
-    )
-    seq_type: Mapped[str] = mapped_column(String(10), nullable=False)
-    description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
-    metadata_: Mapped[dict] = mapped_column(
-        "metadata",
-        JSONB,
-        nullable=False,
-        default=dict,
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
 
 
 # ---------------------------------------------------------------------------

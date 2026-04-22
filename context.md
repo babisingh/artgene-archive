@@ -52,27 +52,20 @@ artgene-archive/
 - [x] S1-E: Removed broken `assert "env" in body` from health test
 - [x] S1-F: Footer — replaced placeholder emails with `b@genethropic.com`, removed biosafety email + physical address
 
-### Session 2 — Structural Cleanup
-**Goal**: Remove dead code that confuses the codebase and inflates the image.
+### Session 2 — Code Quality Hardening (DONE)
+**Goal**: Fix medium-severity gaps that affect correctness, auditability, and security.
 
-- [ ] S2-A: Delete `sentinel_gates/` from `tinsel-gates` package (legacy 3-adapter pipeline, only used by legacy tinsel_api)
-- [ ] S2-B: Delete `tinsel_api/` from `tinsel-api` package (legacy v0.1 app, no auth, no tests)
-- [ ] S2-C: Update `pyproject.toml` package exports for both packages after deletion
-- [ ] S2-D: Update CI to run bandit security scan
-- [ ] S2-E: Add npm audit to CI dashboard job
+- [x] S2-A: `dependencies.py` — `last_used_at` now written on every successful API key auth
+- [x] S2-B: Migration 006 — added `ix_fragment_kmer_org_id` index on `fragment_kmer_index.org_id`
+- [x] S2-C: Shared `_derive_signing_key()` in `vault/base.py` via `hmac.digest()` (HMAC-SHA3-256); both vaults now use it — dev/prod derivation identical
+- [x] S2-D: `LWECommitmentData.stub()` → `not_implemented=True`; pathways proof → `{"not_implemented": True}`
+- [x] S2-E: Removed orphaned `Sequence` ORM class + duplicate section comment from `db/models.py`
+- [x] S2-F: `bandit -ll -q` added to Python CI (MEDIUM+ severity fails the job)
+- [x] S2-G: `npm audit --audit-level=high` added to dashboard CI (`continue-on-error: true`)
+- [x] S2-H: Fixed stale package description in `tinsel-gates/pyproject.toml` ("Three-gate" → "Four-gate")
 
-### Session 3 — Code Quality Hardening
-**Goal**: Fix medium-severity gaps that affect correctness and auditability.
-
-- [ ] S3-A: Update `api_keys.last_used_at` on every successful authentication in `dependencies.py`
-- [ ] S3-B: Add `limit`/`offset` pagination to `GET /sequences/` in legacy routes (or confirm deletion covers this)
-- [ ] S3-C: Add missing DB index on `fragment_kmer_index.org_id` (migration 006)
-- [ ] S3-D: Upgrade `EnvMockVaultClient` key derivation from SHA3 concat to proper HKDF
-- [ ] S3-E: Mark LWE and Merkle stubs explicitly in API responses (`"status": "not_implemented"`)
-
-### Session 4 — UI Review
-**Goal**: Review and fix the Next.js dashboard (post code-review).
-*(Scope TBD with user)*
+### Session 3 — UI Review (NEXT)
+**Goal**: Review and fix the Next.js dashboard.
 
 ---
 
@@ -170,6 +163,5 @@ Audit log uses blockchain-style SHA3-256 chaining. DB trigger (migration 003) bl
 |---|---|---|---|
 | 2026-04-22 | Exploration | Full codebase audit, created context.md | Done |
 | 2026-04-22 | Session 1 | SEC-01 AWS vault fix, SEC-02 prod key guard, SEC-03 delete tinsel_api+sentinel_gates, BRK-01 docker-compose fix, BRK-02 health test fix, footer contact fix | Done |
-| — | Session 2 | Code quality hardening (AUD-01, DB-01, KEY-01, stubs) | Pending |
-| — | Session 3 | CI hardening (bandit, npm audit) | Pending |
-| — | Session 4 | UI review | Pending |
+| 2026-04-22 | Session 2 | AUD-01 last_used_at, DB-01 migration 006, KEY-01 HMAC vault, stubs flagged, Sequence model removed, bandit+npm audit in CI | Done |
+| — | Session 3 | UI review | Pending |
