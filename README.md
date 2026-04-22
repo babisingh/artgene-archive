@@ -4,7 +4,7 @@
 
 ArtGene Archive is a full-stack platform that lets synthetic biology researchers register protein and DNA sequences against a tamper-evident public registry. Every registration runs a four-gate biosafety pipeline, embeds a covert **TINSEL watermark** inside codon choices (invisible to translation, detectable by the platform), signs the certificate with a post-quantum key, and appends an immutable blockchain-style audit log entry — all in one atomic transaction.
 
-Built as an open research platform. Forkable, self-hostable with Docker Compose, and deployable to Railway in one command.
+Built as an open research platform. Forkable and self-hostable with Docker Compose.
 
 ---
 
@@ -112,7 +112,7 @@ The Next.js dashboard provides a full UI for the registry:
 - [x] Compliance manifest with framework selector (US DURC, EU Dual-Use)
 - [x] Synthesizer auth document generation
 - [x] Idempotent dev seed (org + API key on first `docker compose up`)
-- [x] Railway-ready Docker Compose with health-checked service dependencies
+- [x] Docker Compose with health-checked service dependencies and idempotent seed
 - [x] Full Next.js dashboard with dark mode
 
 ### Planned / stubbed
@@ -123,7 +123,7 @@ The Next.js dashboard provides a full UI for the registry:
 
 ---
 
-## Quick start
+## Quick start (local)
 
 ### Requirements
 - Docker 24+ and Docker Compose v2
@@ -317,7 +317,7 @@ artgene-archive/
 │   │       ├── db/             SQLAlchemy models + Alembic migrations (001–006)
 │   │       └── vault/          AWS Secrets Manager + env-var mock vault
 │   └── tinsel-demo/            Golden test vectors + demo runner
-├── docker-compose.yml          Local + Railway deployment
+├── docker-compose.yml          Local development / self-hosting
 ├── pyproject.toml              uv monorepo workspace root
 └── context.md                  Deployment review session log
 ```
