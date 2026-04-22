@@ -15,6 +15,12 @@ alembic upgrade head
 echo "--- Migrations complete ---"
 echo ""
 
+if [ "${SENTINEL_ENV:-development}" = "development" ]; then
+    echo "--- Seeding development database ---"
+    python /app/packages/tinsel-api/scripts/seed_dev.py || true
+    echo ""
+fi
+
 echo "--- Starting API server ---"
 exec uvicorn sentinel_api.main:app \
     --host 0.0.0.0 \

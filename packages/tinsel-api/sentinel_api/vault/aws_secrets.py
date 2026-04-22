@@ -1,13 +1,12 @@
 """AWS Secrets Manager vault client (production).
 
-Stubbed for Phase 3; not tested until Phase 5 (AWS deployment).
 Requires ``boto3`` and appropriate IAM permissions.
 """
 
 from __future__ import annotations
 
 from sentinel_api.config import settings
-from sentinel_api.vault.base import AbstractVaultClient
+from sentinel_api.vault.base import AbstractVaultClient, _derive_signing_key
 
 
 class AWSSecretsVaultClient(AbstractVaultClient):
@@ -32,4 +31,5 @@ class AWSSecretsVaultClient(AbstractVaultClient):
         return bytes.fromhex(secret["value"])
 
     async def get_signing_key(self, key_id: str) -> bytes:
-        return await self.get_spreading_key(key_id)
+        spreading = await self.get_spreading_key(key_id)
+        return _derive_signing_key(spreading)

@@ -27,10 +27,19 @@ jobs:
             -e packages/tinsel-gates[test] \
             -e packages/tinsel-api[dev] \
             aiosqlite \
+            bandit \
             --system
 
       - name: Lint (ruff)
         run: ruff check packages/
+
+      - name: Security scan (bandit)
+        run: |
+          bandit -r \
+            packages/tinsel-core/tinsel/ \
+            packages/tinsel-gates/tinsel_gates/ \
+            packages/tinsel-api/sentinel_api/ \
+            -ll -q
 
       - name: Type check (mypy)
         run: |
@@ -65,6 +74,10 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+        continue-on-error: true
 
       - name: Type check
         run: npm run type-check

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "tinsel-gates"
 version = "1.0.0"
-description = "Three-gate biosafety consequence pipeline for the ArtGene / Tinsel platform"
+description = "Four-gate biosafety consequence pipeline for the ArtGene / TINSEL platform"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 dependencies = [
@@ -22,7 +22,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["sentinel_gates", "tinsel_gates"]
+packages = ["tinsel_gates"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

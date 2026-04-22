@@ -94,6 +94,5 @@ async def get_pathway_proof(
         "gene_count": pathway.gene_count,
         "merkle_root": pathway.merkle_root,
         "certificate_ids": pathway.certificate_ids,
-        "proof": None,  # Phase 7: return real MerkleProof objects
-        "note": "Full Merkle proof generation is implemented in Phase 7",
+        "proof": {"not_implemented": True},
     }

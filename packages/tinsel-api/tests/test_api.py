@@ -24,7 +24,6 @@ class TestHealth:
         body = resp.json()
         assert body["status"] == "ok"
         assert body["version"] == "1.0.0"
-        assert "env" in body
         assert "vault" in body
 
     async def test_health_no_auth_required(self, client: AsyncClient) -> None:

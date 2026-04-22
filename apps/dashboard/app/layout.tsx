@@ -90,22 +90,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                       <span>
                         General enquiries:{" "}
                         <a
-                          href="mailto:contact@artgene.bio"
+                          href="mailto:b@genethropic.com"
                           className="text-blue-600 dark:text-blue-400 hover:underline"
                         >
-                          contact@artgene.bio
-                        </a>
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="mt-0.5 shrink-0">🔬</span>
-                      <span>
-                        Biosafety &amp; compliance:{" "}
-                        <a
-                          href="mailto:biosafety@artgene.bio"
-                          className="text-blue-600 dark:text-blue-400 hover:underline"
-                        >
-                          biosafety@artgene.bio
+                          b@genethropic.com
                         </a>
                       </span>
                     </li>
@@ -121,13 +109,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                         >
                           GitHub Issues
                         </a>
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="mt-0.5 shrink-0">📍</span>
-                      <span>
-                        ArtGene Bioinformatics Ltd.<br />
-                        London, United Kingdom
                       </span>
                     </li>
                   </ul>
