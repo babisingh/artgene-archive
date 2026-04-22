@@ -1,10 +1,11 @@
 """AWS Secrets Manager vault client (production).
 
-Stubbed for Phase 3; not tested until Phase 5 (AWS deployment).
 Requires ``boto3`` and appropriate IAM permissions.
 """
 
 from __future__ import annotations
+
+import hashlib
 
 from sentinel_api.config import settings
 from sentinel_api.vault.base import AbstractVaultClient
@@ -32,4 +33,7 @@ class AWSSecretsVaultClient(AbstractVaultClient):
         return bytes.fromhex(secret["value"])
 
     async def get_signing_key(self, key_id: str) -> bytes:
-        return await self.get_spreading_key(key_id)
+        # Derive a distinct signing key from the spreading key so the two values
+        # always differ — TINSELEncoder enforces this invariant at construction.
+        spreading = await self.get_spreading_key(key_id)
+        return hashlib.sha3_256(spreading + b":tinsel-signing-key-v1").digest()

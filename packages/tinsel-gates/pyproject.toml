@@ -22,7 +22,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["sentinel_gates", "tinsel_gates"]
+packages = ["tinsel_gates"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

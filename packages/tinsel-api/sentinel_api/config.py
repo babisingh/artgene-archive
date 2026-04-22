@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _VALID_ENVS = frozenset({"test", "development", "production"})
@@ -30,8 +30,23 @@ class Settings(BaseSettings):
         )
 
     # ── TINSEL Spreading Key ────────────────────────────────────────────────
-    spreading_key: str = "aa" * 32          # 32-byte dev default (hex)
+    # Dev default — intentionally weak so it fails loudly in production.
+    # Generate a real key: python -c "import secrets; print(secrets.token_hex(32))"
+    spreading_key: str = "aa" * 32
     spreading_key_id: str = "local-dev-key"
+
+    @field_validator("spreading_key")
+    @classmethod
+    def _validate_spreading_key_hex(cls, v: str) -> str:
+        try:
+            raw = bytes.fromhex(v)
+        except ValueError as exc:
+            raise ValueError(f"SPREADING_KEY must be a valid hex string: {exc}") from exc
+        if len(raw) != 32:
+            raise ValueError(
+                f"SPREADING_KEY must encode exactly 32 bytes (64 hex chars), got {len(raw)}"
+            )
+        return v
 
     # ── CORS ────────────────────────────────────────────────────────────────
     # Comma-separated string of allowed origins for CORS.
@@ -60,6 +75,16 @@ class Settings(BaseSettings):
     # ── Runtime ────────────────────────────────────────────────────────────
     sentinel_env: str = "development"       # must be: test | development | production
     log_level: str = "INFO"
+
+    @model_validator(mode="after")
+    def _reject_insecure_production_key(self) -> "Settings":
+        if self.sentinel_env == "production" and self.spreading_key == "aa" * 32:
+            raise ValueError(
+                "SPREADING_KEY is still the insecure development default in production mode. "
+                "Set SPREADING_KEY to a random 64-char hex string in your Railway/environment variables. "
+                "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+        return self
 
     @field_validator("sentinel_env")
     @classmethod

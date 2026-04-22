@@ -39,14 +39,18 @@ artgene-archive/
 
 ## Session Plan
 
-### Session 1 — Security Critical Fixes (CURRENT)
+### Session 1 — Security Critical Fixes (DONE)
 **Goal**: Fix all High-severity security issues before anyone else sees the code.
 
-- [ ] S1-A: Fix AWS vault — `get_signing_key()` returns identical bytes to `get_spreading_key()`, causing `TINSELEncoder` to crash on every production registration
-- [ ] S1-B: Remove insecure hardcoded default spreading key in `config.py` — make `SPREADING_KEY` a required env var with no fallback
-- [ ] S1-C: Disable / remove legacy `tinsel_api` application (wildcard CORS + `allow_credentials=True` + zero auth)
-- [ ] S1-D: Fix `docker-compose.yml` malformed/duplicated command block (container will fail to start)
-- [ ] S1-E: Fix broken health test assertion (`"env"` field not returned by public endpoint)
+- [x] S1-A: Fix AWS vault — `get_signing_key()` now derives via SHA3-256 (matches mock, TINSELEncoder no longer crashes)
+- [x] S1-B: Added `@field_validator` (hex + length) + `@model_validator` (rejects dev key when `SENTINEL_ENV=production`)
+- [x] S1-C: Deleted `tinsel_api/` (legacy app — wildcard CORS, no auth, no rate limiting)
+- [x] S1-C: Deleted `sentinel_gates/` (legacy gate pipeline, only used by tinsel_api)
+- [x] S1-C: Updated both `pyproject.toml` files — removed legacy packages from wheel exports
+- [x] S1-D: Removed malformed `entrypoint`/`command` block from `docker-compose.yml`; Dockerfile CMD (`start.sh`) now handles startup
+- [x] S1-D: Added idempotent dev seed to `start.sh` (runs only when `SENTINEL_ENV=development`)
+- [x] S1-E: Removed broken `assert "env" in body` from health test
+- [x] S1-F: Footer — replaced placeholder emails with `b@genethropic.com`, removed biosafety email + physical address
 
 ### Session 2 — Structural Cleanup
 **Goal**: Remove dead code that confuses the codebase and inflates the image.
@@ -165,7 +169,7 @@ Audit log uses blockchain-style SHA3-256 chaining. DB trigger (migration 003) bl
 | Date | Session | Changes Made | Status |
 |---|---|---|---|
 | 2026-04-22 | Exploration | Full codebase audit, created context.md | Done |
-| — | Session 1 | Security critical fixes | Pending |
-| — | Session 2 | Structural cleanup | Pending |
-| — | Session 3 | Code quality hardening | Pending |
+| 2026-04-22 | Session 1 | SEC-01 AWS vault fix, SEC-02 prod key guard, SEC-03 delete tinsel_api+sentinel_gates, BRK-01 docker-compose fix, BRK-02 health test fix, footer contact fix | Done |
+| — | Session 2 | Code quality hardening (AUD-01, DB-01, KEY-01, stubs) | Pending |
+| — | Session 3 | CI hardening (bandit, npm audit) | Pending |
 | — | Session 4 | UI review | Pending |
