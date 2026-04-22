@@ -23,36 +23,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useApiKey } from "../../lib/providers";
 import type { CertificateSummary } from "../../lib/api";
-
-// ---------------------------------------------------------------------------
-// Status badge
-// ---------------------------------------------------------------------------
-
-function StatusBadge({ status }: { status: string }) {
-  const cls =
-    status === "CERTIFIED"
-      ? "badge-pass"
-      : status === "FAILED"
-        ? "badge-fail"
-        : "badge-skip";
-  return <span className={cls}>{status}</span>;
-}
-
-// ---------------------------------------------------------------------------
-// Tier badge
-// ---------------------------------------------------------------------------
-
-function TierBadge({ tier }: { tier: string }) {
-  const colors: Record<string, string> = {
-    FULL: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-400",
-    STANDARD: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400",
-    REDUCED: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400",
-    MINIMAL: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300",
-    REJECTED: "badge-fail",
-  };
-  const cls = colors[tier] ?? "badge-skip";
-  return <span className={`badge ${cls}`}>{tier}</span>;
-}
+import { StatusBadge, TierBadge } from "../../components/CertBadges";
 
 // ---------------------------------------------------------------------------
 // Register form schema

@@ -64,8 +64,25 @@ artgene-archive/
 - [x] S2-G: `npm audit --audit-level=high` added to dashboard CI (`continue-on-error: true`)
 - [x] S2-H: Fixed stale package description in `tinsel-gates/pyproject.toml` ("Three-gate" → "Four-gate")
 
-### Session 3 — UI Review (NEXT)
-**Goal**: Review and fix the Next.js dashboard.
+### Session 3 — UI Review + README (DONE)
+**Goal**: Review and fix the Next.js dashboard; write polished README.
+
+**UI audit found 39 issues. Fixed:**
+- [x] Extracted shared `StatusBadge` + `TierBadge` to `components/CertBadges.tsx` — removed duplication across 3 files; shared component also handles `CERTIFIED_WITH_WARNINGS`
+- [x] Nav clarity — renamed "Registry" → "Public Registry", "Sequences" → "My Sequences"
+- [x] Accessibility — added `htmlFor` + `id` to all form fields in `register/page.tsx`
+- [x] Accessibility — added `role="alert"` to validation error messages
+- [x] Accessibility — added `aria-live="polite" aria-atomic="true"` to gate progress tracker
+- [x] Accessibility — added `aria-busy={busy}` to submit + export buttons
+- [x] UX bug — export failure was silent (`console.error` only); now shows inline error via `exportError` state with `role="alert"`
+- [x] Accuracy — fixed "Three biosafety gates" → "Four biosafety gates" in idle hint; updated gate descriptions to match actual adapters
+- [x] Dep conflict — upgraded `eslint` from `^8.57.0` → `^9.0.0` to match `eslint-config-next@16` peer requirement; `npm run type-check` now passes with 0 errors
+- [x] README — complete rewrite: architecture diagram, TINSEL codon steganography explanation, watermark tier table, tamper-evident audit log, fragment k-mer cross-check, PQ crypto notes, implemented vs. planned feature checklist, API reference with curl examples, env var table with security note, repo layout, full tech stack
+
+**Not fixed (low/trivial or requires larger refactor):**
+- `_syntaxHighlight` JSON viewer: safe as-is (escapes entities before injecting HTML); replacing requires a new dependency
+- Metadata for client-component pages: requires per-directory layout files — out of scope
+- Consolidating two table paradigms (`/registry` custom vs `/sequences` TanStack): accepted as-is
 
 ---
 
@@ -164,4 +181,4 @@ Audit log uses blockchain-style SHA3-256 chaining. DB trigger (migration 003) bl
 | 2026-04-22 | Exploration | Full codebase audit, created context.md | Done |
 | 2026-04-22 | Session 1 | SEC-01 AWS vault fix, SEC-02 prod key guard, SEC-03 delete tinsel_api+sentinel_gates, BRK-01 docker-compose fix, BRK-02 health test fix, footer contact fix | Done |
 | 2026-04-22 | Session 2 | AUD-01 last_used_at, DB-01 migration 006, KEY-01 HMAC vault, stubs flagged, Sequence model removed, bandit+npm audit in CI | Done |
-| — | Session 3 | UI review | Pending |
+| 2026-04-22 | Session 3 | UI audit (39 issues), shared CertBadges, nav labels, a11y fixes, export error UX, eslint upgrade, README rewrite | Done |

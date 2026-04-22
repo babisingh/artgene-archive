@@ -1,185 +1,279 @@
 # ArtGene Archive
 
-A biosafety watermarking registry for synthetic biology sequences. ArtGene Archive
-ingests protein and DNA sequences, runs a three-gate biosafety pipeline, embeds a
-covert TINSEL watermark via spread-spectrum codon-choice steganography, and issues
-a tamper-evident certificate stored in PostgreSQL.
+> **Cryptographic provenance and automated biosafety certification for synthetic gene sequences.**
+
+ArtGene Archive is a full-stack platform that lets synthetic biology researchers register protein and DNA sequences against a tamper-evident public registry. Every registration runs a four-gate biosafety pipeline, embeds a covert **TINSEL watermark** inside codon choices (invisible to translation, detectable by the platform), signs the certificate with a post-quantum key, and appends an immutable blockchain-style audit log entry — all in one atomic transaction.
+
+Built as an open research platform. Forkable, self-hostable with Docker Compose, and deployable to Railway in one command.
 
 ---
 
-## Architecture
+## How it works
 
 ```
+Researcher submits FASTA
+        │
+        ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                         Client / Browser                        │
-│                    Next.js 16 Dashboard (port 3000)             │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │ HTTP / REST
-┌───────────────────────────▼─────────────────────────────────────┐
-│                     FastAPI (port 8000)                         │
-│  POST /api/v1/register                                          │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  Step 1 │ Parse & normalise FASTA  → detect seq type     │   │
-│  │  Step 2 │ Three-gate biosafety pipeline (tinsel-gates)   │   │
-│  │         │   Gate 1 — ESMFold pLDDT structural stability  │   │
-│  │         │   Gate 2 — composition heuristic / toxin screen│   │
-│  │         │   Gate 3 — HGT risk / codon adaptation index   │   │
-│  │  Step 3 │ Deduplication check (SHA3-256 sequence hash)   │   │
-│  │  Step 4 │ Fetch spreading key from Vault                 │   │
-│  │  Step 5 │ TINSELEncoder.encode_v1() — codon watermark    │   │
-│  │  Step 6 │ Build HybridCertificate + stub WOTS+/LWE       │   │
-│  │  Step 7 │ Write Certificate row → PostgreSQL             │   │
-│  │  Step 8 │ Append tamper-evident RegistryAuditLog entry   │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│  GET  /api/v1/certificates/{id}                                 │
-│  GET  /api/v1/certificates/                                     │
-│  POST /api/v1/certificates/{id}/verify                          │
-│  POST /api/v1/certificates/{id}/publish                         │
-│  GET  /api/v1/certificates/{id}/export                          │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │ asyncpg / SQLAlchemy 2.0
-┌───────────────────────────▼─────────────────────────────────────┐
-│              PostgreSQL 15 (supabase/postgres image)            │
-│   tables: certificates · organisations · registry_audit_log    │
+│                    ArtGene Registry API                         │
+│                                                                 │
+│  1. Parse + normalise FASTA  (protein / DNA / RNA detection)    │
+│  2. SHA3-256 deduplication   (prevent re-registration)          │
+│                                                                 │
+│  3. ┌── Gate 1: ESMFold pLDDT ─────────────────────────────┐   │
+│     │   Structural stability — must pass to proceed         │   │
+│     └────────────────────────────────────────────────────── ┘   │
+│                          │  (concurrent below)                  │
+│  4. ┌── Gate 2: Off-Target Screening ────────────────────── ┐   │
+│     │   Composition check + SecureDNA DOPRF + IBBIS commec  │   │
+│     └────────────────────────────────────────────────────── ┘   │
+│     ┌── Gate 3: Ecological Risk ──────────────────────────── ┐   │
+│     │   Codon adaptation index + horizontal gene transfer    │   │
+│     └────────────────────────────────────────────────────── ┘   │
+│     ┌── Gate 4: Embedding Fingerprint ───────────────────── ┐   │
+│     │   Composition fingerprint + ESM-2 sequence embedding  │   │
+│     └────────────────────────────────────────────────────── ┘   │
+│                                                                 │
+│  5. Fragment k-mer cross-check  (assembly risk detection)       │
+│  6. Fetch spreading + signing keys from Vault                   │
+│  7. TINSEL watermark            (HMAC-SHA3-256 spread-spectrum) │
+│  8. WOTS+ post-quantum signature over certificate hash          │
+│  9. Atomic DB write:  certificate  +  audit log  +  k-mer index │
 └─────────────────────────────────────────────────────────────────┘
+        │
+        ▼
+Certificate issued  →  AG-2026-000001
 ```
 
----
-
-## Features
-
-- **TINSEL watermarking** — spread-spectrum codon-choice steganography using
-  HMAC-SHA3-256. Watermark capacity is tiered by synonymous carrier positions:
-
-  | Tier     | Min carriers | Signature | RS codec  | Correctable bytes |
-  |----------|:------------:|:---------:|:---------:|:-----------------:|
-  | FULL     | 1,792        | 128-bit   | (32, 16)  | 8                 |
-  | STANDARD |   896        |  64-bit   | (16,  8)  | 4                 |
-  | REDUCED  |   320        |  32-bit   | ( 8,  4)  | 2                 |
-  | MINIMAL  |    96        |  16-bit   | ( 4,  2)  | 1                 |
-  | DEMO     |    24        |   8-bit   | none      | 0                 |
-  | REJECTED |   < 24       |  —        | —         | not embeddable    |
-
-- **Three-gate biosafety pipeline**
-  - Gate 1: ESMFold pLDDT structural stability score
-  - Gate 2: Composition heuristic — toxin / allergen sequence screening
-  - Gate 3: Horizontal gene transfer (HGT) risk + codon adaptation index
-
-- **Certificate statuses**: `CERTIFIED`, `CERTIFIED_WITH_WARNINGS`, `FAILED`, `PENDING`
-
-- **Visibility control**: `public` (globally visible) or `embargoed` (private to the
-  owning organisation until explicitly published)
-
-- **Tamper-evident audit log**: blockchain-style chained SHA3-256 hashes across all
-  registry entries
-
-- **Deduplication**: SHA3-256 of the normalised protein sequence prevents re-registration
-  without leaking the existing certificate identity
-
-- **Sequence length cap**: 5,000 AA per submission
-
-- **Rate limiting** (via slowapi):
-  - Demo endpoints: 10 req/min
-  - Write endpoints: 20 req/min
-  - Read endpoints: 100 req/min
-
-- **Post-quantum crypto stubs**: WOTS+ one-time signatures and LWE lattice commitments
-  are Phase 7 placeholders; the HMAC-SHA3-256 codon watermark provides provenance now
+The biosafety gates run **concurrently** after Gate 1 passes, keeping the wall-clock latency low even with four checks.
 
 ---
 
-## Tech Stack
+## What makes it interesting
 
-### API (`packages/tinsel-api`)
-| Component      | Library                              |
-|----------------|--------------------------------------|
-| Framework      | FastAPI 0.115+                       |
-| ASGI server    | Uvicorn (standard)                   |
-| Lambda adapter | Mangum 0.17                          |
-| Database       | PostgreSQL 15 via asyncpg + SQLAlchemy 2.0 (async) |
-| Migrations     | Alembic 1.13                         |
-| Config         | pydantic-settings 2.2                |
-| Rate limiting  | slowapi 0.1.9                        |
-| AWS secrets    | boto3 1.34                           |
-| Python         | 3.12+                                |
+### TINSEL — codon steganography
+The watermark hides provenance bits inside synonymous codon choices. Methionine has no synonyms; leucine has six. The encoder uses HMAC-SHA3-256 to spread a structured bitstring across the available synonymous positions — invisible to ribosomes, detectable by the registry, and survivable across a single-base error thanks to Reed-Solomon coding.
 
-### Core library (`packages/tinsel-core`)
-- Pydantic v2 registry models (`HybridCertificate`, `WatermarkResult`, etc.)
-- `TINSELEncoder` / `TINSELDecoder` — spread-spectrum codon steganography
-- Reed-Solomon codec per tier
+| Tier     | Min carrier codons | Watermark bits | RS code   | Error tolerance |
+|----------|:------------------:|:--------------:|:---------:|:---------------:|
+| FULL     | 1,792              | 128-bit        | (32, 16)  | 8 bytes         |
+| STANDARD |   896              |  64-bit        | (16,  8)  | 4 bytes         |
+| REDUCED  |   320              |  32-bit        | ( 8,  4)  | 2 bytes         |
+| MINIMAL  |    96              |  16-bit        | ( 4,  2)  | 1 byte          |
+| DEMO     |    24              |   8-bit        | none      | 0               |
+| REJECTED |  < 24              |  —             | —         | too short       |
 
-### Biosafety gates (`packages/tinsel-gates`)
-- `run_consequence_pipeline()` — async three-gate pipeline
-- Mock mode available for `development` / `test` environments
+The tier is determined automatically from the number of synonymous carrier codons in the submitted sequence. Shorter sequences get weaker watermarks; the REJECTED tier means the sequence cannot carry a detectable watermark at all.
 
-### Dashboard (`apps/dashboard`)
-| Component        | Library                   |
-|------------------|---------------------------|
-| Framework        | Next.js 16 + React 18     |
-| Styling          | Tailwind CSS 3            |
-| Data fetching    | TanStack Query 5          |
-| Tables           | TanStack Table 8          |
-| Charts           | Recharts 2                |
-| Forms            | React Hook Form 7 + Zod 3 |
-| UI primitives    | Headless UI 2             |
-| E2E tests        | Playwright                |
-| Language         | TypeScript 5              |
+### Tamper-evident audit log
+Every registration appends a row to `registry_audit_log` using blockchain-style SHA3-256 chaining:
+
+```
+entry_hash = SHA3-256( seq_num || prev_entry_hash || certificate_hash )
+```
+
+A PostgreSQL trigger (migration 003) blocks any `UPDATE` or `DELETE` on this table at the database level. The ORM model has a second guard layer: `AppendOnlyMixin` raises `RuntimeError` if any field is mutated after the first commit.
+
+### Fragment assembly risk detection
+When a sequence is registered, its 20-mer subsequences are SHA3-256-hashed and stored in `fragment_kmer_index`. Future registrations check their k-mers against this index to detect sequences that could be assembled from previously registered fragments — without storing any raw sequence data.
+
+### Post-quantum cryptography (partial)
+WOTS+ (Winternitz One-Time Signature Scheme) signs the certificate hash with a keypair derived deterministically from `(spreading_key, registry_id)` — so the private key is never stored. **LWE lattice commitments are a planned feature** (clearly flagged in API responses with `"not_implemented": true`). The spread-spectrum HMAC watermark provides provenance today; the PQ layer provides forward-looking non-repudiation.
 
 ---
 
-## Getting Started
+## Dashboard
 
-### Prerequisites
-- Docker and Docker Compose
-- (Local dev only) Python 3.12+, Node.js 20+, `uv`
+The Next.js dashboard provides a full UI for the registry:
 
-### Docker Compose (recommended)
+- **Register** — drag-and-drop FASTA upload, host organism selector, ethics code, visibility control (public / embargoed). Live biosafety gate progress tracker while the pipeline runs.
+- **Public Registry** — paginated browse of all public certificates across all organisations.
+- **My Sequences** — your organisation's certificates with sortable columns, inline quick-register modal, and one-click export.
+- **Certificate Detail** — biosafety gate accordion, watermark metadata, χ² codon bias chart, compliance manifest download, synthesizer auth document, certificate export to `.artgene.json`.
+- **Demo** — run the full watermark + biosafety analysis directly in the browser without registering.
+- **Fragment Screen** — check whether a sequence's k-mers overlap with the registry.
+- Dark mode, responsive layout, TanStack Query for data freshness.
+
+---
+
+## What's implemented vs. planned
+
+### Implemented and production-ready
+- [x] Four-gate biosafety pipeline (mock in dev, real adapters in prod)
+- [x] TINSEL codon watermark (HMAC-SHA3-256 spread-spectrum, Reed-Solomon)
+- [x] WOTS+ post-quantum signature (keypair derived per certificate, never stored)
+- [x] Tamper-evident audit log with DB-level trigger
+- [x] Fragment k-mer cross-check with privacy-preserving hashed index
+- [x] SHA3-256 sequence deduplication
+- [x] API key authentication with SHA3-256 hashed key storage, `last_used_at` tracking
+- [x] Rate limiting (slowapi) — 10/20/100 req/min per endpoint class
+- [x] Visibility control (public / embargoed) with publish workflow
+- [x] Certificate export to `.artgene.json` (signed canonical bundle)
+- [x] Compliance manifest with framework selector (US DURC, EU Dual-Use)
+- [x] Synthesizer auth document generation
+- [x] Idempotent dev seed (org + API key on first `docker compose up`)
+- [x] Railway-ready Docker Compose with health-checked service dependencies
+- [x] Full Next.js dashboard with dark mode
+
+### Planned / stubbed
+- [ ] **LWE lattice commitments** — zero-filled stub; flagged with `"not_implemented": true` in responses (Phase 4)
+- [ ] **Merkle inclusion proofs** for pathways — returns `{"not_implemented": true}` (Phase 7)
+- [ ] **CDK / Terraform infra** — Mangum Lambda adapter is wired, no deployment manifests yet (Phase 5)
+- [ ] **IBBIS + SecureDNA live mode** — adapters are implemented, mock used in dev
+
+---
+
+## Quick start
+
+### Requirements
+- Docker 24+ and Docker Compose v2
+
+### Run with Docker Compose
 
 ```bash
-git clone <repo-url> artgene-archive
+git clone https://github.com/babisingh/artgene-archive.git
 cd artgene-archive
-
-# Optional: override defaults
-cp .env.example .env   # if present; otherwise env vars have sane defaults
 
 docker compose up --build
 ```
 
-Services started:
+| Service   | URL                       |
+|-----------|---------------------------|
+| Dashboard | http://localhost:3000     |
+| API       | http://localhost:8000     |
+| API docs  | http://localhost:8000/docs |
+| Database  | localhost:5432            |
 
-| Service   | URL                          |
-|-----------|------------------------------|
-| API       | http://localhost:8000        |
-| Dashboard | http://localhost:3000        |
-| Database  | localhost:5432               |
+On first start the container runs `alembic upgrade head` and seeds a development organisation. Your dev API key is:
 
-On first start the API container runs `alembic upgrade head` and
-`scripts/seed_dev.py` to create the schema and seed an initial organisation.
+```
+tinsel-dev-key-00000000
+```
 
-**Demo API key**: `tinsel-dev-key-00000000`
+Paste it into the **Set API Key** button in the dashboard nav, or pass it as `X-API-Key` in curl requests.
 
-### Local Development
+---
 
-#### API
+## API reference
+
+All endpoints require `X-API-Key` except `/api/v1/health`.
+
+### Register a sequence
 
 ```bash
-cd packages/tinsel-api
+curl -s -X POST http://localhost:8000/api/v1/register \
+  -H "X-API-Key: tinsel-dev-key-00000000" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fasta": ">MyProtein\nMAKTIIALSYIFCLVFADASHAAAAAAAAAAAAAAAAAAAAAA",
+    "owner_id": "researcher@example.org",
+    "ethics_code": "ETH-2026-001",
+    "host_organism": "ECOLI",
+    "visibility": "public"
+  }'
+```
 
-# Install all packages in the monorepo
+Response `201`:
+```json
+{
+  "status": "CERTIFIED",
+  "registry_id": "AG-2026-000001",
+  "tier": "STANDARD",
+  "chi_squared": 1.234567,
+  "message": "Sequence certified — AG-2026-000001",
+  "consequence_report": { ... }
+}
+```
+
+If any gate fails, `status` is `"FAILED"` with no `registry_id` and the full gate report attached.
+
+### Fetch a certificate
+
+```bash
+curl -s http://localhost:8000/api/v1/certificates/AG-2026-000001 \
+  -H "X-API-Key: tinsel-dev-key-00000000"
+```
+
+### Verify the watermark
+
+```bash
+curl -s -X POST http://localhost:8000/api/v1/certificates/AG-2026-000001/verify \
+  -H "X-API-Key: tinsel-dev-key-00000000"
+```
+
+Response:
+```json
+{
+  "registry_id": "AG-2026-000001",
+  "verified": true,
+  "bit_error_rate": 0.0,
+  "tier": "STANDARD",
+  "failure_reason": null
+}
+```
+
+### Endpoints
+
+| Method | Path | Rate limit | Auth | Description |
+|--------|------|:----------:|:----:|-------------|
+| GET | `/api/v1/health` | — | No | Liveness probe |
+| POST | `/api/v1/register` | 20/min | Yes | Register sequence + run biosafety pipeline |
+| GET | `/api/v1/certificates/` | 100/min | Yes | List certificates (paginated) |
+| GET | `/api/v1/certificates/{id}` | 100/min | Yes | Fetch certificate |
+| POST | `/api/v1/certificates/{id}/verify` | 20/min | Yes | Verify embedded watermark |
+| POST | `/api/v1/certificates/{id}/publish` | 20/min | Yes | Lift embargo |
+| GET | `/api/v1/certificates/{id}/export` | 100/min | Yes | Download `.artgene.json` bundle |
+| POST | `/api/v1/pathways` | 20/min | Yes | Create multi-gene pathway bundle |
+| GET | `/api/v1/pathways/{id}` | 100/min | Yes | Fetch pathway + Merkle root |
+| POST | `/api/v1/analyse` | 10/min | No | Demo — watermark analysis without registering |
+| POST | `/api/v1/structure` | 10/min | No | Demo — ESMFold structure prediction |
+
+Interactive API docs (Swagger): `http://localhost:8000/docs`
+
+---
+
+## Environment variables
+
+| Variable | Required in prod | Default (dev) | Description |
+|---|:---:|---|---|
+| `DATABASE_URL` | Yes | postgres://…@db:5432/artgene | PostgreSQL DSN |
+| `SPREADING_KEY` | **Yes** | `aa…aa` (64 hex chars) | HMAC spreading key — **must be changed in production** |
+| `SPREADING_KEY_ID` | Yes | `local-dev-key` | Key identifier for vault lookup |
+| `SENTINEL_ENV` | Yes | `development` | `production` enables real biosafety gates and rejects the dev spreading key |
+| `ALLOWED_ORIGINS` | Yes | `http://localhost:3000` | CORS allowlist (comma-separated) |
+| `LOG_LEVEL` | No | `INFO` | Uvicorn log level |
+| `AWS_REGION` | Prod only | `eu-west-1` | AWS region for Secrets Manager |
+| `NCBI_EMAIL` | Prod only | — | Email for NCBI API calls |
+| `ESMFOLD_API_URL` | Prod only | ESMAtlas URL | Override ESMFold endpoint |
+| `NEXT_PUBLIC_API_URL` | Yes | `http://localhost:8000` | Browser-side API base URL |
+
+> **Security note**: Setting `SENTINEL_ENV=production` without a custom `SPREADING_KEY` causes the API to refuse startup. Generate a key with:
+> ```bash
+> python -c "import secrets; print(secrets.token_hex(32))"
+> ```
+
+---
+
+## Local development
+
+### API (Python)
+
+```bash
+# Install the full monorepo with uv
 uv sync
 
-# Start a local PostgreSQL instance (or point DATABASE_URL at an existing one)
 export DATABASE_URL="postgresql://postgres:tinsel_local_password@localhost:5432/artgene"
+export SPREADING_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
 export SPREADING_KEY_ID="local-dev-key"
-export SPREADING_KEY="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 export SENTINEL_ENV="development"
 
+cd packages/tinsel-api
 alembic upgrade head
 python scripts/seed_dev.py
 uvicorn sentinel_api.main:app --reload
 ```
 
-#### Dashboard
+### Dashboard (Node.js)
 
 ```bash
 cd apps/dashboard
@@ -187,166 +281,88 @@ npm install
 NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
 ```
 
-#### Run tests
+### Tests
 
 ```bash
-# API unit + integration tests
-cd packages/tinsel-api
-uv run pytest
+# Python — unit + integration (SQLite in-memory, no Postgres needed)
+pytest packages/ -v --import-mode=importlib
 
-# Dashboard E2E (requires running stack)
+# Dashboard — type check + build
 cd apps/dashboard
-npx playwright test
+npm run type-check
+npm run build
 ```
 
 ---
 
-## API Endpoints
-
-All endpoints are prefixed `/api/v1/` and require an `X-Api-Key` header unless
-noted otherwise. The health endpoint is public.
-
-### Health
-
-| Method | Path              | Description          |
-|--------|-------------------|----------------------|
-| GET    | `/api/v1/health`  | Liveness probe       |
-
-### Registration
-
-| Method | Path                  | Rate limit  | Description                              |
-|--------|-----------------------|-------------|------------------------------------------|
-| POST   | `/api/v1/register`    | 20 req/min  | Register a sequence; runs biosafety pipeline and issues certificate |
-
-**Request body:**
-
-```json
-{
-  "fasta": ">MyProtein\nMAKTII...",
-  "owner_id": "researcher@example.org",
-  "ethics_code": "ETH-2026-001",
-  "host_organism": "ECOLI",
-  "visibility": "public"
-}
-```
-
-`host_organism` options: `HUMAN`, `ECOLI`, `YEAST`, `CHO`, `INSECT`, `PLANT`
-
-`visibility` options: `public`, `embargoed`
-
-**Response (201):**
-
-```json
-{
-  "status": "CERTIFIED",
-  "registry_id": "AG-2026-000001",
-  "tier": "STANDARD",
-  "chi_squared": 1.234,
-  "consequence_report": { ... },
-  "message": "Sequence certified — AG-2026-000001"
-}
-```
-
-If any biosafety gate returns `FAIL`, the response has `status: "FAILED"` with no
-`registry_id` and the full consequence report attached.
-
-### Certificates
-
-| Method | Path                                    | Rate limit  | Description                            |
-|--------|-----------------------------------------|-------------|----------------------------------------|
-| GET    | `/api/v1/certificates/`                 | 100 req/min | List certificates (paginated, `limit`/`offset`) |
-| GET    | `/api/v1/certificates/{id}`             | 100 req/min | Fetch a single certificate             |
-| POST   | `/api/v1/certificates/{id}/verify`      | 20 req/min  | Verify the embedded TINSEL watermark   |
-| POST   | `/api/v1/certificates/{id}/publish`     | 20 req/min  | Lift embargo — make certificate public |
-| GET    | `/api/v1/certificates/{id}/export`      | 100 req/min | Download canonical signed JSON (`*.artgene.json`) |
-
-Registry IDs follow the pattern `AG-{year}-{seq:06d}`, e.g. `AG-2026-000001`.
-
-**Embargoed certificates** are only visible to the owning organisation. The `GET /`
-list endpoint returns own certs plus all public certs; embargoed certs from other
-organisations are hidden entirely (no 403, just absent).
-
-### Quick start with curl
-
-```bash
-API=http://localhost:8000
-KEY=tinsel-dev-key-00000000
-
-# Register a sequence
-curl -s -X POST "$API/api/v1/register" \
-  -H "X-Api-Key: $KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "fasta": ">test\nMKTIIALSYIFCLVFA",
-    "owner_id": "demo@example.org",
-    "ethics_code": "ETH-DEMO",
-    "host_organism": "ECOLI",
-    "visibility": "public"
-  }'
-
-# Fetch the certificate
-curl -s "$API/api/v1/certificates/AG-2026-000001" \
-  -H "X-Api-Key: $KEY"
-
-# Verify the watermark
-curl -s -X POST "$API/api/v1/certificates/AG-2026-000001/verify" \
-  -H "X-Api-Key: $KEY"
-```
-
----
-
-## Environment Variables
-
-| Variable            | Default (docker-compose)                       | Description                              |
-|---------------------|------------------------------------------------|------------------------------------------|
-| `DATABASE_URL`      | `postgresql://postgres:tinsel_local_password@db:5432/artgene` | PostgreSQL DSN |
-| `SPREADING_KEY_ID`  | `local-dev-key`                                | Key ID looked up in Vault                |
-| `SPREADING_KEY`     | 64-char hex string                             | Raw HMAC spreading key (dev only)        |
-| `SENTINEL_ENV`      | `development`                                  | `development` enables mock biosafety gates |
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000`                      | Browser-side API base URL (dashboard)    |
-
----
-
-## Repository Layout
+## Repository layout
 
 ```
 artgene-archive/
-├── packages/
-│   ├── tinsel-core/     # Core Pydantic models, encoder/decoder, tier logic
-│   ├── tinsel-api/      # FastAPI application (sentinel_api), DB models, routes
-│   ├── tinsel-gates/    # Three-gate biosafety pipeline
-│   └── tinsel-demo/     # Demo notebooks / scripts
 ├── apps/
-│   └── dashboard/       # Next.js 16 web dashboard
-├── docker-compose.yml
-└── pyproject.toml       # Monorepo uv workspace root
+│   └── dashboard/              Next.js 16 dashboard
+│       ├── app/                App Router pages (register, registry, sequences, demo)
+│       ├── components/         Shared UI components (CertBadges, CodonBiasChart, …)
+│       └── lib/                Typed API client + React Query providers
+├── packages/
+│   ├── tinsel-core/            Core Python library
+│   │   ├── tinsel/models.py    Pydantic registry models
+│   │   ├── tinsel/watermark/   TINSEL encoder + decoder + Reed-Solomon codec
+│   │   └── tinsel/crypto/      WOTS+ signer
+│   ├── tinsel-gates/           Four-gate biosafety pipeline
+│   │   └── tinsel_gates/       Production adapters (ESMFold, SecureDNA, IBBIS, …)
+│   ├── tinsel-api/             FastAPI backend
+│   │   └── sentinel_api/
+│   │       ├── routes/         register, certificates, pathways, analyse, health
+│   │       ├── db/             SQLAlchemy models + Alembic migrations (001–006)
+│   │       └── vault/          AWS Secrets Manager + env-var mock vault
+│   └── tinsel-demo/            Golden test vectors + demo runner
+├── docker-compose.yml          Local + Railway deployment
+├── pyproject.toml              uv monorepo workspace root
+└── context.md                  Deployment review session log
 ```
 
 ---
 
-## Cryptographic Notes
+## Tech stack
 
-- The **TINSEL codon watermark** (HMAC-SHA3-256 spread-spectrum) is the primary
-  provenance mechanism and is production-ready in this release.
-- **WOTS+ one-time signatures** and **LWE lattice commitments** are Phase 7
-  placeholders. Certificates exported via `/export` carry a machine-readable notice
-  that these fields are stubs and provide no post-quantum cryptographic guarantee.
-- Certificate hashes use SHA3-512 over all certificate fields.
-- The audit log uses SHA3-256 chained entries (seq_num | prev_hash | cert_hash).
+| Layer | Technology |
+|---|---|
+| API framework | FastAPI 0.115 + Uvicorn |
+| Lambda adapter | Mangum (AWS Lambda compatible) |
+| Database | PostgreSQL 15 (asyncpg + SQLAlchemy 2.0 async) |
+| Migrations | Alembic 1.13 |
+| Config | pydantic-settings 2.2 |
+| Cryptography | hmac / hashlib (stdlib) + custom WOTS+ |
+| Rate limiting | slowapi 0.1.9 |
+| Python | 3.12+ |
+| Dashboard | Next.js 16 (App Router, standalone output) |
+| Styling | Tailwind CSS 3 |
+| Data fetching | TanStack Query 5 |
+| Tables | TanStack Table 8 |
+| Charts | Recharts 2 |
+| Forms | React Hook Form 7 + Zod 3 |
+| UI primitives | Headless UI 2 |
+| E2E tests | Playwright |
+| CI | GitHub Actions (ruff + mypy + bandit + pytest / tsc + build) |
 
 ---
 
 ## Contributing
 
-1. Fork the repository and create a branch off `main`.
-2. Make changes; run `uv run pytest` (API) and `npx playwright test` (dashboard)
-   before pushing.
-3. Open a pull request — CI must pass before review.
-4. All sequence registrations in tests must use the `SENTINEL_ENV=development` mock
-   pipeline; do not call live ESMFold or HGT services from tests.
+1. Fork and branch off `main`.
+2. Run `uv run pytest` and `npm run type-check` before pushing.
+3. Tests use `SENTINEL_ENV=development` (mock pipeline) — do not call live external APIs from tests.
+4. Open a PR — CI (lint, types, security scan, tests) must pass before review.
 
 ---
 
 ## License
 
-MIT — see `packages/tinsel-api/pyproject.toml`.
+MIT — see `packages/tinsel-core/pyproject.toml`.
+
+---
+
+## Contact
+
+Questions and bug reports: [b@genethropic.com](mailto:b@genethropic.com) · [GitHub Issues](https://github.com/babisingh/artgene-archive/issues)

@@ -167,16 +167,16 @@ export default function RegisterPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="label">
+                  <label htmlFor="owner_id" className="label">
                     Owner ID / Email <span className="text-red-500" aria-hidden="true">*</span>
                   </label>
-                  <input {...register("owner_id")} className="input" disabled={busy}
+                  <input {...register("owner_id")} id="owner_id" className="input" disabled={busy}
                     placeholder="researcher@example.com" />
                   <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                     Email or username of the submitting researcher.
                   </p>
                   {errors.owner_id && (
-                    <p className="mt-1 text-xs text-red-500">{errors.owner_id.message}</p>
+                    <p className="mt-1 text-xs text-red-500" role="alert">{errors.owner_id.message}</p>
                   )}
                 </div>
 
@@ -186,24 +186,24 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="label">
+                  <label htmlFor="ethics_code" className="label">
                     Ethics Code <span className="text-red-500" aria-hidden="true">*</span>
                   </label>
-                  <input {...register("ethics_code")} className="input" disabled={busy}
+                  <input {...register("ethics_code")} id="ethics_code" className="input" disabled={busy}
                     placeholder="e.g. ERC-2026-001" />
                   <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                     IRB / ethics committee approval reference number.
                   </p>
                   {errors.ethics_code && (
-                    <p className="mt-1 text-xs text-red-500">{errors.ethics_code.message}</p>
+                    <p className="mt-1 text-xs text-red-500" role="alert">{errors.ethics_code.message}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="label">
+                  <label htmlFor="host_organism" className="label">
                     Host Organism <span className="text-red-500" aria-hidden="true">*</span>
                   </label>
-                  <select {...register("host_organism")} className="input" disabled={busy}>
+                  <select {...register("host_organism")} id="host_organism" className="input" disabled={busy}>
                     <option value="ECOLI">E. coli</option>
                     <option value="YEAST">Yeast (S. cerevisiae)</option>
                     <option value="CHO">CHO / Mammalian</option>
@@ -218,8 +218,8 @@ export default function RegisterPage() {
               </div>
               {/* Visibility */}
               <div>
-                <label className="label">Visibility</label>
-                <select {...register("visibility")} className="input" disabled={busy}>
+                <label htmlFor="visibility" className="label">Visibility</label>
+                <select {...register("visibility")} id="visibility" className="input" disabled={busy}>
                   <option value="public">Public — visible to all organisations</option>
                   <option value="embargoed">Embargoed — visible to your org only until published</option>
                 </select>
@@ -237,6 +237,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={busy || !fastaValue.trim()}
+              aria-busy={busy}
               className="btn-primary w-full justify-center py-3 text-base"
               data-testid="submit-register"
             >
@@ -244,7 +245,7 @@ export default function RegisterPage() {
             </button>
 
             {submitError && (
-              <p className="text-sm text-red-500">{submitError}</p>
+              <p className="text-sm text-red-500" role="alert">{submitError}</p>
             )}
 
             {!apiKey && (
@@ -259,7 +260,7 @@ export default function RegisterPage() {
         <div className="space-y-5">
           {/* Gate progress tracker — always visible once started */}
           {phase !== "idle" && (
-            <div className="card p-4">
+            <div className="card p-4" aria-live="polite" aria-atomic="true">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
                 Biosafety Pipeline
               </h2>
@@ -271,11 +272,12 @@ export default function RegisterPage() {
           {phase === "idle" && (
             <div className="card p-5 text-sm text-slate-500 dark:text-slate-400 text-center space-y-2">
               <div className="text-3xl">🛡️</div>
-              <p>Three biosafety gates run automatically after submission:</p>
+              <p>Four biosafety gates run automatically after submission:</p>
               <ol className="text-left space-y-1 text-xs">
                 <li>1. Structural (ESMFold pLDDT)</li>
-                <li>2. Off-Target (BLAST + ToxinPred2)</li>
-                <li>3. Ecological (HGT + DriftRadar)</li>
+                <li>2. Off-Target (SecureDNA + IBBIS)</li>
+                <li>3. Ecological (Codon bias + HGT)</li>
+                <li>4. Embedding (Sequence fingerprint)</li>
               </ol>
             </div>
           )}

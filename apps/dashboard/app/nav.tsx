@@ -8,11 +8,11 @@ import { useApiKey } from "../lib/providers";
 const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/register", label: "Register" },
-  { href: "/registry", label: "Registry" },
-  { href: "/sequences", label: "Sequences" },
-  { href: "/demo",             label: "Demo" },
-  { href: "/demo/fragments",   label: "Fragment Screen" },
-  { href: "/getting-started",  label: "Help" },
+  { href: "/registry", label: "Public Registry" },
+  { href: "/sequences", label: "My Sequences" },
+  { href: "/demo", label: "Demo" },
+  { href: "/demo/fragments", label: "Fragment Screen" },
+  { href: "/getting-started", label: "Help" },
 ];
 
 export function Nav() {
