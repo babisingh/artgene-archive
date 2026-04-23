@@ -287,7 +287,7 @@ export function lookupBySequenceHash(sequenceHash: string): Promise<CertificateL
 }
 
 // ---------------------------------------------------------------------------
-// TINSEL-SAD-1.0 types
+// ArtGene-SCD-1.0 types
 // ---------------------------------------------------------------------------
 
 export interface MachineInstructions {

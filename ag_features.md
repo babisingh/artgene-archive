@@ -49,7 +49,7 @@ If a distribution copy appears somewhere unexpected, it can be pasted into the *
 A paginated table lists all certified and rejected sequences with Registry ID, status, tier, owner, host organism, and registration date. Accessible without authentication for public sequences.
 
 **Sequence Detail Page**
-Each sequence has a dedicated detail page with the full certificate (gate outcomes, hash, metadata), a Provenance Tracing tab listing all issued copies, and a raw SAD-1.0 JSON viewer.
+Each sequence has a dedicated detail page with the full certificate (gate outcomes, hash, metadata), a Provenance Tracing tab listing all issued copies, and a raw SCD (ArtGene-SCD-1.0) JSON viewer.
 
 ---
 

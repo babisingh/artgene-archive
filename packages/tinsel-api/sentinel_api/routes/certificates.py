@@ -408,7 +408,7 @@ async def get_synthesis_auth(
     db: AsyncSession = Depends(get_db),
     org: Organisation = Depends(require_api_key),
 ) -> dict:
-    """Return a TINSEL-SAD-1.0 Synthesis Authorization Document.
+    """Return an ArtGene-SCD-1.0 Synthesis Clearance Document.
 
     Synthesizer firmware reads ``machine_instructions.proceed_with_synthesis``
     to decide whether to proceed.  The full regulatory detail (US DURC,
