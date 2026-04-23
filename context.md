@@ -244,10 +244,21 @@ Note: CD_theme.md lists "Manrope" but the actual prototype (styles.css) uses Ins
 - [x] SiteHeader.tsx + SiteFooter.tsx
 - [x] GateProgressTracker.tsx — α/β/γ/δ labels
 
-### Phase 3 — Page migration (NOT STARTED)
-- [ ] **3a** Home page (`app/page.tsx`)
-- [ ] **3b** Registry page (`app/registry/page.tsx`)
-- [ ] **3c** Record / Sequence detail (`app/sequences/[id]/page.tsx`)
+### Phase 3 — Page migration
+- [x] **3a** Home page (`app/page.tsx`) ✅ COMPLETE
+- [x] **3b** Registry page (`app/registry/page.tsx`) ✅ COMPLETE
+- [x] **3c** Record / Sequence detail (`app/sequences/[id]/page.tsx`) ✅ COMPLETE
+  - 7 tabs: Abstract · Sequence · Biosafety · Provenance & watermark · References · Compliance · Synthesizer
+  - Top bar: breadcrumb + status/tier badges + Cite/FASTA/Certificate action buttons
+  - Record header: h1 + CertSeal + metadata grid
+  - AbstractTab: metadata sidebar, authors, citation widget (abstract/keywords/ORCID empty-state pending backend)
+  - SequenceTab: DNA/Protein toggle, row viewer, watermark highlights via carrier_indices, Copy FASTA
+  - BiosafetyTab: Greek-letter circles (α/β/γ/δ), score bars with threshold markers, tier legend
+  - ProvenanceTab: CodonGrid wired to carrier_indices + signature_hex, custody timeline, cert JSON, distribution copies
+  - ReferencesTab: version history v1.0 from cert data, related records/citation empty-states
+  - Compliance + Synthesizer tabs unchanged from existing implementation
+  - Backend gaps noted: abstract text, authors/ORCID, keywords, license, model, method, MW, feature map,
+    full custody timeline, ledger anchoring fields, references, version history, mRNA sequence
 - [ ] **3d** Deposit / Register flow (`app/register/page.tsx`)
 - [ ] **3e** Charter (`app/about/page.tsx`) + Docs (`app/getting-started/page.tsx`)
 

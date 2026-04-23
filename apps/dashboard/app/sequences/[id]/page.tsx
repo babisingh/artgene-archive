@@ -3,7 +3,7 @@
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { use, useState } from "react";
+import React, { use, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -14,9 +14,12 @@ import {
   YAxis,
 } from "recharts";
 import { useApiKey } from "../../../lib/providers";
+import { CertSeal } from "../../../components/design/CertSeal";
+import { CodonGrid } from "../../../components/design/CodonGrid";
 import type {
   ApiClient,
   BlastHit,
+  Certificate,
   ComplianceManifest,
   DatabaseQueried,
   DistributionSummary,
@@ -36,22 +39,9 @@ import type {
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-function statusColor(s: GateStatus) {
-  return { pass: "#10b981", fail: "#ef4444", warn: "#f59e0b", skip: "#94a3b8" }[s];
-}
-
 function StatusBadge({ status }: { status: GateStatus }) {
   const cls = { pass: "badge-pass", fail: "badge-fail", warn: "badge-warn", skip: "badge-skip" }[status];
   return <span className={cls}>{status.toUpperCase()}</span>;
-}
-
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex gap-2 text-sm">
-      <span className="text-slate-500 dark:text-slate-400 shrink-0 w-44">{label}</span>
-      <span className="text-slate-900 dark:text-slate-100 font-mono break-all">{value}</span>
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -1123,7 +1113,7 @@ function DistributeModal({
   );
 }
 
-function ProvenanceTab({
+function DistributionSection({
   sequenceId,
   client,
   showModal,
@@ -1217,6 +1207,231 @@ function ProvenanceTab({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Provenance & Watermark tab — 3c-5: watermark visual + distribution section
+// ---------------------------------------------------------------------------
+
+function ProvenanceTab({
+  cert,
+  sequenceId,
+  client,
+  showModal,
+  onOpenModal,
+  onCloseModal,
+}: {
+  cert: Certificate;
+  sequenceId: string;
+  client: ApiClient;
+  showModal: boolean;
+  onOpenModal: () => void;
+  onCloseModal: () => void;
+}) {
+  const [copiedJson, setCopiedJson] = useState(false);
+  const wm = cert.watermark_metadata;
+
+  const highlights = wm?.anchor_map?.carrier_indices ?? null;
+
+  // Build a minimal 2-event chain from cert timestamps
+  const custodyEvents = [
+    {
+      t: "Deposited",
+      when: new Date(cert.timestamp).toISOString().slice(0, 16).replace("T", " ") + " UTC",
+      who: cert.owner_id,
+      detail: `Full metadata submitted. Host: ${cert.host_organism}. Ethics: ${cert.ethics_code}.`,
+      highlight: false,
+    },
+    {
+      t: "Certified",
+      when: new Date(cert.timestamp).toISOString().slice(0, 16).replace("T", " ") + " UTC",
+      who: "ArtGene automated pipeline",
+      detail: `Certificate hash ${cert.certificate_hash.slice(0, 16)}… anchored. Tier ${cert.tier}.`,
+      highlight: true,
+    },
+  ];
+
+  const certJson = JSON.stringify({
+    accession:    cert.registry_id,
+    version:      "1.0",
+    hash_sha3_512: cert.certificate_hash.slice(0, 16) + "…",
+    pq_algorithm: cert.pq_algorithm,
+    pq_is_stub:   cert.pq_is_stub,
+    issued_by:    "artgene-archive.org",
+    issued_at:    cert.timestamp,
+    depositor:    { id: cert.owner_id, org: cert.org_id || "—" },
+    biosafety: {
+      tier:   cert.tier,
+      status: cert.status,
+    },
+    watermark: wm
+      ? {
+          id:               wm.watermark_id,
+          carrier_positions: wm.carrier_positions,
+          signature_hex:    wm.signature_hex,
+        }
+      : null,
+  }, null, 2);
+
+  function handleCopyJson() {
+    navigator.clipboard.writeText(certJson);
+    setCopiedJson(true);
+    setTimeout(() => setCopiedJson(false), 1800);
+  }
+
+  return (
+    <div className="grid-12" style={{ gap: 48 }}>
+
+      {/* ── Left column ── */}
+      <div style={{ gridColumn: "span 7" }}>
+
+        {/* Watermark fingerprint */}
+        <div className="eyebrow mb-16">§ Watermark fingerprint</div>
+        {wm ? (
+          <div
+            style={{
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 6,
+              padding: 28,
+              marginBottom: 28,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+                {(wm.config?.sig_bytes ?? 16) * 8}-bit signature · {cert.org_id || cert.owner_id}
+              </div>
+              <span className="badge badge-verify badge-dot">Watermark present</span>
+            </div>
+            <div style={{ aspectRatio: "2/1", marginBottom: 12 }}>
+              <CodonGrid rows={8} cols={16} highlights={highlights} />
+            </div>
+            <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-4)", letterSpacing: "0.04em" }}>
+              HEX · {wm.signature_hex ? `0x${wm.signature_hex}` : "—"}
+            </div>
+            <div className="mono" style={{ fontSize: 10, color: "var(--ink-4)", marginTop: 4 }}>
+              {wm.carrier_positions} carrier positions ·{" "}
+              χ² {wm.codon_bias_metrics?.chi_squared?.toFixed(3) ?? "—"} ·{" "}
+              covert: {wm.codon_bias_metrics?.is_covert ? "yes" : "no"}
+            </div>
+          </div>
+        ) : (
+          <div
+            style={{
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 6,
+              padding: 24,
+              marginBottom: 28,
+              color: "var(--ink-4)",
+              fontSize: 13,
+            }}
+          >
+            Watermark metadata not available for this record.
+          </div>
+        )}
+
+        {/* Chain of custody */}
+        <div className="eyebrow mb-16">§ Chain of custody</div>
+        <div style={{ position: "relative", paddingLeft: 28 }}>
+          <div style={{ position: "absolute", left: 10, top: 8, bottom: 8, width: "0.5px", background: "var(--rule)" }} />
+          {custodyEvents.map((e, i) => (
+            <div key={i} style={{ position: "relative", paddingBottom: 24 }}>
+              <div
+                style={{
+                  position: "absolute", left: -24, top: 4,
+                  width: 14, height: 14, borderRadius: "50%",
+                  border: "0.5px solid var(--ink)",
+                  background: e.highlight ? "var(--accent)" : "var(--paper)",
+                }}
+              />
+              <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.06em" }}>{e.when}</div>
+              <div style={{ fontSize: 18, margin: "2px 0 4px", color: "var(--ink)" }}>
+                {e.t}{" "}
+                <span style={{ color: "var(--ink-3)", fontStyle: "italic", fontSize: 14 }}>— {e.who}</span>
+              </div>
+              <div style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.55 }}>{e.detail}</div>
+            </div>
+          ))}
+          <p style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 8 }}>
+            Full event log (generation, wet-lab, redesign) will be available once the backend exposes
+            a custody event endpoint.
+          </p>
+        </div>
+
+        {/* Distribution section */}
+        <div className="eyebrow mt-48 mb-16">§ Distribution copies</div>
+        <DistributionSection
+          sequenceId={sequenceId}
+          client={client}
+          showModal={showModal}
+          onOpenModal={onOpenModal}
+          onCloseModal={onCloseModal}
+        />
+      </div>
+
+      {/* ── Right column ── */}
+      <aside style={{ gridColumn: "span 5" }}>
+        <div className="card" style={{ padding: 24 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+              Certificate JSON
+            </div>
+            <button className="btn btn-ghost btn-sm" onClick={handleCopyJson}>
+              {copiedJson ? "Copied ✓" : "Copy"}
+            </button>
+          </div>
+          <pre
+            className="mono"
+            style={{
+              margin: 0, fontSize: 11, lineHeight: 1.7, color: "var(--ink-2)",
+              whiteSpace: "pre-wrap", background: "var(--paper)", padding: 16,
+              border: "0.5px solid var(--rule)", borderRadius: 3, overflow: "auto",
+              maxHeight: 380,
+            }}
+          >
+            {certJson}
+          </pre>
+          <button
+            className="btn btn-ghost btn-sm mt-16"
+            style={{ width: "100%", justifyContent: "center" }}
+            onClick={() => {
+              const blob = new Blob([certJson], { type: "application/json" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `${cert.registry_id}-certificate.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
+            ↓ Download Certificate JSON
+          </button>
+        </div>
+
+        {wm && (
+          <div className="card mt-16" style={{ padding: 20 }}>
+            <div className="mono mb-8" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+              Verify offline
+            </div>
+            <p style={{ fontSize: 12.5, color: "var(--ink-3)", lineHeight: 1.55, margin: "0 0 12px" }}>
+              Verify this record&apos;s certificate hash using the ArtGene CLI:
+            </p>
+            <pre
+              className="mono"
+              style={{
+                fontSize: 11, background: "var(--paper)", padding: "10px 14px",
+                border: "0.5px solid var(--rule)", borderRadius: 3,
+                color: "var(--ink-2)", lineHeight: 1.6,
+              }}
+            >
+              {`artgene verify ${cert.registry_id}`}
+            </pre>
+          </div>
+        )}
+      </aside>
     </div>
   );
 }
@@ -1429,6 +1644,746 @@ function SynthesizerTab({
 }
 
 // ---------------------------------------------------------------------------
+// Phase 3c — stubs filled in 3c-2 through 3c-6
+// ---------------------------------------------------------------------------
+
+function AbstractTab({ cert }: { cert: Certificate }) {
+  const wm = cert.watermark_metadata;
+  const aaLength = wm?.original_protein?.length ?? null;
+  const bpLength = wm?.dna_sequence?.length ?? null;
+
+  const tierMap: Record<string, string> = {
+    FULL: "Tier 1 — Unrestricted",
+    STANDARD: "Tier 2 — Conditional",
+    REDUCED: "Tier 3 — Restricted",
+    MINIMAL: "Tier 4 — Minimal",
+    REJECTED: "Rejected",
+  };
+
+  const metaRows: [string, React.ReactNode][] = [
+    ["Accession",       cert.registry_id],
+    ["Molecule type",   cert.sequence_type.toUpperCase()],
+    ["Expression host", cert.host_organism || "—"],
+    ["Ethics code",     cert.ethics_code],
+    ["Length",          [aaLength ? `${aaLength} aa` : null, bpLength ? `${bpLength} bp` : null].filter(Boolean).join(" · ") || "—"],
+    ["Watermark ID",    wm?.watermark_id ?? "—"],
+    ["Tier",            tierMap[cert.tier] ?? cert.tier],
+    ["Deposited",       new Date(cert.timestamp).toISOString().slice(0, 10)],
+    ["Organisation",    cert.org_id || "—"],
+    ["Generating model","— (not yet in API)"],
+    ["Design method",   "— (not yet in API)"],
+    ["License",         "— (not yet in API)"],
+    ["Citation",        `ArtGene Archive, ${cert.registry_id}`],
+  ];
+
+  return (
+    <div className="grid-12" style={{ gap: 48 }}>
+
+      {/* ── Main column ── */}
+      <div style={{ gridColumn: "span 8" }}>
+        <div className="eyebrow mb-16">§ Abstract</div>
+
+        {/* Empty-state for abstract text (backend not yet exposing this field) */}
+        <div
+          style={{
+            background: "var(--paper-2)",
+            border: "0.5px solid var(--rule)",
+            borderRadius: 6,
+            padding: "24px 28px",
+            marginBottom: 28,
+            color: "var(--ink-3)",
+            fontSize: 14,
+            lineHeight: 1.7,
+          }}
+        >
+          <p style={{ marginBottom: 10 }}>
+            Abstract text is not yet exposed by the API. This field will be populated once the
+            backend supports the <code className="mono" style={{ fontSize: 12 }}>abstract</code> metadata field on{" "}
+            <code className="mono" style={{ fontSize: 12 }}>Certificate</code>.
+          </p>
+          <p>
+            Record: <span className="mono" style={{ color: "var(--accent)", fontSize: 13 }}>{cert.registry_id}</span>
+            {" · "}{cert.sequence_type} · deposited {new Date(cert.timestamp).toISOString().slice(0, 10)}
+          </p>
+        </div>
+
+        {/* Keywords */}
+        <div className="mt-40 mb-16 eyebrow">§ Keywords</div>
+        <div style={{ color: "var(--ink-4)", fontSize: 13, marginBottom: 32 }}>
+          Keywords not yet available in API response.
+        </div>
+
+        {/* Authors */}
+        <div className="mt-40 mb-16 eyebrow">§ Authors &amp; contributors</div>
+        <div style={{ borderTop: "0.5px solid var(--rule)" }}>
+          <div
+            style={{
+              padding: "14px 0",
+              borderBottom: "0.5px solid var(--rule-2)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 14, color: "var(--ink)" }}>{cert.owner_id}</div>
+              <div className="mono" style={{ fontSize: 11, color: "var(--ink-3)", letterSpacing: "0.04em", marginTop: 2 }}>
+                ORCID — (not yet in API)
+              </div>
+            </div>
+            <div className="mono" style={{ fontSize: 11, color: "var(--ink-3)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              Depositor
+            </div>
+          </div>
+          <div style={{ padding: "12px 0", color: "var(--ink-4)", fontSize: 13 }}>
+            Additional authors/ORCID fields not yet available in API response.
+          </div>
+        </div>
+      </div>
+
+      {/* ── Sidebar ── */}
+      <aside style={{ gridColumn: "span 4" }}>
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div style={{ padding: "16px 20px", borderBottom: "0.5px solid var(--rule)", background: "var(--paper-3)" }}>
+            <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+              Record metadata
+            </div>
+          </div>
+          <dl style={{ margin: 0, padding: "8px 20px" }}>
+            {metaRows.map(([k, v]) => (
+              <div
+                key={k}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  padding: "10px 0",
+                  borderBottom: "0.5px solid var(--rule-2)",
+                  gap: 16,
+                }}
+              >
+                <dt className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.08em", textTransform: "uppercase", flexShrink: 0, paddingTop: 2 }}>
+                  {k}
+                </dt>
+                <dd style={{ margin: 0, fontSize: 12.5, color: "var(--ink-2)", textAlign: "right", wordBreak: "break-all" }}>
+                  {v}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+
+        <div className="card mt-16" style={{ padding: 20 }}>
+          <div className="mono mb-8" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            Cite this record
+          </div>
+          <div
+            className="mono"
+            style={{
+              fontSize: 11.5,
+              background: "var(--paper)",
+              padding: 12,
+              borderRadius: 3,
+              border: "0.5px solid var(--rule)",
+              lineHeight: 1.6,
+              color: "var(--ink-2)",
+            }}
+          >
+            {cert.owner_id} ({new Date(cert.timestamp).getFullYear()}).{" "}
+            {cert.sequence_type} sequence. <em>ArtGene Archive</em>{" "}
+            <span style={{ color: "var(--accent)" }}>{cert.registry_id}</span>.
+          </div>
+        </div>
+
+        <div className="card mt-16" style={{ padding: 20 }}>
+          <div className="mono mb-8" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            Quick actions
+          </div>
+          <div style={{ display: "grid", gap: 6 }}>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ justifyContent: "flex-start" }}
+              onClick={() => {
+                const text = `${cert.owner_id} (${new Date(cert.timestamp).getFullYear()}). ${cert.sequence_type} sequence. ArtGene Archive ${cert.registry_id}.`;
+                navigator.clipboard.writeText(text);
+              }}
+            >
+              ⎘ Copy citation
+            </button>
+            <button className="btn btn-ghost btn-sm" style={{ justifyContent: "flex-start" }}>
+              ↓ Download FASTA
+            </button>
+            <button className="btn btn-ghost btn-sm" style={{ justifyContent: "flex-start" }}>
+              ↓ Certificate JSON
+            </button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function SequenceTab({ cert }: { cert: Certificate }) {
+  const [view, setView] = useState<"dna" | "protein">("dna");
+  const [showWatermark, setShowWatermark] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const wm = cert.watermark_metadata;
+  const dnaSeq  = wm?.dna_sequence ?? "";
+  const aaSeq   = wm?.original_protein ?? "";
+  const carrierIndices = new Set<number>(wm?.anchor_map?.carrier_indices ?? []);
+
+  const activeSeq  = view === "dna" ? dnaSeq : aaSeq;
+  const chunkSize  = view === "dna" ? 60 : 60;
+  const codonWidth = view === "dna" ? 3 : 1;
+
+  // Build rows of {start, seq}
+  const rows: { start: number; seq: string }[] = [];
+  for (let i = 0; i < activeSeq.length; i += chunkSize) {
+    rows.push({ start: i + 1, seq: activeSeq.slice(i, i + chunkSize) });
+  }
+
+  function handleCopy() {
+    navigator.clipboard.writeText(`>${cert.registry_id}\n${activeSeq}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  }
+
+  if (!activeSeq) {
+    return (
+      <div style={{ color: "var(--ink-3)", fontSize: 14, padding: "24px 0" }}>
+        <div className="eyebrow" style={{ marginBottom: 12 }}>§ Sequence</div>
+        <p>Sequence data is not available for this record (watermark metadata absent).</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid-12" style={{ gap: 32 }}>
+      <div style={{ gridColumn: "span 12" }}>
+
+        {/* Controls */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div className="eyebrow">
+            § {view === "dna" ? `Coding sequence · ${dnaSeq.length} bp` : `Protein sequence · ${aaSeq.length} aa`}
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {/* Sequence type toggle */}
+            <div style={{ display: "flex", border: "0.5px solid var(--rule)", borderRadius: 3, overflow: "hidden", fontSize: 11 }}>
+              <button
+                onClick={() => setView("dna")}
+                style={{
+                  padding: "5px 12px",
+                  background: view === "dna" ? "var(--ink)" : "transparent",
+                  color: view === "dna" ? "var(--paper)" : "var(--ink-3)",
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: "var(--mono)",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                DNA
+              </button>
+              {aaSeq && (
+                <button
+                  onClick={() => setView("protein")}
+                  style={{
+                    padding: "5px 12px",
+                    background: view === "protein" ? "var(--ink)" : "transparent",
+                    color: view === "protein" ? "var(--paper)" : "var(--ink-3)",
+                    border: "none",
+                    borderLeft: "0.5px solid var(--rule)",
+                    cursor: "pointer",
+                    fontFamily: "var(--mono)",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  Protein
+                </button>
+              )}
+            </div>
+            {view === "dna" && wm && (
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowWatermark(v => !v)}
+                style={{ background: showWatermark ? "var(--accent-soft)" : undefined }}
+              >
+                {showWatermark ? "Hide watermark" : "Show watermark"}
+              </button>
+            )}
+            <button className="btn btn-ghost btn-sm" onClick={handleCopy}>
+              {copied ? "Copied ✓" : "Copy FASTA"}
+            </button>
+          </div>
+        </div>
+
+        {/* Sequence block */}
+        <div className="seq-block">
+          {rows.map(({ start, seq }) => {
+            const chunks = seq.match(new RegExp(`.{1,${codonWidth}}`, "g")) ?? [];
+            return (
+              <div key={start} style={{ display: "flex", gap: 24, alignItems: "baseline" }}>
+                <span
+                  className="mono"
+                  style={{ minWidth: 44, textAlign: "right", color: "var(--ink-4)", fontSize: 11, userSelect: "none" }}
+                >
+                  {String(start).padStart(4, "0")}
+                </span>
+                <span style={{ flex: 1, letterSpacing: view === "dna" ? "0.05em" : "0.08em" }}>
+                  {chunks.map((chunk, idx) => {
+                    const codonPos = Math.floor((start - 1) / codonWidth) + idx;
+                    const isWm = showWatermark && view === "dna" && carrierIndices.has(codonPos);
+                    return (
+                      <span
+                        key={idx}
+                        style={{
+                          marginRight: view === "dna" ? 5 : 0,
+                          color: isWm ? "var(--ink)" : "inherit",
+                          fontWeight: isWm ? 500 : 400,
+                          background: isWm
+                            ? "color-mix(in oklab, var(--verify) 22%, transparent)"
+                            : undefined,
+                          borderRadius: isWm ? 2 : undefined,
+                          padding: isWm ? "1px 2px" : undefined,
+                        }}
+                      >
+                        {chunk}
+                      </span>
+                    );
+                  })}
+                </span>
+                <span
+                  className="mono"
+                  style={{ minWidth: 40, textAlign: "right", color: "var(--ink-4)", fontSize: 11, userSelect: "none" }}
+                >
+                  {start + seq.length - 1}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Watermark legend */}
+        {showWatermark && view === "dna" && wm && (
+          <div className="mono" style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 12, letterSpacing: "0.04em" }}>
+            <span
+              style={{
+                background: "color-mix(in oklab, var(--verify) 22%, transparent)",
+                padding: "1px 4px",
+                borderRadius: 2,
+              }}
+            >
+              HIGHLIGHTED
+            </span>
+            {" "}· synonymous codons carrying the ArtGene {(wm.config?.sig_bytes ?? 16) * 8}-bit watermark.
+            Protein sequence unchanged. {carrierIndices.size} carrier positions.
+          </div>
+        )}
+
+        {/* Feature map — placeholder (no annotation endpoint yet) */}
+        <div className="mt-40 eyebrow mb-16">§ Feature map</div>
+        <div
+          style={{
+            background: "var(--paper-2)",
+            border: "0.5px solid var(--rule)",
+            borderRadius: 6,
+            padding: "20px 28px",
+            color: "var(--ink-4)",
+            fontSize: 13,
+          }}
+        >
+          Feature annotation (Start / domains / Stop track) will be available once the backend
+          exposes sequence annotation data. Length: {dnaSeq.length > 0 ? `${dnaSeq.length} bp` : "unknown"}.
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+function RefsTab({ cert }: { cert: Certificate }) {
+  const depositDate = new Date(cert.timestamp).toISOString().slice(0, 10);
+
+  return (
+    <div className="grid-12" style={{ gap: 48 }}>
+
+      {/* ── Main column ── */}
+      <div style={{ gridColumn: "span 8" }}>
+        <div className="eyebrow mb-16">§ References</div>
+
+        {/* Empty state for references (no API endpoint yet) */}
+        <div style={{ borderTop: "0.5px solid var(--rule)" }}>
+          <div style={{ padding: "24px 0", color: "var(--ink-4)", fontSize: 13, lineHeight: 1.7 }}>
+            Reference list is not yet available. This field will be populated once the backend
+            exposes a <code className="mono" style={{ fontSize: 12 }}>references</code> endpoint
+            on <code className="mono" style={{ fontSize: 12 }}>Certificate</code>.
+          </div>
+        </div>
+
+        {/* Version history */}
+        <div className="mt-40 eyebrow mb-16">§ Version history</div>
+        <div style={{ border: "0.5px solid var(--rule)", borderRadius: 6, overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "var(--paper-3)" }}>
+                <th style={{ textAlign: "left", padding: "10px 16px", fontWeight: 500, color: "var(--ink-2)", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "var(--mono)" }}>Version</th>
+                <th style={{ textAlign: "left", padding: "10px 16px", fontWeight: 500, color: "var(--ink-2)", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "var(--mono)" }}>Changes</th>
+                <th style={{ textAlign: "left", padding: "10px 16px", fontWeight: 500, color: "var(--ink-2)", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "var(--mono)" }}>Date</th>
+                <th style={{ textAlign: "left", padding: "10px 16px", fontWeight: 500, color: "var(--ink-2)", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "var(--mono)" }}>By</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style={{ borderTop: "0.5px solid var(--rule-2)" }}>
+                <td style={{ padding: "12px 16px" }}>
+                  <span className="mono" style={{ fontSize: 12, color: "var(--accent)" }}>v1.0</span>
+                  {" "}
+                  <span className="badge badge-verify" style={{ fontSize: 9, marginLeft: 6 }}>Current</span>
+                </td>
+                <td style={{ padding: "12px 16px", color: "var(--ink-2)" }}>
+                  Initial deposit · {cert.tier} certified · {cert.status}
+                </td>
+                <td style={{ padding: "12px 16px" }}>
+                  <span className="mono" style={{ fontSize: 12, color: "var(--ink-3)" }}>{depositDate}</span>
+                </td>
+                <td style={{ padding: "12px 16px", color: "var(--ink-2)" }}>{cert.owner_id}</td>
+              </tr>
+              <tr style={{ borderTop: "0.5px solid var(--rule-2)", background: "var(--paper-2)" }}>
+                <td colSpan={4} style={{ padding: "12px 16px", color: "var(--ink-4)", fontSize: 12 }}>
+                  Earlier versions not yet tracked — version history endpoint pending backend implementation.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── Sidebar ── */}
+      <aside style={{ gridColumn: "span 4" }}>
+        <div className="card" style={{ padding: 20 }}>
+          <div className="mono mb-16" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            Related records
+          </div>
+          <div style={{ color: "var(--ink-4)", fontSize: 12.5, lineHeight: 1.55, marginBottom: 8 }}>
+            Related record discovery is not yet available. This will be populated once the backend
+            exposes a similarity or citation graph endpoint.
+          </div>
+          <div style={{ padding: "10px 0", borderTop: "0.5px solid var(--rule-2)" }}>
+            <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>{cert.registry_id}</span>
+            <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>This record (current)</div>
+          </div>
+        </div>
+
+        <div className="card mt-16" style={{ padding: 20 }}>
+          <div className="mono mb-8" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            Cited by
+          </div>
+          <div style={{ color: "var(--ink-4)", fontSize: 12.5, lineHeight: 1.55 }}>
+            Citation tracking not yet available. Forward-citation data will be surfaced once the
+            backend exposes a citation index.
+          </div>
+        </div>
+
+        <div className="card mt-16" style={{ padding: 20 }}>
+          <div className="mono mb-8" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            Cite this record
+          </div>
+          <div
+            className="mono"
+            style={{
+              fontSize: 11, background: "var(--paper)", padding: 12,
+              borderRadius: 3, border: "0.5px solid var(--rule)",
+              lineHeight: 1.6, color: "var(--ink-2)",
+            }}
+          >
+            {cert.owner_id} ({new Date(cert.timestamp).getFullYear()}).{" "}
+            {cert.sequence_type} sequence. <em>ArtGene Archive</em>{" "}
+            <span style={{ color: "var(--accent)" }}>{cert.registry_id}</span>.
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function BiosafetyTab({ cert }: { cert: Certificate }) {
+  const report = cert.consequence_report;
+  const overall: GateStatus = report?.overall_status ?? "skip";
+
+  if (!report) {
+    return (
+      <div className="card" style={{ padding: 24, color: "var(--ink-3)", fontSize: 14 }}>
+        No biosafety report available for this record.
+      </div>
+    );
+  }
+
+  // Build gate rows from available gate results
+  type GateRow = {
+    letter: string;
+    name: string;
+    tool: string;
+    status: GateStatus;
+    score: number | null;
+    threshold: number | null;
+    summary: string;
+    panel: React.ReactNode;
+  };
+
+  const gateRows: GateRow[] = [];
+
+  if (report.gate1) {
+    const g = report.gate1 as Gate1Result;
+    gateRows.push({
+      letter: "α", name: "Structural confidence", tool: "ESMFold · pLDDT",
+      status: g.status,
+      score: g.plddt_mean,
+      threshold: 70,
+      summary: g.message ?? (g.plddt_mean != null ? `Mean pLDDT ${g.plddt_mean.toFixed(1)}` : ""),
+      panel: <Gate1Panel gate1={g} />,
+    });
+  }
+  if (report.gate2) {
+    const g = report.gate2 as Gate2Result;
+    const isChained = g.screening_method === "chained_v1";
+    gateRows.push({
+      letter: "β", name: "Off-target homology",
+      tool: isChained ? "SecureDNA + IBBIS + Composition" : "Toxin / Allergen heuristic",
+      status: g.status,
+      score: g.toxin_probability != null ? (1 - g.toxin_probability) : null,
+      threshold: 0.70,
+      summary: g.message ?? (g.toxin_probability != null ? `Toxin probability ${(g.toxin_probability * 100).toFixed(1)}%` : ""),
+      panel: <Gate2Panel gate2={g} />,
+    });
+  }
+  if (report.gate3) {
+    const g = report.gate3 as Gate3Result;
+    gateRows.push({
+      letter: "γ", name: "Ecological risk", tool: "HGT + DriftRadar",
+      status: g.status,
+      score: g.hgt_score != null ? (1 - g.hgt_score / 100) : null,
+      threshold: 0.55,
+      summary: g.message ?? (g.hgt_score != null ? `HGT score ${g.hgt_score.toFixed(1)} / 100` : ""),
+      panel: <Gate3Panel gate3={g} />,
+    });
+  }
+  if (report.gate4) {
+    const g = report.gate4 as Gate4Result;
+    gateRows.push({
+      letter: "δ", name: "Functional analogue",
+      tool: g.method === "esm2_cosine_v1" ? "ESM-2 cosine similarity" : "Composition fingerprint",
+      status: g.status,
+      score: g.max_similarity != null ? (1 - g.max_similarity) : null,
+      threshold: g.threshold_fail != null ? (1 - g.threshold_fail) : 0.50,
+      summary: g.message ?? (g.max_similarity != null ? `Max similarity ${g.max_similarity.toFixed(4)}` : ""),
+      panel: <Gate4Panel gate4={g} />,
+    });
+  }
+
+  const allPassed = gateRows.every(g => g.status === "pass");
+  const overallColor = overall === "pass" ? "var(--verify)" : overall === "fail" ? "var(--danger)" : "var(--warn)";
+
+  const tierMap: Record<string, string> = {
+    FULL: "Tier 1", STANDARD: "Tier 2", REDUCED: "Tier 3", MINIMAL: "Tier 4", REJECTED: "Restricted",
+  };
+  const tierLabel = tierMap[cert.tier] ?? cert.tier;
+
+  return (
+    <div className="grid-12" style={{ gap: 48 }}>
+
+      {/* ── Main column ── */}
+      <div style={{ gridColumn: "span 8" }}>
+        <div className="eyebrow mb-16">§ Biosafety scorecard</div>
+
+        {/* Overall assessment banner */}
+        <div
+          style={{
+            background: `color-mix(in oklab, ${overallColor} 8%, var(--paper-2))`,
+            border: `0.5px solid color-mix(in oklab, ${overallColor} 30%, transparent)`,
+            borderRadius: 6,
+            padding: "24px 28px",
+            marginBottom: 32,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div
+                className="mono"
+                style={{ fontSize: 10.5, color: overallColor, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}
+              >
+                Overall assessment · {tierLabel}
+              </div>
+              <div style={{ fontSize: 22, color: "var(--ink)", letterSpacing: "-0.01em" }}>
+                {allPassed
+                  ? "All gates passed without exception."
+                  : overall === "fail"
+                  ? "One or more gates failed — manual review required."
+                  : "Gates passed with warnings — see details below."}
+              </div>
+            </div>
+            <div
+              className="mono"
+              style={{ fontSize: 42, color: overallColor, letterSpacing: "-0.02em", lineHeight: 1 }}
+            >
+              {overall === "pass" ? "✓" : overall === "fail" ? "✗" : "⚠"}
+            </div>
+          </div>
+        </div>
+
+        {/* Gate rows */}
+        {gateRows.map(g => (
+          <div key={g.letter} style={{ borderTop: "0.5px solid var(--rule)", padding: "28px 0" }}>
+            <div style={{ display: "flex", gap: 24, alignItems: "start" }}>
+              {/* Greek-letter circle */}
+              <div
+                style={{
+                  width: 56, height: 56, borderRadius: "50%",
+                  background: "var(--paper-2)", border: "0.5px solid var(--rule)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 26, color: "var(--accent)",
+                  fontFamily: "var(--serif, var(--sans))",
+                  flexShrink: 0,
+                }}
+              >
+                {g.letter}
+              </div>
+
+              <div style={{ flex: 1 }}>
+                {/* Gate header */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <div>
+                    <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+                      Gate {g.letter} · {g.tool}
+                    </div>
+                    <div style={{ fontSize: 20, color: "var(--ink)" }}>{g.name}</div>
+                  </div>
+                  <StatusBadge status={g.status} />
+                </div>
+
+                {/* Score bar */}
+                {g.score !== null && g.threshold !== null && (
+                  <div style={{ marginTop: 14, marginBottom: 12 }}>
+                    <div
+                      style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-3)", marginBottom: 6 }}
+                    >
+                      <span>Score</span>
+                      <span style={{ color: "var(--ink)" }}>
+                        {g.score.toFixed(2)}{" "}
+                        <span style={{ color: "var(--ink-4)" }}>/ threshold {g.threshold.toFixed(2)}</span>
+                      </span>
+                    </div>
+                    <div style={{ height: 4, background: "var(--rule)", borderRadius: 2, position: "relative", overflow: "hidden" }}>
+                      <div
+                        style={{ position: "absolute", top: 0, bottom: 0, left: `${g.threshold * 100}%`, width: "0.5px", background: "var(--ink-3)", zIndex: 2 }}
+                      />
+                      <div
+                        style={{
+                          position: "absolute", top: 0, left: 0, height: "100%",
+                          width: `${Math.min(100, Math.max(0, g.score) * 100)}%`,
+                          background: g.status === "pass" ? "var(--verify)" : g.status === "fail" ? "var(--danger)" : "var(--warn)",
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {g.summary && (
+                  <p style={{ fontSize: 13.5, lineHeight: 1.6, color: "var(--ink-2)", margin: "12px 0 0" }}>{g.summary}</p>
+                )}
+
+                {/* Detailed panel (collapsible via existing GateItem, but here flat) */}
+                <details style={{ marginTop: 16 }}>
+                  <summary
+                    className="mono"
+                    style={{ fontSize: 11, color: "var(--ink-3)", cursor: "pointer", letterSpacing: "0.06em", textTransform: "uppercase", userSelect: "none" }}
+                  >
+                    Show full details ▸
+                  </summary>
+                  <div style={{ marginTop: 16, paddingTop: 16, borderTop: "0.5px solid var(--rule-2)" }}>
+                    {g.panel}
+                  </div>
+                </details>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {report.skipped_gates.length > 0 && (
+          <div className="mt-24 mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>
+            Gates {report.skipped_gates.join(", ")} skipped (fail-fast after gate failure).
+          </div>
+        )}
+
+        <div
+          className="mt-24"
+          style={{ fontSize: 12, color: "var(--ink-3)", lineHeight: 1.6, paddingLeft: 18, borderLeft: "2px solid var(--rule)" }}
+        >
+          Biosafety screening is automated and non-exhaustive. Flagged or borderline records route
+          to the ArtGene Human Review Panel. Tier assignments are reviewed annually.
+        </div>
+      </div>
+
+      {/* ── Sidebar ── */}
+      <aside style={{ gridColumn: "span 4" }}>
+        <div className="card" style={{ padding: 20 }}>
+          <div className="mono mb-16" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            Tier legend
+          </div>
+          <div style={{ display: "grid", gap: 14 }}>
+            {[
+              { t: "Tier 1", color: "var(--verify)", desc: "Unrestricted. Public, open access. All gates pass with margin." },
+              { t: "Tier 2", color: "var(--warn)",   desc: "Conditional. Metadata public; sequence on request with institutional verification." },
+              { t: "Tier 3", color: "var(--danger)", desc: "Restricted. Flagged by one or more gates. Human review required." },
+            ].map(tier => (
+              <div key={tier.t} style={{ paddingLeft: 12, borderLeft: `2px solid ${tier.color}` }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>{tier.t}</div>
+                <div style={{ fontSize: 12, color: "var(--ink-3)", lineHeight: 1.5, marginTop: 2 }}>{tier.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card mt-16" style={{ padding: 20 }}>
+          <div className="mono mb-8" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            Report a concern
+          </div>
+          <p style={{ fontSize: 12.5, color: "var(--ink-3)", lineHeight: 1.55, margin: "0 0 12px" }}>
+            If you believe this record was misclassified or poses a risk not captured by automated
+            screening, contact the biosafety panel.
+          </p>
+          <a
+            href="mailto:biosafety@artgene-archive.org"
+            className="btn btn-ghost btn-sm"
+            style={{ display: "inline-block" }}
+          >
+            biosafety@artgene-archive.org →
+          </a>
+        </div>
+
+        {report.gate_mode && (
+          <div className="card mt-16" style={{ padding: 20 }}>
+            <div className="mono mb-8" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+              Screen mode
+            </div>
+            <span
+              className="mono"
+              style={{
+                fontSize: 11,
+                background: report.gate_mode === "real" ? "color-mix(in oklab, var(--verify) 12%, var(--paper))" : "var(--paper-3)",
+                color: report.gate_mode === "real" ? "var(--verify)" : "var(--ink-3)",
+                padding: "4px 10px",
+                borderRadius: 3,
+                border: "0.5px solid var(--rule)",
+              }}
+            >
+              {report.gate_mode === "real" ? "● LIVE" : `${report.gate_mode}`}
+            </span>
+          </div>
+        )}
+      </aside>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -1441,7 +2396,9 @@ export default function CertificatePage({
   const { client, apiKey } = useApiKey();
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"gates" | "provenance" | "compliance" | "synthesizer">("gates");
+  const [activeTab, setActiveTab] = useState<
+    "abstract" | "sequence" | "biosafety" | "provenance" | "refs" | "compliance" | "synthesizer"
+  >("abstract");
   const [showDistributeModal, setShowDistributeModal] = useState(false);
 
   async function handleExport() {
@@ -1471,254 +2428,223 @@ export default function CertificatePage({
 
   if (!apiKey) {
     return (
-      <div className="card p-8 text-center text-amber-600 dark:text-amber-400 text-sm">
-        ⚠ No API key set — click <strong>Set API Key</strong> in the navigation bar.
+      <div className="wrap" style={{ padding: "80px 0", textAlign: "center", color: "var(--ink-3)" }}>
+        <p>No API key configured. Add <code>NEXT_PUBLIC_API_KEY</code> to your environment.</p>
+        <Link href="/sequences" className="btn btn-ghost btn-sm" style={{ marginTop: 16, display: "inline-block" }}>
+          ← Back to sequences
+        </Link>
       </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20 text-slate-500 dark:text-slate-400">
-        Loading certificate…
+      <div className="wrap" style={{ padding: "80px 0", textAlign: "center", color: "var(--ink-3)" }}>
+        Loading record…
       </div>
     );
   }
 
   if (isError || !cert) {
     return (
-      <div className="card p-8 text-center">
-        <p className="text-red-500 mb-4">
+      <div className="wrap" style={{ padding: "80px 0", textAlign: "center" }}>
+        <p style={{ color: "var(--danger)", marginBottom: 16 }}>
           {error instanceof Error ? error.message : "Certificate not found"}
         </p>
-        <Link href="/sequences" className="btn-secondary">
-          ← Back to registry
-        </Link>
+        <Link href="/sequences" className="btn btn-ghost btn-sm">← Back to sequences</Link>
       </div>
     );
   }
 
-  const report = cert.consequence_report;
-  const overallStatus: GateStatus = report?.overall_status ?? "skip";
+  const TABS = [
+    { key: "abstract",    label: "Abstract & description" },
+    { key: "sequence",    label: "Sequence" },
+    { key: "biosafety",   label: "Biosafety scorecard" },
+    { key: "provenance",  label: "Provenance & watermark" },
+    { key: "refs",        label: "References & versions" },
+    { key: "compliance",  label: "Compliance" },
+    { key: "synthesizer", label: "Synthesizer" },
+  ] as const;
+
+  const statusLabel =
+    cert.status === "CERTIFIED"               ? "Certified" :
+    cert.status === "CERTIFIED_WITH_WARNINGS" ? "Certified (warnings)" :
+    cert.status === "REVOKED"                 ? "Revoked" : cert.status;
+
+  const statusBadgeClass =
+    cert.status === "CERTIFIED"               ? "badge badge-verify badge-dot" :
+    cert.status === "CERTIFIED_WITH_WARNINGS" ? "badge badge-warn badge-dot" :
+    "badge";
+
+  const tierMap: Record<string, string> = {
+    FULL: "Tier 1", STANDARD: "Tier 2", REDUCED: "Tier 3", MINIMAL: "Tier 4", REJECTED: "Restricted",
+  };
+  const tierLabel = tierMap[cert.tier] ?? cert.tier;
+
+  const wm = cert.watermark_metadata;
+  const aaLength = wm?.original_protein?.length ?? null;
+  const bpLength = wm?.dna_sequence?.length ?? null;
 
   return (
-    <div className="space-y-6">
-      {/* Breadcrumb */}
-      <nav className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1">
-        <Link href="/sequences" className="hover:text-blue-600 dark:hover:text-blue-400">
-          Sequences
-        </Link>
-        <span>/</span>
-        <span className="font-mono text-slate-900 dark:text-white">{cert.registry_id}</span>
-      </nav>
+    <div className="route">
 
-      {/* Summary card */}
-      <div className="card p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold font-mono text-slate-900 dark:text-white">
-              {cert.registry_id}
-            </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Registered {new Date(cert.timestamp).toLocaleString()}
-            </p>
+      {/* ── Top bar ── */}
+      <div style={{ background: "var(--paper-3)", borderBottom: "0.5px solid var(--rule)", padding: "10px 0" }}>
+        <div
+          className="wrap"
+          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}
+        >
+          <div className="mono" style={{ fontSize: 11, letterSpacing: "0.08em", color: "var(--ink-3)", textTransform: "uppercase" }}>
+            <Link href="/registry" style={{ color: "var(--ink-3)", textDecoration: "none" }}>Registry</Link>
+            {" ▸ "}
+            <Link href="/sequences" style={{ color: "var(--ink-3)", textDecoration: "none" }}>Sequences</Link>
+            {" ▸ "}
+            <span style={{ color: "var(--ink)" }}>{cert.registry_id}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className={`badge text-sm px-3 py-1 ${
-              cert.status === "CERTIFIED" ? "badge-pass" :
-              cert.status === "CERTIFIED_WITH_WARNINGS" ? "badge-warn" :
-              "badge-fail"
-            }`}>
-              {cert.status === "CERTIFIED_WITH_WARNINGS" ? "CERTIFIED (WARNINGS)" : cert.status}
-            </span>
-            <span
-              className={`badge text-sm px-3 py-1 ${{
-                FULL: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-400",
-                STANDARD: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400",
-                REDUCED: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400",
-                MINIMAL: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300",
-                REJECTED: "badge-fail",
-              }[cert.tier] ?? "badge-skip"}`}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span className={statusBadgeClass}>{statusLabel} · {tierLabel}</span>
+            <span className="badge">{cert.sequence_type.toUpperCase()}</span>
+            <button className="btn btn-ghost btn-sm" onClick={() => setActiveTab("refs")}>⎘ Cite</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setActiveTab("sequence")}>↓ FASTA</button>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={handleExport}
+              disabled={exporting}
+              aria-busy={exporting}
             >
-              {cert.tier}
-            </span>
-            {/* Post-quantum signature badge */}
-            {cert.pq_is_stub === false ? (
-              <span className="badge text-sm px-3 py-1 bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300 font-mono">
-                ✓ WOTS+ (PQ)
-              </span>
-            ) : (
-              <span className="badge text-sm px-3 py-1 bg-slate-100 text-slate-500 dark:bg-slate-700/50 dark:text-slate-400 font-mono" title="Pre-Session-3 certificate — PQ signature is a zero-filled stub">
-                ⚠ PQ stub
-              </span>
-            )}
+              {exporting ? "Exporting…" : "↓ Certificate"}
+            </button>
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <Field label="Owner" value={cert.owner_id} />
-          <Field label="Ethics Code" value={cert.ethics_code} />
-          <Field label="Sequence Type" value={cert.sequence_type.toUpperCase()} />
-          <Field label="Host Organism" value={cert.host_organism} />
-          <Field
-            label="Cert Hash (SHA3-512)"
-            value={<span className="text-xs">{cert.certificate_hash.slice(0, 32)}…</span>}
-          />
-          {cert.pq_algorithm && cert.pq_is_stub === false && (
-            <Field
-              label="PQ Algorithm"
-              value={<span className="text-xs font-mono text-teal-700 dark:text-teal-400">{cert.pq_algorithm}</span>}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Tab bar */}
-      <div className="flex border-b border-slate-200 dark:border-slate-700">
-        {(
-          [
-            { key: "gates", label: "Biosafety Gates" },
-            { key: "provenance", label: "Provenance Tracing" },
-            { key: "compliance", label: "Compliance" },
-            { key: "synthesizer", label: "Synthesizer" },
-          ] as const
-        ).map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
-              activeTab === key
-                ? "border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 -mb-px"
-                : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Consequence report */}
-      {activeTab === "gates" && report && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-              Biosafety Gates
-            </h2>
-            <StatusBadge status={overallStatus} />
-          </div>
-
-          {report.gate1 && (
-            <GateItem title="Gate 1: Structural Analysis (ESMFold pLDDT)" status={report.gate1.status}>
-              <Gate1Panel gate1={report.gate1 as Gate1Result} />
-            </GateItem>
-          )}
-
-          {report.gate2 && (
-            <GateItem
-              title={
-                report.gate2.screening_method === "chained_v1"
-                  ? "Gate 2: Off-Target Screening (Composition + SecureDNA DOPRF + IBBIS commec)"
-                  : "Gate 2: Off-Target Screening (Toxin / Allergen)"
-              }
-              status={report.gate2.status}
-            >
-              <Gate2Panel gate2={report.gate2 as Gate2Result} />
-            </GateItem>
-          )}
-
-          {report.gate3 && (
-            <GateItem title="Gate 3: Ecological Risk (HGT / Codon Adaptation)" status={report.gate3.status}>
-              <Gate3Panel gate3={report.gate3 as Gate3Result} />
-            </GateItem>
-          )}
-
-          {report.gate4 && (
-            <GateItem
-              title={
-                report.gate4.method === "esm2_cosine_v1"
-                  ? "Gate 4: Functional Analogue Detection (ESM-2 Embedding Cosine Similarity)"
-                  : "Gate 4: Functional Analogue Detection (Composition Fingerprint · Demo)"
-              }
-              status={report.gate4.status}
-            >
-              <Gate4Panel gate4={report.gate4 as Gate4Result} />
-            </GateItem>
-          )}
-
-          {report.skipped_gates.length > 0 && (
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Gates {report.skipped_gates.join(", ")} were skipped (Gate 1 fail-fast).
-            </p>
-          )}
-        </div>
-      )}
-
-      {activeTab === "gates" && !report && (
-        <div className="card p-6 text-slate-500 dark:text-slate-400 text-sm">
-          No biosafety report available.
-        </div>
-      )}
-
-      {/* Provenance Tracing */}
-      {activeTab === "provenance" && (
-        <ProvenanceTab
-          sequenceId={id}
-          client={client}
-          showModal={showDistributeModal}
-          onOpenModal={() => setShowDistributeModal(true)}
-          onCloseModal={() => setShowDistributeModal(false)}
-        />
-      )}
-
-      {/* Compliance attestation */}
-      {activeTab === "compliance" && (
-        <ComplianceTab id={id} client={client} />
-      )}
-
-      {/* Synthesizer / SCD */}
-      {activeTab === "synthesizer" && (
-        <SynthesizerTab
-          id={id}
-          client={client}
-          onRevoked={() => setActiveTab("gates")}
-        />
-      )}
-
-      <div className="pt-2 space-y-2">
-        <div className="flex items-center gap-3">
-          <Link href="/sequences" className="btn-secondary">
-            ← Back to registry
-          </Link>
-          <button
-            onClick={handleExport}
-            disabled={exporting}
-            aria-busy={exporting}
-            className="btn-secondary flex items-center gap-1.5"
-          >
-            {exporting ? (
-              <>
-                <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Exporting…
-              </>
-            ) : (
-              <>
-                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                Export JSON
-              </>
-            )}
-          </button>
         </div>
         {exportError && (
-          <p className="text-xs text-red-500" role="alert">{exportError}</p>
+          <div className="wrap" style={{ paddingTop: 4 }}>
+            <p className="mono" style={{ fontSize: 11, color: "var(--danger)" }} role="alert">{exportError}</p>
+          </div>
         )}
       </div>
+
+      {/* ── Record header ── */}
+      <section className="wrap" style={{ padding: "48px 0 32px" }}>
+        <div className="grid-12" style={{ gap: 40, alignItems: "start" }}>
+          <div style={{ gridColumn: "span 8" }}>
+            <div
+              className="mono"
+              style={{ fontSize: 11, color: "var(--accent)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 14 }}
+            >
+              {cert.registry_id} · {cert.sequence_type}
+            </div>
+            <h1
+              className="display"
+              style={{ fontSize: 42, margin: "0 0 14px", letterSpacing: "-0.02em" }}
+            >
+              {cert.registry_id}
+            </h1>
+            <div style={{ fontSize: 16, fontStyle: "italic", color: "var(--ink-3)", marginBottom: 20 }}>
+              {cert.sequence_type} sequence · deposited by {cert.owner_id}
+            </div>
+            <div style={{ display: "flex", gap: 32, flexWrap: "wrap", marginTop: 24, fontSize: 13, color: "var(--ink-2)" }}>
+              <div>
+                <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+                  Depositor
+                </div>
+                {cert.owner_id}
+              </div>
+              <div>
+                <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+                  Deposited
+                </div>
+                {new Date(cert.timestamp).toISOString().slice(0, 16).replace("T", " ") + " UTC"}
+              </div>
+              <div>
+                <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+                  Organisation
+                </div>
+                {cert.org_id || "—"}
+              </div>
+              {(aaLength !== null || bpLength !== null) && (
+                <div>
+                  <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+                    Length
+                  </div>
+                  {[aaLength ? `${aaLength} aa` : null, bpLength ? `${bpLength} bp` : null].filter(Boolean).join(" · ")}
+                </div>
+              )}
+              <div>
+                <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+                  Ethics code
+                </div>
+                {cert.ethics_code}
+              </div>
+            </div>
+          </div>
+          <div style={{ gridColumn: "span 4", display: "flex", justifyContent: "center", paddingTop: 8 }}>
+            <CertSeal size={160} />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Sticky tabs ── */}
+      <div
+        style={{
+          borderTop: "0.5px solid var(--rule)",
+          borderBottom: "0.5px solid var(--rule)",
+          position: "sticky",
+          top: 62,
+          background: "var(--paper)",
+          zIndex: 10,
+        }}
+      >
+        <div className="wrap" style={{ display: "flex", overflowX: "auto" }}>
+          {TABS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              style={{
+                padding: "16px 22px",
+                background: "transparent",
+                border: "none",
+                borderBottom: activeTab === key ? "1.5px solid var(--accent)" : "1.5px solid transparent",
+                color: activeTab === key ? "var(--ink)" : "var(--ink-3)",
+                fontSize: 13.5,
+                fontFamily: "var(--sans)",
+                cursor: "pointer",
+                marginBottom: "-0.5px",
+                letterSpacing: "0.005em",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Tab body ── */}
+      <section className="wrap" style={{ padding: "48px 0 80px" }}>
+        {activeTab === "abstract"   && <AbstractTab cert={cert} />}
+        {activeTab === "sequence"   && <SequenceTab cert={cert} />}
+        {activeTab === "biosafety"  && <BiosafetyTab cert={cert} />}
+        {activeTab === "provenance" && (
+          <ProvenanceTab
+            cert={cert}
+            sequenceId={id}
+            client={client}
+            showModal={showDistributeModal}
+            onOpenModal={() => setShowDistributeModal(true)}
+            onCloseModal={() => setShowDistributeModal(false)}
+          />
+        )}
+        {activeTab === "refs"        && <RefsTab cert={cert} />}
+        {activeTab === "compliance"  && <ComplianceTab id={id} client={client} />}
+        {activeTab === "synthesizer" && (
+          <SynthesizerTab
+            id={id}
+            client={client}
+            onRevoked={() => setActiveTab("biosafety")}
+          />
+        )}
+      </section>
+
     </div>
   );
 }
