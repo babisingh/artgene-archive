@@ -64,15 +64,6 @@ function CertRow({ cert }: { cert: CertificateSummary }) {
         </span>
       </td>
       <td className="px-4 py-3">
-        {cert.chi_squared != null ? (
-          <span className="font-mono text-xs text-slate-700 dark:text-slate-300">
-            {cert.chi_squared.toFixed(4)}
-          </span>
-        ) : (
-          <span className="text-slate-400">—</span>
-        )}
-      </td>
-      <td className="px-4 py-3">
         <span className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
           {new Date(cert.timestamp).toLocaleDateString(undefined, {
             year: "numeric",
@@ -166,7 +157,7 @@ export default function RegistryPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-            TINSEL Registry
+            Sequence Registry
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             All certified and rejected sequence registrations
@@ -198,7 +189,7 @@ export default function RegistryPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
-                  {["Registry ID", "Status", "Tier", "Owner", "Host", "χ²", "Date", ""].map(
+                  {["Registry ID", "Status", "Tier", "Owner", "Host", "Date", ""].map(
                     (h) => (
                       <th
                         key={h}
@@ -216,7 +207,7 @@ export default function RegistryPage() {
                   : data?.items.length === 0
                     ? (
                       <tr>
-                        <td colSpan={8} className="px-4 py-16 text-center text-slate-400 dark:text-slate-500">
+                        <td colSpan={7} className="px-4 py-16 text-center text-slate-400 dark:text-slate-500">
                           No certificates yet.{" "}
                           <Link href="/register" className="text-blue-600 dark:text-blue-400 hover:underline">
                             Register your first sequence

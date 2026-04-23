@@ -185,11 +185,7 @@ interface CertificateCardProps {
 }
 
 export function CertificateCard({ response }: CertificateCardProps) {
-  const { status, registry_id, tier, chi_squared, consequence_report, message } = response;
-
-  // Extract watermark metadata from the consequence_report context
-  // Note: RegistrationResponse doesn't return full watermark_metadata directly,
-  // but we get tier + chi_squared. We show the gate-level data instead.
+  const { status, registry_id, consequence_report, message } = response;
   const certified = status === "CERTIFIED" || status === "CERTIFIED_WITH_WARNINGS";
   const certWithWarnings = status === "CERTIFIED_WITH_WARNINGS";
 
@@ -229,7 +225,6 @@ export function CertificateCard({ response }: CertificateCardProps) {
         </div>
         <div className="flex items-center gap-2 ml-4 shrink-0">
           <CertBadge status={status} />
-          {tier && <TierBadge tier={tier} />}
         </div>
       </div>
 
@@ -238,24 +233,9 @@ export function CertificateCard({ response }: CertificateCardProps) {
         {certified && (
           <div className="rounded-lg border border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
             <span className="font-semibold">Notice:</span> Post-quantum signatures (WOTS+ / LWE)
-            are reserved for Phase 7 and are not yet active. This certificate provides
-            HMAC-SHA3-256 codon-watermark provenance only. It is not a legally binding instrument.
-          </div>
-        )}
-
-        {/* Chi-squared + carrier info row */}
-        {certified && chi_squared != null && (
-          <div className="flex flex-wrap gap-4 text-sm">
-            <div>
-              <span className="text-slate-500 dark:text-slate-400">χ² </span>
-              <span className="font-mono font-semibold text-slate-900 dark:text-white">
-                {chi_squared.toFixed(6)}
-              </span>
-            </div>
-            <div>
-              <span className="text-slate-500 dark:text-slate-400">Watermark tier </span>
-              <span className="font-semibold text-slate-900 dark:text-white">{tier}</span>
-            </div>
+            are reserved for Phase 7 and are not yet active. Provenance fingerprinting is available
+            via the Provenance Tracing tab on the sequence detail page. This certificate is not a
+            legally binding instrument.
           </div>
         )}
 

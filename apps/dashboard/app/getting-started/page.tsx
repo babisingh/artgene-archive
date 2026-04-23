@@ -9,9 +9,8 @@ export default function GettingStartedPage() {
           Getting Started with ArtGene
         </h1>
         <p className="text-slate-500 dark:text-slate-400 text-base leading-relaxed">
-          ArtGene uses the <strong className="text-slate-700 dark:text-slate-300">TINSEL</strong> (Traceable Identity Notation
-          for Sequence Encryption + Ledger) framework to embed cryptographic watermarks into synthetic
-          DNA sequences and certify them through automated biosafety screening.
+          ArtGene certifies synthetic DNA sequences through automated biosafety screening and issues
+          unique per-recipient codon fingerprints that enable provenance tracing if a distribution copy leaks.
         </p>
       </div>
 
@@ -40,8 +39,8 @@ export default function GettingStartedPage() {
             body: (
               <>
                 ArtGene accepts protein-coding sequences in standard <strong>FASTA format</strong>.
-                The sequence must be at least 10 characters. For best watermark capacity, aim for
-                sequences of 300 + amino acids (STANDARD tier or higher).
+                The sequence must be at least 10 characters. Longer sequences (300+ amino acids)
+                provide more synonymous codon positions for fingerprinting.
                 <br /><br />
                 <span className="font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs">
                   {">"}MyProtein | Homo sapiens<br />
@@ -113,10 +112,9 @@ export default function GettingStartedPage() {
                 <br /><br />
                 The certificate records:
                 <ul className="mt-2 ml-4 list-disc space-y-1 text-sm text-slate-600 dark:text-slate-400">
-                  <li>Watermark <strong>tier</strong> (FULL → MINIMAL) reflecting the error-correction capacity embedded in the codon bias pattern.</li>
-                  <li><strong>χ² score</strong>: statistical measure of codon bias introduced by watermarking. Lower = more covert.</li>
                   <li><strong>Certificate hash</strong> (SHA3-512) for tamper-evidence.</li>
                   <li>Biosafety gate outcomes for auditing.</li>
+                  <li>Provenance Tracing tab — issue per-recipient fingerprinted distribution copies.</li>
                 </ul>
               </>
             ),
@@ -140,41 +138,7 @@ export default function GettingStartedPage() {
         ))}
       </div>
 
-      {/* χ² quick reference */}
-      <div className="card p-5 space-y-3">
-        <h2 className="text-base font-semibold text-slate-900 dark:text-white">
-          χ² Score Quick Reference
-        </h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          The chi-squared statistic measures how much the watermarked codon usage deviates from the
-          natural (uniform within synonymous family) expectation for the host organism.
-        </p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-left text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
-                <th className="pb-2 pr-4 font-medium">χ² range</th>
-                <th className="pb-2 pr-4 font-medium">Rating</th>
-                <th className="pb-2 font-medium">Interpretation</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {[
-                ["< 10", "Covert", "#10b981", "Indistinguishable from natural codon usage"],
-                ["10 – 30", "Low", "#22c55e", "Mild bias, unlikely to affect expression"],
-                ["30 – 60", "Moderate", "#f59e0b", "Detectable; may affect translation efficiency"],
-                ["≥ 60", "Elevated", "#ef4444", "Strong skew; consider sequence re-optimisation"],
-              ].map(([range, label, color, desc]) => (
-                <tr key={range}>
-                  <td className="py-2 pr-4 font-mono text-slate-700 dark:text-slate-300">{range}</td>
-                  <td className="py-2 pr-4 font-semibold" style={{ color: color as string }}>{label}</td>
-                  <td className="py-2 text-slate-500 dark:text-slate-400">{desc}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+
 
       {/* FAQ */}
       <div className="space-y-4">
@@ -184,11 +148,11 @@ export default function GettingStartedPage() {
         {[
           {
             q: "Can I register RNA or DNA sequences?",
-            a: "ArtGene currently requires protein-coding sequences provided as FASTA. The DNA sequence is synthesised via codon optimisation during the watermarking step.",
+            a: "ArtGene currently requires protein-coding sequences provided as FASTA. The DNA sequence is synthesised via codon optimisation when a distribution copy is issued.",
           },
           {
-            q: "Is the watermark reversible?",
-            a: "No. The TINSEL watermark is embedded into the codon usage pattern of the sequence. It does not alter the amino acid sequence or protein function, but cannot be stripped without re-synthesising the protein.",
+            q: "What is Provenance Tracing?",
+            a: "After registering a sequence, you can issue fingerprinted distribution copies for each recipient from the sequence detail page. Each copy embeds a unique codon pattern (same protein, different synonymous codons). If a copy leaks, paste it on the Verify Source page to identify which recipient it came from.",
           },
           {
             q: "What does a CERTIFIED vs REJECTED status mean?",

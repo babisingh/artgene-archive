@@ -204,7 +204,7 @@ const SLIDES = [
     label: "Certified",
     title: "Receive your certificate",
     description:
-      "On success, a unique Registry ID (e.g. AG-2026-000001) is issued with a SHA3-512 certificate hash, watermark tier, χ² codon bias score, and full gate report, forming a tamper-evident provenance record for regulatory submission or audit.",
+      "On success, a unique Registry ID (e.g. AG-2026-000001) is issued with a SHA3-512 certificate hash and full gate report, forming a tamper-evident provenance record. You can then issue fingerprinted distribution copies to recipients from the sequence detail page.",
     gradient: "from-rose-500 to-pink-700",
     accent: "#be123c",
     Icon: IconCert,
@@ -408,7 +408,7 @@ export default function HomePage() {
               <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20
                               rounded-full px-3 py-1 text-xs font-semibold text-blue-100 tracking-wide">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                TINSEL Registry v1.0 - Now in beta
+                ArtGene Archive v1.0 — Now in beta
               </div>
 
               <h1 className="text-4xl sm:text-5xl font-extrabold leading-[1.1] tracking-tight">
@@ -417,9 +417,9 @@ export default function HomePage() {
               </h1>
 
               <p className="text-blue-100 text-base leading-relaxed max-w-lg">
-                ArtGene embeds invisible, tamper-evident watermarks into synthetic gene sequences
-                and certifies them through automated biosafety screening, creating an auditable
-                chain of custody from lab bench to regulatory submission.
+                ArtGene certifies synthetic gene sequences through automated biosafety screening and issues
+                unique per-recipient codon fingerprints, creating an auditable chain of custody
+                from lab bench to distribution.
               </p>
 
               <div className="flex flex-wrap gap-3 pt-1">
@@ -443,9 +443,7 @@ export default function HomePage() {
             {/* DNA helix graphic */}
             <div className="hidden lg:flex flex-col items-center gap-3 shrink-0 opacity-90 pr-4">
               <DnaHelix />
-              <span className="text-xs text-blue-200/60 font-mono tracking-widest uppercase">
-                TINSEL
-              </span>
+
             </div>
           </div>
         </div>
@@ -529,8 +527,8 @@ export default function HomePage() {
           {[
             {
               icon: "🔏",
-              title: "Steganographic watermarking",
-              body: "TINSEL encodes a cryptographically signed identity payload into the codon usage pattern of a protein, invisible to standard sequence analysis tools yet mathematically verifiable.",
+              title: "Per-recipient codon fingerprinting",
+              body: "Each distribution copy carries a unique HMAC-derived codon pattern — same protein, different synonymous codons per recipient. If a copy leaks, the platform identifies exactly who received it.",
             },
             {
               icon: "🛡️",
@@ -540,7 +538,7 @@ export default function HomePage() {
             {
               icon: "📜",
               title: "Immutable certificate chain",
-              body: "Each certificate carries a SHA3-512 hash of its full provenance record, binding the watermarked sequence to the researcher, institution, ethics code, and timestamp.",
+              body: "Each certificate carries a SHA3-512 hash of its full provenance record, binding the sequence to the researcher, institution, ethics code, and timestamp.",
             },
           ].map(({ icon, title, body }) => (
             <div key={title} className="card p-6 space-y-3">
@@ -555,9 +553,9 @@ export default function HomePage() {
       {/* ── Quick navigation ──────────────────────────────────────────── */}
       <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { href: "/register",        icon: "➕", title: "Register a Sequence", sub: "Submit a FASTA sequence for TINSEL watermarking and biosafety certification." },
+          { href: "/register",        icon: "➕", title: "Register a Sequence", sub: "Submit a FASTA sequence for biosafety certification and provenance tracing." },
           { href: "/sequences",       icon: "🧬", title: "Sequence Registry",   sub: "Browse all certified and rejected sequences with full gate reports." },
-          { href: "/getting-started", icon: "📖", title: "Getting Started",     sub: "Step-by-step guide to the TINSEL workflow, χ² scoring, and tier system." },
+          { href: "/getting-started", icon: "📖", title: "Getting Started",     sub: "Step-by-step guide to registration, biosafety screening, and provenance tracing." },
         ].map(({ href, icon, title, sub }) => (
           <Link key={href} href={href}
             className="card p-5 hover:border-blue-400 dark:hover:border-blue-500 transition-colors group">

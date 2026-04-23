@@ -6,10 +6,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { CertificateCard } from "../../components/CertificateCard";
-import { CodonBiasChart } from "../../components/CodonBiasChart";
 import { FastaUploader } from "../../components/FastaUploader";
 import { GateProgressTracker, type RunPhase } from "../../components/GateProgressTracker";
-import type { ConsequenceReport, RegistrationResponse, WatermarkMetadata } from "../../lib/api";
+import type { ConsequenceReport, RegistrationResponse } from "../../lib/api";
 import { useApiKey } from "../../lib/providers";
 
 // ---------------------------------------------------------------------------
@@ -46,7 +45,6 @@ export default function RegisterPage() {
   const [phase, setPhase] = useState<RunPhase>("idle");
   const [response, setResponse] = useState<RegistrationResponse | null>(null);
   const [report, setReport] = useState<ConsequenceReport | null>(null);
-  const [watermark, setWatermark] = useState<WatermarkMetadata | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const {
@@ -117,15 +115,6 @@ export default function RegisterPage() {
     // Invalidate certificate list so registry page refreshes
     qc.invalidateQueries({ queryKey: ["certificates"] });
 
-    // Fetch full certificate to get watermark_metadata for CodonBiasChart
-    if (result.status === "CERTIFIED" && result.registry_id) {
-      try {
-        const cert = await client.getCertificate(result.registry_id);
-        setWatermark(cert.watermark_metadata);
-      } catch {
-        // Non-fatal — chart just won't render
-      }
-    }
   }
 
   const busy = phase !== "idle" && phase !== "done";
@@ -138,7 +127,7 @@ export default function RegisterPage() {
           Register Sequence
         </h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Submit a FASTA sequence for TINSEL watermarking and biosafety certification.
+          Submit a FASTA sequence for biosafety certification and provenance tracing.
         </p>
       </div>
 
@@ -224,7 +213,7 @@ export default function RegisterPage() {
                   <option value="embargoed">Embargoed — visible to your org only until published</option>
                 </select>
                 <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-                  Embargoed certificates are registered and watermarked but hidden from other organisations.
+                  Embargoed certificates are registered but hidden from other organisations.
                   You can publish them later from the certificate detail page.
                 </p>
               </div>
@@ -292,33 +281,18 @@ export default function RegisterPage() {
           </h2>
           <CertificateCard response={response} />
 
-          {/* CodonBiasChart — shown when watermark_metadata is loaded */}
-          {response.status === "CERTIFIED" && (
-            <div className="card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Codon Bias Analysis
-                </h3>
-                {response.registry_id && (
-                  <a
-                    href={`/sequences/${response.registry_id}`}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    View full certificate →
-                  </a>
-                )}
-              </div>
-              {watermark ? (
-                <CodonBiasChart watermark={watermark} />
-              ) : (
-                <div className="flex items-center justify-center h-24 gap-2 text-slate-400">
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3V4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z" />
-                  </svg>
-                  <span className="text-sm">Loading codon data…</span>
-                </div>
-              )}
+          {response.status === "CERTIFIED" && response.registry_id && (
+            <div className="card p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-sm">
+              <span className="text-blue-700 dark:text-blue-300">
+                Sequence certified.{" "}
+                <a
+                  href={`/sequences/${response.registry_id}`}
+                  className="font-semibold underline"
+                >
+                  Open the sequence detail page
+                </a>{" "}
+                to issue fingerprinted distribution copies via the Provenance Tracing tab.
+              </span>
             </div>
           )}
         </div>

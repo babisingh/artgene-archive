@@ -1,683 +1,321 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { CodonBiasChart } from "../../components/CodonBiasChart";
-import { InfoTooltip } from "../../components/InfoTooltip";
-import {
-  analyseSequence, fetchStructure,
-  type AnalyseResponse, type StructureResponse,
-} from "../../lib/api";
-import {
-  ArcDiagram, EXAMPLES, IconCodon, IconDna, IconLock, IconMrna, IconProtein,
-  StatCard, StructurePanel, toWatermarkMeta,
-} from "./components";
+import { useState } from "react";
+import type { AnalyseResponse, RecipientCopy } from "../../lib/api";
+import { analyseSequence } from "../../lib/api";
 
-const HOST_OPTIONS = [
-  { value: "ECOLI",  label: "E. coli" },
-  { value: "HUMAN",  label: "Human" },
-  { value: "YEAST",  label: "Yeast (S. cerevisiae)" },
-  { value: "CHO",    label: "CHO" },
-  { value: "INSECT", label: "Insect (Sf9)" },
-  { value: "PLANT",  label: "Plant (A. thaliana)" },
+const EXAMPLE_SEQUENCES = [
+  {
+    label: "GLP-1 Receptor Agonist",
+    fasta: ">GLP1RA|demo\nHAEGTFTSDVSSYLEGQAAKEFIAWLVKGRCEGVLGDTFR",
+  },
+  {
+    label: "Green Fluorescent Protein",
+    fasta: ">GFP|demo\nMSKGEELFTGVVPILVELDGDVNGHKFSVSGEGEGDATYGKLTLKFICTTGKLPVPWPTLVTTLTYGVQCFSRYPDHMKQHDFFKSAMPEGYVQERTIFFKDDGNYKTRAEVKFEGDTLVNRIELKGIDFKEDGNILGHKLEYNYNSHNVYIMADKQKNGIKVNFKIRHNIEDGSVQLADHYQQNTPIGDGPVLLPDNHYLSTQSALSKDPNEKRDHMVLLEFVTAAGITLGMDELYK",
+  },
+  {
+    label: "Human Insulin",
+    fasta: ">Insulin|demo\nMALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPKTRREAEDLQVGQVELGGGPGAGSLQPLALEGSLQKRGIVEQCCTSICSLYQLENYCN",
+  },
 ];
 
-export default function DemoPage() {
-  const [fasta, setFasta]                       = useState("");
-  const [host, setHost]                         = useState("ECOLI");
-  const [loading, setLoading]                   = useState(false);
-  const [error, setError]                       = useState<string | null>(null);
-  const [data, setData]                         = useState<AnalyseResponse | null>(null);
-  const [structure, setStructure]               = useState<StructureResponse | null>(null);
-  const [structureLoading, setStructureLoading] = useState(false);
+const HOST_ORGANISMS = ["ECOLI", "HUMAN", "YEAST", "CHO", "INSECT", "PLANT"];
 
-  const handleSubmit = useCallback(async () => {
-    const input = fasta.trim();
-    if (!input) return;
-    setLoading(true);
-    setError(null);
-    setData(null);
-    setStructure(null);
-    try {
-      const result = await analyseSequence({ fasta: input, host_organism: host });
-      setData(result);
-      setStructureLoading(true);
-      fetchStructure(result.original_protein)
-        .then(setStructure)
-        .catch((err) =>
-          setStructure({
-            pdb_text: null, plddt_mean: null, plddt_per_residue: null,
-            instability_index: null, sequence_length: result.sequence_length,
-            fallback: true, message: String(err),
-          })
-        )
-        .finally(() => setStructureLoading(false));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [fasta, host]);
-
-  const pctChanged = data
-    ? ((data.n_codons_changed / data.n_codons_total) * 100).toFixed(1)
-    : "0";
-
+function CodonDiffStrip({ copy, label }: { copy: RecipientCopy; label: string }) {
+  const diffs = copy.codon_diffs.slice(0, 12);
   return (
-    <div className="container mx-auto px-4 max-w-5xl py-8 space-y-8">
-
-      {/* Hero */}
-      <div className="text-center space-y-3">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 text-green-700 dark:text-green-400 text-sm font-medium">
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 6L9 17l-5-5" />
-          </svg>
-          Lossless Watermarking — Public Proof-of-Concept
-        </div>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-          TINSEL Watermarking is Lossless
-        </h1>
-        <p className="text-slate-400 dark:text-slate-500 max-w-xl mx-auto text-base italic">
-          Your sequence. Your signature. Permanently.
-        </p>
-        <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto text-base leading-relaxed">
-          TINSEL — <span className="text-slate-500 dark:text-slate-400 text-sm">Traceable Identity Notation for Sequence Encryption + Ledger</span> — lets you embed
-          an unforgeable provenance watermark directly into your designed DNA sequence, without altering
-          a single amino acid. Your protein folds identically, expresses and performs identically.
-          Yet buried in the codon choices is a cryptographic signature that permanently links the sequence
-          to you, surviving sequencing, synthesis, and even partial mutagenesis.
-        </p>
-        <p className="text-slate-500 dark:text-slate-500 max-w-xl mx-auto text-sm">
-          Use the interactive proof below to verify: paste any protein or DNA sequence,
-          pick an expression host, and watch every panel confirm that watermarking changes the DNA
-          while leaving the biology completely intact.
-        </p>
+    <div className="space-y-1.5">
+      <div className="text-xs font-medium text-slate-600 dark:text-slate-400">
+        {label} — {copy.n_codons_changed} synonymous substitutions
       </div>
+      <div className="flex flex-wrap gap-1">
+        {diffs.map((d, i) => (
+          <div key={i} className="bg-slate-100 dark:bg-slate-700 rounded px-1.5 py-0.5 text-xs font-mono">
+            <span className="text-slate-400">{d.amino_acid}{d.position}</span>{" "}
+            <span className="text-rose-500">{d.original_codon}</span>
+            <span className="text-slate-400">→</span>
+            <span className="text-blue-500">{d.fingerprinted_codon}</span>
+          </div>
+        ))}
+        {copy.codon_diffs.length > 12 && (
+          <span className="text-xs text-slate-400 self-center">
+            +{copy.codon_diffs.length - 12} more
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
 
-      {/* Explainer cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+function DnaPreview({
+  label,
+  dna,
+  highlight,
+}: {
+  label: string;
+  dna: string;
+  highlight?: boolean;
+}) {
+  const preview = dna.slice(0, 90);
+  return (
+    <div
+      className={`rounded-lg p-3 border ${
+        highlight
+          ? "border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-950/30"
+          : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50"
+      }`}
+    >
+      <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{label}</div>
+      <div className="font-mono text-xs text-slate-700 dark:text-slate-300 break-all">
+        {preview}
+        <span className="text-slate-400">…</span>
+      </div>
+    </div>
+  );
+}
+
+function ResultsPanel({ data }: { data: AnalyseResponse }) {
+  return (
+    <div className="space-y-6">
+      {/* Summary row */}
+      <div className="grid grid-cols-3 gap-3">
         {[
+          { label: "Sequence length", value: `${data.sequence_length} AA` },
+          { label: "Protein preserved", value: data.protein_preserved ? "✓ Yes" : "✗ No" },
           {
-            icon: <IconDna className="w-8 h-8" />,
-            title: "Synonymous Codons",
-            text: "Multiple DNA triplets encode the same amino acid. TINSEL steganographically selects among them using a cryptographic key stream — no amino acid is ever changed.",
+            label: "Positions differ (Copy A vs B)",
+            value: data.n_codons_differ_between_copies,
           },
-          {
-            icon: <IconProtein className="w-8 h-8 text-slate-600 dark:text-slate-300" />,
-            title: "Identical Protein",
-            text: "Because the amino acid sequence is preserved character-for-character, the 3D fold, binding sites, and biological activity are indistinguishable from the unmodified sequence.",
-          },
-          {
-            icon: <IconLock className="w-8 h-8 text-slate-600 dark:text-slate-300" />,
-            title: "Covert by Design",
-            text: "Chi-squared analysis across synonymous codon families shows statistically normal codon bias — the watermark is undetectable without the spreading key.",
-          },
-        ].map(({ icon, title, text }) => (
-          <div key={title} className="card p-5 space-y-3 border-l-4 border-blue-400 dark:border-blue-600">
-            <div className="text-blue-500 dark:text-blue-400">{icon}</div>
-            <div className="font-semibold text-slate-900 dark:text-white">{title}</div>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{text}</p>
+        ].map(({ label, value }) => (
+          <div key={label} className="card p-3 text-center">
+            <div className="text-xl font-bold text-slate-900 dark:text-white">{value}</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{label}</div>
           </div>
         ))}
       </div>
 
-      {/* Example presets */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Try an example — or paste your own sequence below:</span>
-          <span className="text-xs text-slate-400 dark:text-slate-500">FASTA format, protein or DNA, up to 1,000 AA</span>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {EXAMPLES.map((ex) => (
-            <button key={ex.name} type="button"
-              onClick={() => { setFasta(ex.fasta); setHost(ex.host); }}
-              className="card p-3 text-left hover:border-blue-400 dark:hover:border-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400">
-              <div className="font-semibold text-sm text-slate-900 dark:text-white">{ex.name}</div>
-              <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{ex.description}</div>
-              <span className="mt-2 inline-block text-xs px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-700">
-                {ex.badge}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Input form */}
-      <div className="card p-6 space-y-4">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-2">
-            <h2 className="font-semibold text-slate-900 dark:text-white">Input Sequence</h2>
-            <InfoTooltip text="Paste a protein FASTA (>header then sequence) or a DNA FASTA. DNA is automatically translated. Max 1,000 AA." wide />
-          </div>
-          {/* Privacy badge */}
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400 text-xs font-medium select-none">
-            <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0110 0v4" />
-            </svg>
-            Not stored — demo only
-          </div>
-        </div>
-
-        <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-4 py-3 text-sm text-blue-800 dark:text-blue-300 leading-relaxed">
-          <span className="font-semibold">Your sequence is safe.</span> This demo runs entirely server-side for analysis and is discarded immediately after the response. Your sequence is never stored, indexed, or logged unless you choose to{" "}
-          <a href="/register" className="underline font-medium hover:text-blue-600 dark:hover:text-blue-200">register it</a> through the formal workflow.
-        </div>
-
-        <textarea value={fasta} onChange={(e) => setFasta(e.target.value)}
-          placeholder=">MyProtein&#10;MKLVGGEELFTGVVPILVELDGDVNGH..."
-          rows={6} className="input w-full font-mono text-xs resize-y" />
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-1 text-sm font-medium text-slate-700 dark:text-slate-300">
-            Host organism
-            <InfoTooltip text="Sets the codon usage table for both the reference DNA and TINSEL watermarking. Codon preferences differ significantly between organisms." wide />
-          </label>
-          <select value={host} onChange={(e) => setHost(e.target.value)} className="input py-1.5 text-sm w-48">
-            {HOST_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-          <button type="button" onClick={handleSubmit} disabled={loading || !fasta.trim()} className="btn-primary ml-auto px-6">
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Analysing...
-              </span>
-            ) : "Analyse Sequence"}
-          </button>
-        </div>
-        {error && (
-          <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm px-4 py-3">
-            {error}
-          </div>
-        )}
-      </div>
-
-      {/* Results */}
-      {data && (
-        <ResultsSection
-          data={data}
-          structure={structure}
-          structureLoading={structureLoading}
-          pctChanged={pctChanged}
-        />
-      )}
-    </div>
-  );
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-/** Sequence alignment strip: 3 rows (label | AA | ctrl | wm | match), scrollable */
-function CodonAlignmentView({ data }: { data: AnalyseResponse }) {
-  const LIMIT = 60;
-  const n = Math.min(LIMIT, data.n_codons_total);
-  const protein = data.original_protein;
-  const ctrl = data.control_dna;
-  const wm = data.watermarked_dna;
-
-  return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-3">
-      <div className="inline-flex flex-col gap-1 min-w-max font-mono text-[10px]">
-        {/* Amino acid row */}
-        <div className="flex items-center">
-          <span className="w-28 text-right pr-3 font-sans text-[9px] font-semibold uppercase tracking-wide text-slate-400 shrink-0">Amino acid</span>
-          {Array.from({ length: n }, (_, i) => (
-            <span key={i} className="w-8 text-center text-slate-500 dark:text-slate-400">{protein[i]}</span>
-          ))}
-          {data.n_codons_total > LIMIT && <span className="text-slate-400 ml-2 text-[9px]">+{data.n_codons_total - LIMIT} more</span>}
-        </div>
-        {/* Control row */}
-        <div className="flex items-center">
-          <span className="w-28 text-right pr-3 font-sans text-[9px] font-semibold uppercase tracking-wide text-blue-500 shrink-0">Control</span>
-          {Array.from({ length: n }, (_, i) => {
-            const c = ctrl.slice(i * 3, i * 3 + 3);
-            const w = wm.slice(i * 3, i * 3 + 3);
-            const changed = c !== w;
-            return (
-              <span key={i} className={`w-8 text-center py-0.5 rounded ${changed ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" : "text-slate-500 dark:text-slate-400"}`}>
-                {c}
-              </span>
-            );
-          })}
-        </div>
-        {/* Match row */}
-        <div className="flex items-center">
-          <span className="w-28 shrink-0" />
-          {Array.from({ length: n }, (_, i) => {
-            const c = ctrl.slice(i * 3, i * 3 + 3);
-            const w = wm.slice(i * 3, i * 3 + 3);
-            return (
-              <span key={i} className={`w-8 text-center text-[8px] ${c === w ? "text-green-400" : "text-violet-400 font-bold"}`}>
-                {c === w ? "|" : "*"}
-              </span>
-            );
-          })}
-        </div>
-        {/* Watermarked row */}
-        <div className="flex items-center">
-          <span className="w-28 text-right pr-3 font-sans text-[9px] font-semibold uppercase tracking-wide text-violet-500 shrink-0">Watermarked</span>
-          {Array.from({ length: n }, (_, i) => {
-            const c = ctrl.slice(i * 3, i * 3 + 3);
-            const w = wm.slice(i * 3, i * 3 + 3);
-            const changed = c !== w;
-            return (
-              <span key={i} className={`w-8 text-center py-0.5 rounded ${changed ? "bg-violet-200 text-violet-900 dark:bg-violet-800/50 dark:text-violet-200 font-bold" : "text-slate-500 dark:text-slate-400"}`}>
-                {w}
-              </span>
-            );
-          })}
-        </div>
-      </div>
-      <div className="mt-2 flex gap-4 text-[10px] text-slate-400">
-        <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-violet-300" /> Synonymous change</span>
-        <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-blue-200" /> Original codon</span>
-        <span className="text-green-400 font-mono">| = identical</span>
-        <span className="text-violet-400 font-mono">* = synonymous change</span>
-      </div>
-    </div>
-  );
-}
-
-/** Protein sequence alignment: control row, match row, watermarked row */
-function ProteinAlignmentView({ protein }: { protein: string }) {
-  const LIMIT = 80;
-  const display = protein.slice(0, LIMIT);
-  return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-3">
-      <div className="inline-flex flex-col gap-1 min-w-max font-mono text-[10px]">
-        <div className="flex items-center">
-          <span className="w-32 text-right pr-3 font-sans text-[9px] font-semibold uppercase tracking-wide text-blue-500 shrink-0">Control protein</span>
-          {Array.from(display, (aa, i) => (
-            <span key={i} className="w-5 text-center text-slate-700 dark:text-slate-200">{aa}</span>
-          ))}
-          {protein.length > LIMIT && <span className="text-slate-400 ml-2 text-[9px]">+{protein.length - LIMIT} more (all identical)</span>}
-        </div>
-        <div className="flex items-center">
-          <span className="w-32 shrink-0" />
-          {Array.from(display, (_, i) => (
-            <span key={i} className="w-5 text-center text-green-500 text-[8px] font-bold">|</span>
-          ))}
-        </div>
-        <div className="flex items-center">
-          <span className="w-32 text-right pr-3 font-sans text-[9px] font-semibold uppercase tracking-wide text-violet-500 shrink-0">Watermarked protein</span>
-          {Array.from(display, (aa, i) => (
-            <span key={i} className="w-5 text-center text-slate-700 dark:text-slate-200">{aa}</span>
-          ))}
-        </div>
-      </div>
-      <p className="mt-2 text-[10px] text-green-600 dark:text-green-400 font-medium">
-        Every amino acid is identical. The watermark lives exclusively in the synonymous codon choices below.
-      </p>
-    </div>
-  );
-}
-
-/** Plain-English mRNA conclusion based on delta values */
-function MrnaSummary({ data }: { data: AnalyseResponse }) {
-  const mfeDelta = Math.abs(data.delta_mfe);
-  const gcDelta = Math.abs(data.delta_gc * 100);
-  let level: "negligible" | "minor" | "detectable";
-  if (mfeDelta < 1 && gcDelta < 1) level = "negligible";
-  else if (mfeDelta < 5 && gcDelta < 3) level = "minor";
-  else level = "detectable";
-
-  const conclusions = {
-    negligible: `The DELTA-MFE of ${data.delta_mfe >= 0 ? "+" : ""}${data.delta_mfe.toFixed(2)} kcal/mol and DELTA-GC of ${data.delta_gc >= 0 ? "+" : ""}${(data.delta_gc * 100).toFixed(2)}% are negligible. The watermark introduced essentially no change to mRNA secondary structure or stability. The synonymous codon substitutions preserved the folding topology almost entirely.`,
-    minor: `The DELTA-MFE of ${data.delta_mfe >= 0 ? "+" : ""}${data.delta_mfe.toFixed(2)} kcal/mol and DELTA-GC of ${data.delta_gc >= 0 ? "+" : ""}${(data.delta_gc * 100).toFixed(2)}% represent minor changes, within the natural range of synonymous codon variation. The mRNA secondary structure is substantially preserved and translation efficiency is unlikely to be meaningfully affected.`,
-    detectable: `The DELTA-MFE of ${data.delta_mfe >= 0 ? "+" : ""}${data.delta_mfe.toFixed(2)} kcal/mol and DELTA-GC of ${data.delta_gc >= 0 ? "+" : ""}${(data.delta_gc * 100).toFixed(2)}% are detectable. While the amino acid sequence is unchanged, the codon choices may modestly alter local mRNA folding. This is expected for sequences with limited synonymous codon freedom (e.g. short peptides).`,
-  };
-
-  const borderColor = level === "negligible" ? "border-green-200 dark:border-green-800" : level === "minor" ? "border-blue-200 dark:border-blue-800" : "border-amber-200 dark:border-amber-800";
-  const textColor = level === "negligible" ? "text-green-700 dark:text-green-400" : level === "minor" ? "text-blue-700 dark:text-blue-400" : "text-amber-700 dark:text-amber-400";
-
-  return (
-    <div className={`rounded-lg border ${borderColor} bg-slate-50 dark:bg-slate-900/40 px-4 py-3 text-sm`}>
-      <span className={`font-semibold ${textColor}`}>
-        {level === "negligible" ? "Verdict: Negligible impact" : level === "minor" ? "Verdict: Minor, acceptable impact" : "Verdict: Detectable impact"}
-        {" "}
-      </span>
-      <span className="text-slate-600 dark:text-slate-400">{conclusions[level]}</span>
-    </div>
-  );
-}
-
-// ── Results section ────────────────────────────────────────────────────────
-
-function ResultsSection({
-  data, structure, structureLoading, pctChanged,
-}: {
-  data: AnalyseResponse;
-  structure: StructureResponse | null;
-  structureLoading: boolean;
-  pctChanged: string;
-}) {
-  return (
-    <div className="space-y-6">
-
-      {/* Summary badges */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-lg font-bold text-slate-900 dark:text-white">Analysis Results</span>
-        <span className="px-3 py-1 rounded-full bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 text-green-700 dark:text-green-400 text-sm font-semibold">
-          Protein identity: 100%
-        </span>
-        <span className="px-3 py-1 rounded-full bg-violet-50 dark:bg-violet-900/30 border border-violet-200 dark:border-violet-700 text-violet-700 dark:text-violet-400 text-sm font-medium">
-          Tier: {data.watermark_tier}
-        </span>
-      </div>
-
-      {/* Top stat row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard label="Length" value={data.sequence_length} sub="amino acids"
-          tooltip="Total number of amino acids in the sequence." />
-        <StatCard label="Codons changed" value={`${data.n_codons_changed} / ${data.n_codons_total}`}
-          sub={`${pctChanged}% — all synonymous`}
-          tooltip="Synonymous codon substitutions made to embed the watermark. The amino acid sequence is unchanged." />
-        <StatCard label="Carrier positions" value={data.carrier_positions} sub="positions"
-          tooltip="Codon positions used to carry the TINSEL watermark payload. More = greater capacity." />
-        <StatCard label="Host" value={data.host_organism}
-          tooltip="Expression host used for codon optimisation." />
-      </div>
-
-      {/* Panel 1: DNA Codon Comparison */}
-      <div className="card p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <IconCodon className="w-5 h-5 text-violet-500" />
-          <h2 className="font-semibold text-lg text-slate-900 dark:text-white">DNA Codon Comparison</h2>
-          <InfoTooltip text="Sequence alignment of control vs watermarked DNA. The control uses the highest-RSCU codon per amino acid for the host. The watermarked version selects synonymous codons to encode the cryptographic payload. Purple = synonymous substitution. The amino acid at every position is unchanged." wide />
-          <span className="ml-auto text-xs text-slate-400">
-            {data.n_codons_changed} changed / {data.n_codons_total} total ({pctChanged}%)
-          </span>
-        </div>
-        <CodonAlignmentView data={data} />
-      </div>
-
-      {/* Panel 2: Codon Bias Analysis */}
-      <div className="card p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <IconDna className="w-5 h-5" />
-          <h2 className="font-semibold text-lg text-slate-900 dark:text-white">Codon Bias Analysis</h2>
-          <InfoTooltip text="Chi-squared statistics measure how much the watermarked codon usage deviates from the expectation of uniform synonymous codon usage. A low chi-squared score means the watermark is statistically covert and will not be detected by standard codon bias tools." wide />
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <StatCard label="χ² statistic" value={data.chi_squared.toFixed(4)}
-            tooltip="Chi-squared across all synonymous codon families. Less than 10 is statistically indistinguishable from natural host codon usage."
-            good={data.chi_squared < 30} />
-          <StatCard label="p-value"
-            value={data.p_value < 0.001 ? data.p_value.toExponential(2) : data.p_value.toFixed(4)}
-            tooltip="Probability that the observed codon bias could arise by chance under uniform codon usage. Greater than 0.05 = covert."
-            good={data.p_value > 0.05} />
-          <StatCard label="Covert?" value={data.is_covert ? "Yes" : "No"}
-            tooltip="Whether the watermark passes the covertness threshold (p greater than 0.05 and chi-squared less than 30). A covert watermark is statistically indistinguishable from natural codon usage."
-            good={data.is_covert} />
-        </div>
-        <CodonBiasChart watermark={toWatermarkMeta(data)} />
-      </div>
-
-      {/* Panel 3: mRNA Secondary Structure */}
-      <div className="card p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <IconMrna className="w-5 h-5 text-cyan-500" />
-          <h2 className="font-semibold text-lg text-slate-900 dark:text-white">mRNA Secondary Structure</h2>
-          <InfoTooltip text="mRNA folds through Watson-Crick (A-U, G-C) and wobble (G-U) base pairs. Structures affect ribosome binding and mRNA half-life. Synonymous codon substitutions should not significantly disrupt existing secondary structure." wide />
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: "Control MFE",     v: `${data.control_mfe.toFixed(2)}`,     sub: "kcal/mol", tip: "Minimum Free Energy of the host-optimised control mRNA secondary structure. More negative = more stable.", col: "text-blue-600 dark:text-blue-400" },
-            { label: "Watermarked MFE", v: `${data.watermarked_mfe.toFixed(2)}`, sub: "kcal/mol", tip: "Minimum Free Energy of the watermarked mRNA secondary structure.", col: "text-violet-600 dark:text-violet-400" },
-            { label: "Delta MFE",  v: `${data.delta_mfe >= 0 ? "+" : ""}${data.delta_mfe.toFixed(2)}`, sub: "kcal/mol", tip: "Change in MFE between control and watermarked. Values near 0 indicate preserved mRNA stability.", col: Math.abs(data.delta_mfe) < 5 ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400" },
-            { label: "Delta GC",   v: `${data.delta_gc >= 0 ? "+" : ""}${(data.delta_gc * 100).toFixed(2)}`, sub: "%", tip: "Change in GC content. Small changes indicate similar mRNA stability characteristics.", col: Math.abs(data.delta_gc) < 0.02 ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400" },
-          ].map(({ label, v, sub, tip, col }) => (
-            <div key={label} className="card p-3">
-              <div className="flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-                {label}<InfoTooltip text={tip} />
-              </div>
-              <div className={`font-mono text-xl font-bold ${col}`}>{v}</div>
-              <div className="text-xs text-slate-400">{sub}</div>
-            </div>
-          ))}
-        </div>
-        <div className="space-y-2">
-          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide flex items-center gap-1">
-            GC Content<InfoTooltip text="Percentage of G and C bases. Higher GC content increases mRNA stability. Should remain similar after watermarking." />
-          </div>
-          {[
-            { label: "Control",     value: data.control_gc,     color: "bg-blue-500" },
-            { label: "Watermarked", value: data.watermarked_gc, color: "bg-violet-500" },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="flex items-center gap-3 text-sm">
-              <span className="w-24 text-xs text-slate-600 dark:text-slate-400">{label}</span>
-              <div className="flex-1 h-4 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                <div className={`h-full rounded-full ${color}`} style={{ width: `${(value * 100).toFixed(1)}%` }} />
-              </div>
-              <span className="w-12 text-right font-mono text-xs">{(value * 100).toFixed(1)}%</span>
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {[
-            { label: "Control",     db: data.control_dot_bracket,     pairs: data.n_pairs_control,     color: "#3b82f6" },
-            { label: "Watermarked", db: data.watermarked_dot_bracket, pairs: data.n_pairs_watermarked, color: "#8b5cf6" },
-          ].map(({ label, db, pairs, color }) => (
-            <div key={label} className="space-y-2">
-              <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                {label} — {pairs} base pair{pairs !== 1 ? "s" : ""}
-              </div>
-              <ArcDiagram dotBracket={db} label="Dot-bracket notation (first 120 nt)" color={color} />
-              <div className="font-mono text-[9px] break-all bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded p-2 text-slate-500 max-h-16 overflow-y-auto">
-                {db.slice(0, 200)}{db.length > 200 ? "..." : ""}
-              </div>
-            </div>
-          ))}
-        </div>
-        <MrnaSummary data={data} />
-      </div>
-
-      {/* Panel 4: Protein Sequence Identity */}
-      <div className="card p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <IconProtein className="w-5 h-5 text-green-500" />
-          <h2 className="font-semibold text-lg text-slate-900 dark:text-white">Protein Sequence Identity</h2>
-          <InfoTooltip text="TINSEL selects only among synonymous codons: different DNA triplet, same amino acid. The protein sequence produced by translating control DNA and watermarked DNA is character-for-character identical." wide />
-          <span className="ml-auto flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 text-sm font-bold border border-green-300 dark:border-green-700">
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-            100% Identical
-          </span>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-1">
-              RMSD (amino acid sequence)
-              <InfoTooltip text="Root Mean Square Deviation between the two protein sequences. Zero means byte-for-byte identical — no amino acid was changed." />
-            </div>
-            <div className="font-mono text-2xl font-bold text-green-600 dark:text-green-400">0.000 A</div>
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">
-              Amino acid identity
-            </div>
-            <div className="font-mono text-2xl font-bold text-green-600 dark:text-green-400">
-              {data.sequence_length}/{data.sequence_length} (100%)
-            </div>
-          </div>
-        </div>
-        <ProteinAlignmentView protein={data.original_protein} />
-      </div>
-
-      {/* Panel 5: 3D Protein Structure */}
-      <StructurePanel structure={structure} structureLoading={structureLoading} />
-
-      {/* Final proof summary */}
-      <div className="rounded-xl bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border border-green-200 dark:border-green-800 p-6 text-center space-y-3">
-        <div className="flex items-center justify-center gap-2 text-2xl font-bold text-green-700 dark:text-green-400">
-          <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-            <path d="M22 4L12 14.01l-3-3" />
-          </svg>
-          Losslessness Verified
-        </div>
-        <p className="text-sm text-slate-600 dark:text-slate-400 max-w-lg mx-auto">
-          The watermarked DNA encodes a protein that is <strong>100% identical</strong> to the control.{" "}
-          {data.n_codons_changed} synonymous substitution{data.n_codons_changed !== 1 ? "s" : ""} out of{" "}
-          {data.n_codons_total} codons ({pctChanged}%). Zero amino acids changed.
+      {/* DNA previews */}
+      <div className="card p-5 space-y-4">
+        <h3 className="font-semibold text-slate-900 dark:text-white">Codon Fingerprints</h3>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Same protein. Different codon patterns per recipient. The fingerprint is invisible to
+          translation — only the platform can distinguish the copies.
         </p>
-        <div className="flex flex-wrap justify-center gap-4 text-sm font-medium">
-          <span className="text-green-700 dark:text-green-400">Protein identity: 100%</span>
-          <span className="text-green-700 dark:text-green-400">RMSD: 0.000 A</span>
-          <span className={data.is_covert ? "text-green-700 dark:text-green-400" : "text-amber-700 dark:text-amber-400"}>
-            Codon bias: {data.is_covert ? "Covert" : "Detectable"}
-          </span>
-          <span className={Math.abs(data.delta_mfe) < 5 ? "text-green-700 dark:text-green-400" : "text-amber-700 dark:text-amber-400"}>
-            Delta MFE: {data.delta_mfe >= 0 ? "+" : ""}{data.delta_mfe.toFixed(2)} kcal/mol
-          </span>
-        </div>
+        <DnaPreview label="Base (codon-optimised, no fingerprint)" dna={data.control_dna} />
+        <DnaPreview
+          label={`Copy for ${data.recipient_a.recipient_org}`}
+          dna={data.recipient_a.dna}
+          highlight
+        />
+        <DnaPreview
+          label={`Copy for ${data.recipient_b.recipient_org}`}
+          dna={data.recipient_b.dna}
+        />
       </div>
 
-      {/* Panel 6: Synthesizer View — TINSEL-SAD mock preview */}
-      <div className="card p-6 space-y-4">
+      {/* Codon diffs */}
+      <div className="card p-5 space-y-4">
+        <h3 className="font-semibold text-slate-900 dark:text-white">Synonymous Substitutions</h3>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Every change is synonymous — same amino acid, different codon. Biology is unaffected.
+        </p>
+        <CodonDiffStrip copy={data.recipient_a} label={data.recipient_a.recipient_org} />
+        <CodonDiffStrip copy={data.recipient_b} label={data.recipient_b.recipient_org} />
+      </div>
+
+      {/* Verify simulation */}
+      <div className="card p-5 space-y-4 border-2 border-green-300 dark:border-green-700">
+        <h3 className="font-semibold text-slate-900 dark:text-white">Verify Simulation</h3>
+        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-sm text-slate-600 dark:text-slate-300 italic">
+          &ldquo;{data.verify_demo.scenario}&rdquo;
+        </div>
         <div className="flex items-center gap-2">
-          <svg className="w-5 h-5 text-slate-500 dark:text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-            <line x1="8" y1="21" x2="16" y2="21" />
-            <line x1="12" y1="17" x2="12" y2="21" />
-          </svg>
-          <h2 className="font-semibold text-lg text-slate-900 dark:text-white">Synthesizer View</h2>
-          <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 text-amber-700 dark:text-amber-400 font-medium">
-            MOCK PREVIEW
+          <span className="badge-pass">MATCH FOUND</span>
+          <span className="text-sm text-slate-700 dark:text-slate-300">
+            Traced to <strong>{data.verify_demo.matched_recipient}</strong> at{" "}
+            <strong>{data.verify_demo.matched_org}</strong>
           </span>
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          After registering your sequence, a benchtop synthesizer can look up the registry by sequence hash
-          and receive a <strong className="text-slate-700 dark:text-slate-200">TINSEL-SAD-1.0</strong> Synthesis
-          Authorization Document. Synthesizer firmware reads{" "}
-          <span className="font-mono text-blue-700 dark:text-blue-400">machine_instructions.proceed_with_synthesis</span>{" "}
-          to decide whether to proceed. This is a preview of what that document would look like.
+          {data.verify_demo.explanation}
         </p>
-        <div className="rounded-lg border-2 border-dashed border-slate-200 dark:border-slate-700 p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/30">
-          {/* Decision banner mock */}
-          <div className="rounded-lg border bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-700/40 p-4 space-y-2">
-            <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
-              <span className="text-xl font-bold">✓</span>
-              <div>
-                <div className="font-bold text-base">PROCEED — FULL</div>
-                <div className="text-sm">All biosafety gates passed. Certificate CERTIFIED.</div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs pt-1">
-              {[
-                { label: "Valid from", value: new Date().toLocaleDateString() },
-                { label: "Valid until", value: new Date(Date.now() + 365 * 86400000).toLocaleDateString() },
-                { label: "Host", value: data.host_organism },
-                { label: "BSO required", value: "No" },
-              ].map(({ label, value }) => (
-                <div key={label} className="card p-2 text-center">
-                  <div className="text-slate-500 dark:text-slate-400">{label}</div>
-                  <div className="font-medium text-slate-900 dark:text-white mt-0.5 font-mono">{value}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Machine instructions mock */}
-          <div className="card p-4">
-            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">
-              Machine Instructions
-              <span className="ml-2 text-xs font-normal text-slate-400">(synthesizer firmware reads these fields)</span>
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              {[
-                { key: "proceed_with_synthesis", label: "Proceed", value: "true", color: "text-emerald-600 dark:text-emerald-400" },
-                { key: "hold_for_review", label: "Hold", value: "false", color: "text-slate-400" },
-                { key: "reject", label: "Reject", value: "false", color: "text-slate-400" },
-                { key: "log_for_regulatory_audit", label: "Log audit", value: "true", color: "text-emerald-600 dark:text-emerald-400" },
-              ].map(({ key, label, value, color }) => (
-                <div key={key} className="card p-2 text-center">
-                  <div className="text-slate-500 dark:text-slate-400">{label}</div>
-                  <div className={`font-bold text-sm mt-1 font-mono ${color}`}>{value}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* SAD fields preview */}
-          <div className="text-xs space-y-1 font-mono text-slate-500 dark:text-slate-400">
-            <div><span className="text-slate-400">spec_version:</span> <span className="text-emerald-700 dark:text-emerald-400">&quot;TINSEL-SAD-1.0&quot;</span></div>
-            <div><span className="text-slate-400">watermark_tier:</span> <span className="text-emerald-700 dark:text-emerald-400">&quot;{data.watermark_tier}&quot;</span></div>
-            <div><span className="text-slate-400">carrier_positions:</span> <span className="text-blue-600 dark:text-blue-400">{data.carrier_positions}</span></div>
-            <div><span className="text-slate-400">pq_is_stub:</span> <span className="text-purple-600 dark:text-purple-400">false</span> <span className="text-slate-400 font-sans italic text-[10px]">← after registration</span></div>
-          </div>
+        <div className="text-xs text-slate-400 dark:text-slate-500 font-mono break-all">
+          Submitted: {data.verify_demo.submitted_dna}
         </div>
-        <p className="text-xs text-slate-400 dark:text-slate-500">
-          This mock uses your analysed sequence data. The real SAD is only issued after registration
-          and includes your Registry ID, certificate hash, full US DURC + EU Directive 2000/54/EC clearance,
-          and a 12-month validity window.
-        </p>
       </div>
 
-      {/* What's Next section */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-600 to-violet-600 px-6 py-5">
-          <h2 className="text-xl font-bold text-white">Ready to make it official?</h2>
-          <p className="text-blue-100 text-sm mt-1">Your sequence has been watermarked. Here is what to do next.</p>
+      {/* How it works */}
+      <div className="card p-5 space-y-3">
+        <h3 className="font-semibold text-slate-900 dark:text-white">How Provenance Tracing works</h3>
+        <ol className="text-sm text-slate-600 dark:text-slate-400 space-y-2 list-decimal list-inside">
+          <li>Register your protein sequence in ArtGene Archive</li>
+          <li>
+            Issue a distribution copy for each recipient — each gets a unique codon fingerprint
+          </li>
+          <li>If a copy appears somewhere unexpected, paste it on the Verify Source page</li>
+          <li>The platform checks the codon pattern against all fingerprints you have issued</li>
+          <li>The matching recipient is identified — even without any metadata in the file</li>
+        </ol>
+      </div>
+
+      {/* CTA */}
+      <div className="card p-5 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-800">
+        <h3 className="font-semibold text-slate-900 dark:text-white mb-3">Ready to use it?</h3>
+        <div className="flex flex-wrap gap-3">
+          <a href="/register" className="btn-primary text-sm">
+            Register a sequence
+          </a>
+          <a href="/sequences" className="btn-secondary text-sm">
+            View my sequences
+          </a>
+          <a href="/verify" className="btn-secondary text-sm">
+            Verify Source
+          </a>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-0 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 dark:divide-slate-700">
-          {[
-            {
-              step: "01",
-              title: "Register your sequence",
-              body: "Head to the Register page to formally certify your watermarked sequence. ArtGene Archive runs it through three biosafety gates — structural confidence, toxicity and allergenicity screening, and horizontal gene transfer risk — then issues a tamper-evident certificate with a unique Registry ID tied to your organisation.",
-              href: "/register",
-              cta: "Go to Register",
-              color: "text-blue-600 dark:text-blue-400",
-              border: "border-blue-200 dark:border-blue-800",
-              bg: "bg-blue-50 dark:bg-blue-900/20",
-            },
-            {
-              step: "02",
-              title: "Share the Registry ID, not the key",
-              body: "Your Registry ID is public: it proves your sequence was registered at a specific point in time. The cryptographic spreading key stays private. This separation lets you assert provenance in publications, patents, or collaborations without revealing how the watermark was written.",
-              href: "/registry",
-              cta: "View Registry",
-              color: "text-violet-600 dark:text-violet-400",
-              border: "border-violet-200 dark:border-violet-800",
-              bg: "bg-violet-50 dark:bg-violet-900/20",
-            },
-            {
-              step: "03",
-              title: "Verify provenance at any time",
-              body: "If your sequence later appears in a third-party dataset, product, or publication, the watermark can be decoded against your registry record to confirm origin, even if the sequence has been lightly mutated or re-synthesised.",
-              href: "/sequences",
-              cta: "View Sequences",
-              color: "text-cyan-600 dark:text-cyan-400",
-              border: "border-cyan-200 dark:border-cyan-800",
-              bg: "bg-cyan-50 dark:bg-cyan-900/20",
-            },
-            {
-              step: "04",
-              title: "Explore the Registry",
-              body: "Browse all certified sequences. Each certificate shows the biosafety gate results, watermark tier, codon bias metrics, and a full provenance audit trail.",
-              href: "/sequences",
-              cta: "Browse Registry",
-              color: "text-green-600 dark:text-green-400",
-              border: "border-green-200 dark:border-green-800",
-              bg: "bg-green-50 dark:bg-green-900/20",
-            },
-          ].map(({ step, title, body, href, cta, color, border, bg }) => (
-            <div key={step} className="p-6 space-y-3">
-              <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg text-xs font-bold border ${border} ${bg} ${color}`}>
-                {step}
-              </div>
-              <div className="font-semibold text-slate-900 dark:text-white">{title}</div>
-              <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{body}</p>
-              <a href={href} className={`inline-flex items-center gap-1 text-sm font-semibold ${color} hover:underline`}>
-                {cta}
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-              </a>
-            </div>
+      </div>
+    </div>
+  );
+}
+
+export default function DemoPage() {
+  const [fasta, setFasta] = useState(EXAMPLE_SEQUENCES[0].fasta);
+  const [host, setHost] = useState("ECOLI");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<AnalyseResponse | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setData(null);
+    try {
+      const result = await analyseSequence({ fasta, host_organism: host });
+      setData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Analysis failed — please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto py-10 space-y-8">
+      {/* Hero */}
+      <div className="text-center space-y-3">
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+          Provenance Tracing Demo
+        </h1>
+        <p className="text-slate-500 dark:text-slate-400 max-w-xl mx-auto">
+          See how ArtGene embeds a unique codon fingerprint into each distribution copy of your
+          sequence — invisible to translation, detectable by the platform.
+        </p>
+        <div className="flex justify-center gap-2 flex-wrap">
+          <span className="badge-pass">Same protein in all copies</span>
+          <span className="badge-pass">Unique DNA per recipient</span>
+          <span className="badge-pass">Leak attribution</span>
+        </div>
+      </div>
+
+      {/* Feature cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {[
+          {
+            title: "Synonymous Codons",
+            body: "Fingerprint is embedded by choosing among equivalent codons. The protein is identical in all copies.",
+          },
+          {
+            title: "Per-Recipient Keys",
+            body: "Each copy is generated with a unique HMAC-derived seed. No two recipients share the same codon pattern.",
+          },
+          {
+            title: "Leak Attribution",
+            body: "If a copy leaks, the Verify Source endpoint identifies which fingerprint it matches and who received it.",
+          },
+        ].map(({ title, body }) => (
+          <div key={title} className="card p-4 space-y-1.5">
+            <div className="font-semibold text-sm text-slate-900 dark:text-white">{title}</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">{body}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Input form */}
+      <form onSubmit={handleSubmit} className="card p-5 space-y-4">
+        <div className="flex flex-wrap gap-2">
+          {EXAMPLE_SEQUENCES.map((s) => (
+            <button
+              key={s.label}
+              type="button"
+              onClick={() => setFasta(s.fasta)}
+              className="btn-secondary text-xs"
+            >
+              {s.label}
+            </button>
           ))}
         </div>
-      </div>
 
+        <div>
+          <label
+            htmlFor="demo-fasta"
+            className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+          >
+            Protein or DNA sequence (FASTA)
+          </label>
+          <textarea
+            id="demo-fasta"
+            rows={6}
+            value={fasta}
+            onChange={(e) => setFasta(e.target.value)}
+            className="input w-full font-mono text-xs resize-y"
+            placeholder=">MyProtein&#10;MSKGEELFTG..."
+            required
+          />
+        </div>
+
+        <div className="flex items-end gap-4 flex-wrap">
+          <div>
+            <label
+              htmlFor="demo-host"
+              className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1"
+            >
+              Host organism (codon optimisation)
+            </label>
+            <select
+              id="demo-host"
+              value={host}
+              onChange={(e) => setHost(e.target.value)}
+              className="input"
+            >
+              {HOST_ORGANISMS.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            aria-busy={loading}
+            className="btn-primary"
+          >
+            {loading ? "Generating fingerprints…" : "Generate Distribution Copies"}
+          </button>
+        </div>
+
+        <p className="text-xs text-slate-400 dark:text-slate-500">
+          No authentication required. Sequences are analysed in memory and not stored.
+        </p>
+
+        {error && (
+          <p className="text-sm text-red-500" role="alert">
+            {error}
+          </p>
+        )}
+      </form>
+
+      {data && <ResultsPanel data={data} />}
     </div>
   );
 }
