@@ -3,14 +3,13 @@
 Flow
 ----
 1. Parse & normalise FASTA input → detect sequence type
-2. Run consequence pipeline (all 3 gates, mock mode in dev/test)
+2. Run consequence pipeline (all 4 gates, mock mode in dev/test)
 3. If any gate FAILs → return status=FAILED immediately
-4. Retrieve spreading key from vault
-5. Encode TINSEL watermark (TINSELEncoder)
-6. Build HybridCertificate with stub WOTS+ / LWE (Phase 7 wires real crypto)
-7. Write to certificates table
-8. Append tamper-evident entry to registry_audit_log
-9. Return RegistrationResponse(status=CERTIFIED, registry_id=...)
+4. Retrieve vault keys for WOTS+ post-quantum signing
+5. Build HybridCertificate with stub WOTS+ / LWE (Phase 7 wires real crypto)
+6. Write to certificates table
+7. Append tamper-evident entry to registry_audit_log
+8. Return RegistrationResponse(status=CERTIFIED, registry_id=...)
 """
 
 from __future__ import annotations
@@ -33,7 +32,6 @@ from tinsel.registry import (
     WOTSSignature,
 )
 from tinsel.sequence.fasta import normalise
-from tinsel.watermark.tinsel_encoder import TINSELEncoder
 from tinsel_gates.pipeline import run_consequence_pipeline
 
 from sentinel_api.config import settings
@@ -66,8 +64,6 @@ class RegistrationRequest(BaseModel):
 class RegistrationResponse(BaseModel):
     status: CertificateStatus
     registry_id: str | None = None
-    tier: str | None = None
-    chi_squared: float | None = None
     consequence_report: dict | None = None
     message: str | None = None
 
@@ -223,7 +219,7 @@ async def register_sequence(
     db: AsyncSession = Depends(get_db),
     org: Organisation = Depends(require_api_key),
 ) -> RegistrationResponse:
-    """Register a sequence and issue a TINSEL certificate if all gates pass."""
+    """Register a sequence and issue a certificate if all biosafety gates pass."""
 
     # ── Step 0: Validate visibility ───────────────────────────────────────
     if body.visibility not in _VALID_VISIBILITIES:
@@ -310,45 +306,22 @@ async def register_sequence(
             },
         )
 
-    # ── Step 3–4: Vault + watermark encoding (v1.0 API) ──────────────────
+    # ── Step 3: Vault keys for post-quantum signing ───────────────────────
     vault = get_vault_client()
     spreading_key = await vault.get_spreading_key(settings.spreading_key_id)
-    signing_key = await vault.get_signing_key(settings.spreading_key_id)
 
     now = datetime.now(UTC)
     seq_num = await _next_seq_num(db)
     year = now.year
     registry_id = f"AG-{year}-{seq_num:06d}"
 
-    encoder = TINSELEncoder(
-        spreading_key, settings.spreading_key_id, signing_key=signing_key
-    )
-    try:
-        encode_result = encoder.encode_v1(
-            protein,
-            body.owner_id,
-            now.isoformat(),
-            body.ethics_code,
-            organism=body.host_organism,
-        )
-    except ValueError as exc:
-        return RegistrationResponse(
-            status=CertificateStatus.FAILED,
-            consequence_report=report_dict,
-            message=f"Sequence cannot be watermarked: {exc}",
-        )
-    seq_hash = encoder.sequence_hash(protein)
+    # seq_hash already computed above as pre_hash
+    seq_hash = pre_hash
 
-    # ── Step 5: Post-quantum WOTS+ signing ───────────────────────────────
-    # cert_hash is computed in step 6, but we pre-compute signed_material here
-    # (cert_hash itself is derived from cert_fields without the PQ sig, to avoid
-    # a circular dependency: sig signs the hash, hash doesn't include the sig).
-    signed_material = hashlib.sha3_256(
-        seq_hash.encode() + registry_id.encode()
-    ).hexdigest()
-    lwe_com = LWECommitmentData.stub()  # LWE: Phase 4 (compliance session)
+    # ── Step 4: Post-quantum WOTS+ signing ───────────────────────────────
+    lwe_com = LWECommitmentData.stub()  # LWE: Phase 4
 
-    # ── Step 6: Certificate hash ──────────────────────────────────────────
+    # ── Step 5: Certificate hash ──────────────────────────────────────────
     cert_fields = {
         "registry_id": registry_id,
         "owner_id": body.owner_id,
@@ -356,25 +329,18 @@ async def register_sequence(
         "ethics_code": body.ethics_code,
         "sequence_hash": seq_hash,
         "timestamp": now.isoformat(),
-        "watermark_id": encode_result.watermark_id,
-        "tier": encode_result.config.tier.value,
-        "chi_squared": encode_result.codon_bias_metrics.chi_squared,
     }
     cert_hash = HybridCertificate.compute_hash(cert_fields)
 
-    # ── Step 6b: WOTS+ post-quantum signature over cert_hash ─────────────
-    # The PQSigner derives a per-certificate keypair deterministically from
-    # (spreading_key, registry_id) so the private key is never stored.
+    # PQSigner derives a per-certificate keypair from (spreading_key, registry_id).
     pq_signer = PQSigner(master_seed=spreading_key)
     pk_dict, sig_dict = pq_signer.sign_certificate(registry_id, cert_hash)
     wots_pub = WOTSPublicKey(**pk_dict)
     wots_sig = WOTSSignature(**sig_dict)
 
-    # ── Steps 7 + 8: Write certificate + audit log atomically ────────────
-    # Both objects are added to the same session and committed together so
-    # they either both land in the database or both roll back.  No flush()
-    # between them — registry_id is generated in Python, not by a DB sequence,
-    # so there is nothing to flush for ID generation purposes.
+    # ── Steps 6 + 7: Write certificate + audit log atomically ────────────
+    # Store the original_protein in watermark_metadata for fragment assembly
+    # cross-checks (see _check_fragment_assembly_risk above).
     cert = Certificate(
         id=registry_id,
         org_id=org.id,
@@ -384,15 +350,14 @@ async def register_sequence(
         sequence_type=seq_type.value,
         host_organism=body.host_organism.value,
         timestamp=now,
-        watermark_metadata=encode_result.model_dump(),
+        watermark_metadata={"original_protein": protein},
         wots_public_key=wots_pub.model_dump(),
         wots_signature=wots_sig.model_dump(),
         lwe_commitment=lwe_com.model_dump(),
         consequence_report=report_dict,
         certificate_hash=cert_hash,
         status=(CertificateStatus.CERTIFIED_WITH_WARNINGS if _warn_only else CertificateStatus.CERTIFIED).value,
-        chi_squared=encode_result.codon_bias_metrics.chi_squared,
-        tier=encode_result.config.tier.value,
+        tier="STANDARD",
         visibility=body.visibility,
     )
     db.add(cert)
@@ -414,16 +379,12 @@ async def register_sequence(
     # Index k-mers for future assembly risk cross-checks (same transaction).
     _add_kmer_index_rows(db, registry_id, org.id, protein)
 
-    # Explicit commit — do not rely on the get_db() teardown so the caller
-    # can be certain all rows are durable before the response is returned.
     await db.commit()
 
     final_status = CertificateStatus.CERTIFIED_WITH_WARNINGS if _warn_only else CertificateStatus.CERTIFIED
     return RegistrationResponse(
         status=final_status,
         registry_id=registry_id,
-        tier=encode_result.config.tier.value,
-        chi_squared=encode_result.codon_bias_metrics.chi_squared,
         consequence_report=report_dict,
         message=(
             f"Sequence certified with warnings — {registry_id} (manual biosafety review recommended)"

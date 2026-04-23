@@ -246,17 +246,6 @@ const columns = [
       <span className="text-sm capitalize">{info.getValue()}</span>
     ),
   }),
-  colHelper.accessor("chi_squared", {
-    header: "χ²",
-    cell: (info) => {
-      const v = info.getValue();
-      return v != null ? (
-        <span className="font-mono text-xs">{v.toFixed(4)}</span>
-      ) : (
-        <span className="text-slate-400">—</span>
-      );
-    },
-  }),
   colHelper.accessor("timestamp", {
     header: "Registered",
     cell: (info) => (
@@ -312,7 +301,7 @@ export default function SequencesPage() {
             Sequence Registry
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            TINSEL-certified gene sequences
+            Certified gene sequences
           </p>
         </div>
         <button

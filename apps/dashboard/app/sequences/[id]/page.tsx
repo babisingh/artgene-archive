@@ -15,13 +15,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { CodonBiasChart } from "../../../components/CodonBiasChart";
 import { useApiKey } from "../../../lib/providers";
 import type {
   ApiClient,
   BlastHit,
   ComplianceManifest,
   DatabaseQueried,
+  DistributionSummary,
   Gate1Result,
   Gate2Result,
   Gate3Result,
@@ -29,9 +29,9 @@ import type {
   Gate4Result,
   GateStatus,
   IBBISHit,
+  IssueDistributionRequest,
   SecureDNAHit,
   SynthesisAuthDocument,
-  WatermarkMetadata,
 } from "../../../lib/api";
 
 // ---------------------------------------------------------------------------
@@ -979,7 +979,252 @@ function ComplianceTab({ id, client }: { id: string; client: ApiClient }) {
 }
 
 // ---------------------------------------------------------------------------
-// Synthesizer tab — TINSEL-SAD-1.0 document viewer + revocation
+// Provenance Tracing tab — issue per-recipient fingerprinted copies
+// ---------------------------------------------------------------------------
+
+const PURPOSE_LABELS: Record<string, string> = {
+  cmo: "CMO Production",
+  collaboration: "Research Collaboration",
+  validation: "Independent Validation",
+  other: "Other",
+};
+
+function DistributeModal({
+  sequenceId,
+  client,
+  onClose,
+  onIssued,
+}: {
+  sequenceId: string;
+  client: ApiClient;
+  onClose: () => void;
+  onIssued: () => void;
+}) {
+  const [form, setForm] = useState<IssueDistributionRequest>({
+    recipient_name: "",
+    recipient_org: "",
+    recipient_email: "",
+    purpose: "other",
+    host_organism: "ECOLI",
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const blob = await client.issueDistribution(sequenceId, form);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${sequenceId}-provenance-copy.fasta`;
+      a.click();
+      URL.revokeObjectURL(url);
+      onIssued();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to issue copy");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" role="dialog" aria-modal="true">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Issue Distribution Copy</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Each recipient gets a unique codon fingerprint embedded in their FASTA copy.
+          If the copy leaks, use <strong>Verify Source</strong> to identify the recipient.
+        </p>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label htmlFor="recip-name" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Recipient Name *
+            </label>
+            <input
+              id="recip-name"
+              required
+              value={form.recipient_name}
+              onChange={e => setForm(f => ({ ...f, recipient_name: e.target.value }))}
+              className="input w-full"
+              placeholder="Dr. Jane Smith"
+            />
+          </div>
+          <div>
+            <label htmlFor="recip-org" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Organisation *
+            </label>
+            <input
+              id="recip-org"
+              required
+              value={form.recipient_org}
+              onChange={e => setForm(f => ({ ...f, recipient_org: e.target.value }))}
+              className="input w-full"
+              placeholder="BioFactory GmbH"
+            />
+          </div>
+          <div>
+            <label htmlFor="recip-email" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Email (optional)
+            </label>
+            <input
+              id="recip-email"
+              type="email"
+              value={form.recipient_email ?? ""}
+              onChange={e => setForm(f => ({ ...f, recipient_email: e.target.value }))}
+              className="input w-full"
+              placeholder="recipient@example.com"
+            />
+          </div>
+          <div>
+            <label htmlFor="recip-purpose" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Purpose
+            </label>
+            <select
+              id="recip-purpose"
+              value={form.purpose}
+              onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))}
+              className="input w-full"
+            >
+              <option value="cmo">CMO Production</option>
+              <option value="collaboration">Research Collaboration</option>
+              <option value="validation">Independent Validation</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="recip-host" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Host Organism (for codon optimisation)
+            </label>
+            <select
+              id="recip-host"
+              value={form.host_organism}
+              onChange={e => setForm(f => ({ ...f, host_organism: e.target.value }))}
+              className="input w-full"
+            >
+              {["ECOLI", "HUMAN", "YEAST", "CHO", "INSECT", "PLANT"].map(h => (
+                <option key={h} value={h}>{h}</option>
+              ))}
+            </select>
+          </div>
+          {error && <p className="text-xs text-red-500" role="alert">{error}</p>}
+          <div className="flex gap-2 pt-1">
+            <button type="submit" disabled={busy} aria-busy={busy} className="btn-primary flex-1">
+              {busy ? "Generating…" : "Generate & Download"}
+            </button>
+            <button type="button" onClick={onClose} className="btn-secondary">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function ProvenanceTab({
+  sequenceId,
+  client,
+  showModal,
+  onOpenModal,
+  onCloseModal,
+}: {
+  sequenceId: string;
+  client: ApiClient;
+  showModal: boolean;
+  onOpenModal: () => void;
+  onCloseModal: () => void;
+}) {
+  const [refetchKey, setRefetchKey] = useState(0);
+  const { data: distributions, isLoading } = useQuery({
+    queryKey: ["distributions", sequenceId, refetchKey],
+    queryFn: () => client.listDistributions(sequenceId),
+  });
+
+  function handleIssued() {
+    setRefetchKey(k => k + 1);
+  }
+
+  return (
+    <div className="space-y-4">
+      {showModal && (
+        <DistributeModal
+          sequenceId={sequenceId}
+          client={client}
+          onClose={onCloseModal}
+          onIssued={handleIssued}
+        />
+      )}
+
+      <div className="card p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900 dark:text-white">Distribution Copies</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Each copy has a unique codon fingerprint. If a copy leaks, paste it on the{" "}
+              <a href="/verify" className="text-blue-600 dark:text-blue-400 underline">Verify Source</a>{" "}
+              page to identify the recipient.
+            </p>
+          </div>
+          <button onClick={onOpenModal} className="btn-primary text-sm shrink-0">
+            Issue Copy
+          </button>
+        </div>
+
+        {isLoading && (
+          <p className="text-sm text-slate-400 dark:text-slate-500">Loading…</p>
+        )}
+        {!isLoading && (!distributions || distributions.length === 0) && (
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            No copies issued yet. Click <strong>Issue Copy</strong> to generate the first fingerprinted copy.
+          </p>
+        )}
+        {distributions && distributions.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-700">
+                  <th className="text-left py-2 pr-4 font-medium text-slate-600 dark:text-slate-400">Recipient</th>
+                  <th className="text-left py-2 pr-4 font-medium text-slate-600 dark:text-slate-400">Organisation</th>
+                  <th className="text-left py-2 pr-4 font-medium text-slate-600 dark:text-slate-400">Purpose</th>
+                  <th className="text-left py-2 pr-4 font-medium text-slate-600 dark:text-slate-400">Issued</th>
+                  <th className="text-left py-2 font-medium text-slate-600 dark:text-slate-400">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {distributions.map((d: DistributionSummary) => (
+                  <tr key={d.id}>
+                    <td className="py-2 pr-4 text-slate-900 dark:text-slate-100">{d.recipient_name}</td>
+                    <td className="py-2 pr-4 text-slate-600 dark:text-slate-400">{d.recipient_org}</td>
+                    <td className="py-2 pr-4 text-slate-500 dark:text-slate-400">
+                      {PURPOSE_LABELS[d.purpose] ?? d.purpose}
+                    </td>
+                    <td className="py-2 pr-4 text-slate-500 dark:text-slate-400 font-mono text-xs">
+                      {new Date(d.issued_at).toLocaleDateString()}
+                    </td>
+                    <td className="py-2">
+                      {d.revoked_at ? (
+                        <span className="badge-fail text-xs">Revoked</span>
+                      ) : (
+                        <span className="badge-pass text-xs">Active</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Synthesizer tab — SAD document viewer + revocation
 // ---------------------------------------------------------------------------
 
 function SadDecisionBanner({ sad }: { sad: SynthesisAuthDocument }) {
@@ -1172,7 +1417,7 @@ function SynthesizerTab({
       {/* Full SAD JSON viewer */}
       <div>
         <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
-          Full TINSEL-SAD-1.0 document
+          Full SAD-1.0 document
         </div>
         <pre
           className="text-xs font-mono overflow-auto max-h-[560px] p-4 bg-slate-50 dark:bg-slate-900/60 rounded-lg border border-slate-200 dark:border-slate-700 leading-relaxed"
@@ -1198,7 +1443,8 @@ export default function CertificatePage({
   const { client, apiKey } = useApiKey();
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"gates" | "watermark" | "compliance" | "synthesizer">("gates");
+  const [activeTab, setActiveTab] = useState<"gates" | "provenance" | "compliance" | "synthesizer">("gates");
+  const [showDistributeModal, setShowDistributeModal] = useState(false);
 
   async function handleExport() {
     setExporting(true);
@@ -1316,9 +1562,6 @@ export default function CertificatePage({
           <Field label="Ethics Code" value={cert.ethics_code} />
           <Field label="Sequence Type" value={cert.sequence_type.toUpperCase()} />
           <Field label="Host Organism" value={cert.host_organism} />
-          {cert.chi_squared != null && (
-            <Field label="χ² (watermark)" value={cert.chi_squared.toFixed(6)} />
-          )}
           <Field
             label="Cert Hash (SHA3-512)"
             value={<span className="text-xs">{cert.certificate_hash.slice(0, 32)}…</span>}
@@ -1337,7 +1580,7 @@ export default function CertificatePage({
         {(
           [
             { key: "gates", label: "Biosafety Gates" },
-            { key: "watermark", label: "Watermark" },
+            { key: "provenance", label: "Provenance Tracing" },
             { key: "compliance", label: "Compliance" },
             { key: "synthesizer", label: "Synthesizer" },
           ] as const
@@ -1418,17 +1661,15 @@ export default function CertificatePage({
         </div>
       )}
 
-      {/* Watermark codon bias */}
-      {activeTab === "watermark" && (
-        cert.watermark_metadata ? (
-          <div className="card p-6">
-            <CodonBiasChart watermark={cert.watermark_metadata as WatermarkMetadata} />
-          </div>
-        ) : (
-          <div className="card p-6 text-slate-500 dark:text-slate-400 text-sm">
-            No watermark metadata available.
-          </div>
-        )
+      {/* Provenance Tracing */}
+      {activeTab === "provenance" && (
+        <ProvenanceTab
+          sequenceId={id}
+          client={client}
+          showModal={showDistributeModal}
+          onOpenModal={() => setShowDistributeModal(true)}
+          onCloseModal={() => setShowDistributeModal(false)}
+        />
       )}
 
       {/* Compliance attestation */}

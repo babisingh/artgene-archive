@@ -1,13 +1,8 @@
-"""POST /api/v1/analyse — lossless-watermark proof endpoint (no auth, no DB write).
+"""POST /api/v1/analyse — provenance tracing demo endpoint (no auth, no DB write).
 
-Returns everything needed to prove that TINSEL synonymous watermarking
-preserves protein sequence identity and mRNA stability:
-
-- control_dna        : host-optimised reference DNA (highest-RSCU codon per AA)
-- watermarked_dna    : TINSEL-encoded DNA
-- codon_diffs        : positions where codons differ (always synonymous)
-- mRNA secondary structure + approximate MFE for both sequences
-- codon bias metrics (chi-squared, p-value, per-AA deviations)
+Demonstrates how Provenance Tracing fingerprints the same protein sequence
+differently for each recipient, producing unique codon patterns that map back
+to their source when a copy leaks.
 
 No authentication required — intended for the public demo page.
 """
@@ -44,10 +39,18 @@ class AnalyseRequest(BaseModel):
 
 
 class CodonDiff(BaseModel):
-    position: int          # 0-indexed codon index in protein
+    position: int
     amino_acid: str
-    control_codon: str
-    watermarked_codon: str
+    original_codon: str
+    fingerprinted_codon: str
+
+
+class RecipientCopy(BaseModel):
+    recipient_name: str
+    recipient_org: str
+    dna: str
+    codon_diffs: list[CodonDiff]
+    n_codons_changed: int
 
 
 class AnalyseResponse(BaseModel):
@@ -55,38 +58,22 @@ class AnalyseResponse(BaseModel):
     sequence_length: int
     host_organism: str
 
-    # DNA comparison
+    # Base codon-optimised DNA (no fingerprint)
     control_dna: str
-    watermarked_dna: str
-    codon_diffs: list[CodonDiff]
-    n_codons_changed: int
     n_codons_total: int
 
-    # Watermark provenance
-    watermark_tier: str
-    carrier_positions: int
+    # Two simulated distribution copies with unique fingerprints
+    recipient_a: RecipientCopy
+    recipient_b: RecipientCopy
 
-    # Codon bias (proof of covertness)
-    chi_squared: float
-    p_value: float
-    is_covert: bool
-    per_aa_deviations: dict[str, Any]
+    # Cross-diff between the two copies (proves they differ from each other)
+    n_codons_differ_between_copies: int
 
-    # mRNA analysis
-    control_mrna: str
-    watermarked_mrna: str
-    control_gc: float
-    watermarked_gc: float
-    delta_gc: float
-    control_mfe: float
-    watermarked_mfe: float
-    delta_mfe: float
-    control_dot_bracket: str
-    watermarked_dot_bracket: str
-    control_pairs: list[list[int]]
-    watermarked_pairs: list[list[int]]
-    n_pairs_control: int
-    n_pairs_watermarked: int
+    # Protein preserved in all copies
+    protein_preserved: bool
+
+    # Verify simulation: which recipient does the "leaked" copy belong to?
+    verify_demo: dict
 
 
 # ---------------------------------------------------------------------------
@@ -233,10 +220,26 @@ _HOST_ORGANISM_ENUM = {
 }
 
 
+def _codon_diff_pair(protein: str, dna_a: str, dna_b: str) -> list[CodonDiff]:
+    """Return positions where dna_a and dna_b differ (always synonymous)."""
+    diffs: list[CodonDiff] = []
+    for i, aa in enumerate(protein.upper()):
+        ca = dna_a[i * 3 : i * 3 + 3]
+        cb = dna_b[i * 3 : i * 3 + 3]
+        if ca != cb:
+            diffs.append(CodonDiff(
+                position=i,
+                amino_acid=aa,
+                original_codon=ca,
+                fingerprinted_codon=cb,
+            ))
+    return diffs
+
+
 @router.post("/analyse", response_model=AnalyseResponse, tags=["demo"])
 @rate_limit_demo
 async def analyse_sequence(request: Request, body: AnalyseRequest) -> AnalyseResponse:
-    """Watermark a sequence and return all proof-of-losslessness metrics."""
+    """Demo provenance tracing: fingerprint the same sequence for two recipients."""
 
     # ── 1. Parse FASTA ────────────────────────────────────────────────────
     try:
@@ -244,12 +247,11 @@ async def analyse_sequence(request: Request, body: AnalyseRequest) -> AnalyseRes
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    # Auto-translate DNA → protein if needed
     if seq_type.value == "dna":
         if len(sequence) % 3 != 0:
             raise HTTPException(
                 status_code=422,
-                detail="DNA length must be a multiple of 3 to translate to protein."
+                detail="DNA length must be a multiple of 3 to translate to protein.",
             )
         try:
             protein = "".join(
@@ -259,8 +261,7 @@ async def analyse_sequence(request: Request, body: AnalyseRequest) -> AnalyseRes
             )
         except KeyError as exc:
             raise HTTPException(
-                status_code=422,
-                detail=f"Invalid codon in DNA sequence: {exc}"
+                status_code=422, detail=f"Invalid codon in DNA sequence: {exc}"
             ) from exc
     else:
         protein = sequence.upper()
@@ -270,20 +271,22 @@ async def analyse_sequence(request: Request, body: AnalyseRequest) -> AnalyseRes
     if len(protein) > 1000:
         raise HTTPException(
             status_code=422,
-            detail="Demo accepts sequences up to 1,000 amino acids. Use the /register endpoint for longer sequences."
+            detail="Demo accepts sequences up to 1,000 amino acids.",
         )
 
     # ── 2. Resolve host ───────────────────────────────────────────────────
     host_key = _HOST_MAP.get(body.host_organism.upper().strip(), "ECOLI")
     host_enum = _HOST_ORGANISM_ENUM.get(host_key, HostOrganism.ECOLI)
 
-    # ── 3. Control DNA (host-optimised, no watermark) ─────────────────────
+    # ── 3. Control DNA (base codon-optimised, no fingerprint) ────────────
     try:
         control_dna = _make_control_dna(protein, host_key)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    # ── 4. Watermarked DNA via TINSEL encoder ─────────────────────────────
+    # ── 4. Generate per-recipient fingerprinted copies ────────────────────
+    # Each recipient gets a unique copy derived from their identity metadata.
+    # The protein is identical in all copies — only synonymous codons differ.
     from sentinel_api.vault import get_vault_client
     vault = get_vault_client()
     spreading_key = await vault.get_spreading_key(settings.spreading_key_id)
@@ -291,60 +294,66 @@ async def analyse_sequence(request: Request, body: AnalyseRequest) -> AnalyseRes
 
     encoder = TINSELEncoder(spreading_key, settings.spreading_key_id, signing_key=signing_key)
     demo_ts = datetime.now(UTC).isoformat()
+
     try:
-        wm_result = encoder.encode_v1(
-            protein, "demo-user", demo_ts, "DEMO-000", organism=host_enum
+        result_a = encoder.encode_v1(
+            protein, "recip-cmo-production", demo_ts, "DIST-CMO-001", organism=host_enum
+        )
+        result_b = encoder.encode_v1(
+            protein, "recip-research-lab", demo_ts, "DIST-LAB-002", organism=host_enum
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    watermarked_dna = wm_result.dna_sequence
+    dna_a = result_a.dna_sequence
+    dna_b = result_b.dna_sequence
 
-    # ── 5. Codon diff ─────────────────────────────────────────────────────
-    diffs = _codon_diff(protein, control_dna, watermarked_dna)
+    # ── 5. Compute diffs ─────────────────────────────────────────────────
+    diffs_a = _codon_diff_pair(protein, control_dna, dna_a)
+    diffs_b = _codon_diff_pair(protein, control_dna, dna_b)
 
-    # ── 6. mRNA analysis ──────────────────────────────────────────────────
-    LIMIT = 300   # Nussinov is O(n³); cap to keep response fast
-    ctrl_mrna = control_dna.replace("T", "U")
-    wm_mrna   = watermarked_dna.replace("T", "U")
-
-    ctrl_gc = _gc(control_dna)
-    wm_gc   = _gc(watermarked_dna)
-
-    ctrl_db,  ctrl_pairs  = _nussinov(ctrl_mrna[:LIMIT])
-    wm_db,    wm_pairs    = _nussinov(wm_mrna[:LIMIT])
-    ctrl_mfe  = _approx_mfe(ctrl_mrna[:LIMIT], ctrl_pairs)
-    wm_mfe    = _approx_mfe(wm_mrna[:LIMIT],   wm_pairs)
+    # How many positions differ between the two recipient copies
+    n_ab = sum(
+        1 for i in range(len(protein))
+        if dna_a[i * 3 : i * 3 + 3] != dna_b[i * 3 : i * 3 + 3]
+    )
 
     return AnalyseResponse(
         original_protein=protein,
         sequence_length=len(protein),
         host_organism=host_key,
         control_dna=control_dna,
-        watermarked_dna=watermarked_dna,
-        codon_diffs=diffs,
-        n_codons_changed=len(diffs),
         n_codons_total=len(protein),
-        watermark_tier=wm_result.config.tier.value,
-        carrier_positions=wm_result.carrier_positions,
-        chi_squared=wm_result.codon_bias_metrics.chi_squared,
-        p_value=wm_result.codon_bias_metrics.p_value,
-        is_covert=wm_result.codon_bias_metrics.is_covert,
-        per_aa_deviations=wm_result.codon_bias_metrics.per_aa_deviations,
-        control_mrna=ctrl_mrna,
-        watermarked_mrna=wm_mrna,
-        control_gc=round(ctrl_gc, 4),
-        watermarked_gc=round(wm_gc, 4),
-        delta_gc=round(wm_gc - ctrl_gc, 4),
-        control_mfe=ctrl_mfe,
-        watermarked_mfe=wm_mfe,
-        delta_mfe=round(wm_mfe - ctrl_mfe, 2),
-        control_dot_bracket=ctrl_db,
-        watermarked_dot_bracket=wm_db,
-        control_pairs=[[i, j] for i, j in ctrl_pairs],
-        watermarked_pairs=[[i, j] for i, j in wm_pairs],
-        n_pairs_control=len(ctrl_pairs),
-        n_pairs_watermarked=len(wm_pairs),
+        recipient_a=RecipientCopy(
+            recipient_name="Lab Director Chen",
+            recipient_org="BioFactory GmbH (CMO Production)",
+            dna=dna_a,
+            codon_diffs=diffs_a,
+            n_codons_changed=len(diffs_a),
+        ),
+        recipient_b=RecipientCopy(
+            recipient_name="Dr. Patel",
+            recipient_org="NovaBio Research Lab",
+            dna=dna_b,
+            codon_diffs=diffs_b,
+            n_codons_changed=len(diffs_b),
+        ),
+        n_codons_differ_between_copies=n_ab,
+        protein_preserved=True,
+        verify_demo={
+            "scenario": "A copy of this sequence appears in a public sequencing dataset.",
+            "submitted_dna": dna_a[:60] + "...",
+            "match_found": True,
+            "matched_recipient": "Lab Director Chen",
+            "matched_org": "BioFactory GmbH (CMO Production)",
+            "issued_at": demo_ts,
+            "confidence": "HIGH",
+            "explanation": (
+                f"The submitted sequence has {len(diffs_a)} synonymous codon substitution(s) "
+                "that match the fingerprint issued to BioFactory GmbH. "
+                "NovaBio's copy has a different codon pattern at these positions."
+            ),
+        },
     )
 
 

@@ -9,7 +9,15 @@ before any table-creation calls occur.
 from __future__ import annotations
 
 import hashlib
+import os
 import uuid
+
+# Set SENTINEL_ENV=test BEFORE importing any sentinel_api module so that
+# pydantic-settings picks up the value when it initialises the Settings
+# singleton. In "test" mode the pipeline uses fully-mock biosafety adapters,
+# which is correct for unit/integration tests that don't have real DBs or
+# external API access.
+os.environ.setdefault("SENTINEL_ENV", "test")
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -41,13 +49,11 @@ SQLiteTypeCompiler.visit_JSONB = _sqlite_visit_jsonb  # type: ignore[attr-define
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 RAW_API_KEY = "tinsel-test-api-key-00000000"
 
-# A protein with enough carrier capacity for MINIMAL-tier watermarking (~164 AA)
 PROTEIN_OK = "HAEGTFTSDVSSYLEGQAAKEFIAWLVKGRCEGVLGDTFR" * 4
+PROTEIN_OK2 = "MKTIIALSYIFCLVFA" * 10  # second distinct protein for sequential ID tests
 
 FASTA_OK = f">test|protein|OK\n{PROTEIN_OK}"
-
-# A very short protein that will fail the watermark capacity check inside
-# the encoder (REJECTED tier) — used to test FAILED registration.
+FASTA_OK2 = f">test|protein|OK2\n{PROTEIN_OK2}"
 FASTA_TOO_SHORT = ">test|short\nMAE"
 
 

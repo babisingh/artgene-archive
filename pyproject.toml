@@ -42,4 +42,6 @@ testpaths = [
 [dependency-groups]
 dev = [
     "aiosqlite>=0.22.1",
+    "anyio>=4.13.0",
+    "httpx>=0.28.1",
 ]

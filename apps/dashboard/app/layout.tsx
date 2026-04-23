@@ -6,7 +6,7 @@ import { Nav } from "./nav";
 
 export const metadata: Metadata = {
   title: "ArtGene Archive",
-  description: "TINSEL bioinformatics sequence registry platform",
+  description: "Cryptographic provenance and biosafety certification for synthetic gene sequences.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -46,12 +46,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                     <span>ArtGene Archive</span>
                   </div>
                   <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                    Traceable Identity Notation for Sequence Encryption + Ledger.
                     Cryptographic provenance and automated biosafety certification
-                    for synthetic gene sequences.
+                    for synthetic gene sequences. Per-recipient codon fingerprinting
+                    enables leak attribution without altering protein function.
                   </p>
                   <p className="text-xs text-slate-400 dark:text-slate-500">
-                    TINSEL Registry v1.0 &nbsp;·&nbsp; Beta
+                    ArtGene Archive v1.0 &nbsp;·&nbsp; Beta
                   </p>
                 </div>
 
@@ -120,7 +120,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <div className="mt-10 pt-6 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-400 dark:text-slate-500">
                 <span>© {new Date().getFullYear()} ArtGene Bioinformatics Ltd. All rights reserved.</span>
                 <span>
-                  TINSEL is an experimental research platform.
+                  ArtGene Archive is an experimental research platform.
                   Not for clinical or regulatory use without validation.
                 </span>
               </div>

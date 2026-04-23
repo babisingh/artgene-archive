@@ -244,15 +244,15 @@ async def verify_certificate(
     db: AsyncSession = Depends(get_db),
     org: Organisation = Depends(require_api_key),
 ) -> dict:
-    """Verify the TINSEL watermark embedded in a registered certificate.
+    """Verify distribution fingerprint metadata for a registered certificate.
 
-    Reconstructs the watermark from stored metadata and checks that the
-    embedded signature still matches the claimed owner / timestamp.
+    Certificates registered after v2.0 do not embed a watermark at registration
+    time — fingerprinting happens at distribution (see /sequences/{id}/distributions).
+    For such certificates this endpoint returns ``verified: false`` with a clear
+    ``failure_reason``.
 
-    Returns a verification report including ``verified`` (bool) and
-    ``bit_error_rate`` (0.0 = perfect, higher = corruption detected).
-    Legacy certificates issued before v1.0 return ``verified: false`` with
-    an explanatory ``failure_reason``.
+    For certificates that do carry full watermark metadata, the TINSEL decoder
+    reconstructs and verifies the embedded signature.
     """
     result = await db.execute(
         select(Certificate).where(Certificate.id == registry_id)
@@ -266,7 +266,8 @@ async def verify_certificate(
 
     metadata = cert.watermark_metadata or {}
 
-    # Legacy certificates (v0.x) stored EncodeResult which lacks config/anchor_map.
+    # Certificates without full watermark data (registered without per-registration
+    # fingerprinting, or pre-v1.0 legacy certs).
     if "config" not in metadata or "anchor_map" not in metadata:
         return {
             "registry_id": registry_id,
@@ -276,8 +277,9 @@ async def verify_certificate(
             "bits_recovered": None,
             "tier": cert.tier,
             "failure_reason": (
-                "Certificate was issued with the legacy encoder (pre-v1.0) "
-                "and does not contain the anchor map required for verification."
+                "This certificate was registered without per-registration fingerprinting. "
+                "Provenance fingerprints are issued per-recipient via the distribution endpoint. "
+                "Use POST /api/v1/verify-source to identify a leaked distribution copy."
             ),
         }
 

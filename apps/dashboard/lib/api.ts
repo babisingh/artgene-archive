@@ -337,8 +337,6 @@ export interface RegistrationRequest {
 export interface RegistrationResponse {
   status: CertificateStatus | "FAILED";
   registry_id: string | null;
-  tier: string | null;
-  chi_squared: number | null;
   consequence_report: ConsequenceReport | null;
   message: string | null;
 }
@@ -356,11 +354,63 @@ export interface HealthResponse {
 // Demo / Analyse types — /api/v1/analyse and /api/v1/analyse/structure
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Provenance Tracing types
+// ---------------------------------------------------------------------------
+
+export interface DistributionSummary {
+  id: string;
+  sequence_id: string;
+  recipient_name: string;
+  recipient_org: string;
+  recipient_email: string | null;
+  purpose: string;
+  host_organism: string;
+  issued_at: string;
+  revoked_at: string | null;
+  fingerprint_id: string;
+}
+
+export interface IssueDistributionRequest {
+  recipient_name: string;
+  recipient_org: string;
+  recipient_email?: string;
+  purpose?: string;
+  host_organism?: string;
+}
+
+export interface VerifySourceRequest {
+  fasta: string;
+}
+
+export interface VerifySourceResponse {
+  match_found: boolean;
+  sequence_id: string | null;
+  recipient_name: string | null;
+  recipient_org: string | null;
+  purpose: string | null;
+  issued_at: string | null;
+  fingerprint_id: string | null;
+  message: string;
+}
+
+// ---------------------------------------------------------------------------
+// Demo / Analyse types — /api/v1/analyse and /api/v1/analyse/structure
+// ---------------------------------------------------------------------------
+
 export interface CodonDiff {
   position: number;
   amino_acid: string;
-  control_codon: string;
-  watermarked_codon: string;
+  original_codon: string;
+  fingerprinted_codon: string;
+}
+
+export interface RecipientCopy {
+  recipient_name: string;
+  recipient_org: string;
+  dna: string;
+  codon_diffs: CodonDiff[];
+  n_codons_changed: number;
 }
 
 export interface AnalyseRequest {
@@ -372,39 +422,22 @@ export interface AnalyseResponse {
   original_protein: string;
   sequence_length: number;
   host_organism: string;
-
-  // DNA comparison
   control_dna: string;
-  watermarked_dna: string;
-  codon_diffs: CodonDiff[];
-  n_codons_changed: number;
   n_codons_total: number;
-
-  // Watermark provenance
-  watermark_tier: string;
-  carrier_positions: number;
-
-  // Codon bias (proof of covertness)
-  chi_squared: number;
-  p_value: number;
-  is_covert: boolean;
-  per_aa_deviations: Record<string, number>;
-
-  // mRNA analysis
-  control_mrna: string;
-  watermarked_mrna: string;
-  control_gc: number;
-  watermarked_gc: number;
-  delta_gc: number;
-  control_mfe: number;
-  watermarked_mfe: number;
-  delta_mfe: number;
-  control_dot_bracket: string;
-  watermarked_dot_bracket: string;
-  control_pairs: [number, number][];
-  watermarked_pairs: [number, number][];
-  n_pairs_control: number;
-  n_pairs_watermarked: number;
+  recipient_a: RecipientCopy;
+  recipient_b: RecipientCopy;
+  n_codons_differ_between_copies: number;
+  protein_preserved: boolean;
+  verify_demo: {
+    scenario: string;
+    submitted_dna: string;
+    match_found: boolean;
+    matched_recipient: string;
+    matched_org: string;
+    issued_at: string;
+    confidence: string;
+    explanation: string;
+  };
 }
 
 export interface StructureRequest {
@@ -617,6 +650,32 @@ export function createApiClient(apiKey: string) {
         apiKey,
         { method: "POST" }
       ),
+
+    listDistributions: (sequenceId: string) =>
+      apiFetch<DistributionSummary[]>(`/sequences/${sequenceId}/distributions`, apiKey),
+
+    issueDistribution: async (sequenceId: string, body: IssueDistributionRequest): Promise<Blob> => {
+      const res = await fetch(
+        `${BASE}/sequences/${sequenceId}/distributions`,
+        {
+          method: "POST",
+          headers: buildHeaders(apiKey),
+          body: JSON.stringify(body),
+        }
+      );
+      if (!res.ok) {
+        let detail: string | null = null;
+        try { detail = (await res.json()).detail; } catch { /* ignore */ }
+        throw new Error(detail ?? `Failed to issue distribution copy (${res.status})`);
+      }
+      return res.blob();
+    },
+
+    verifySource: (body: VerifySourceRequest) =>
+      apiFetch<VerifySourceResponse>("/verify-source", apiKey, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
   };
 }
 

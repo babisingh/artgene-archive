@@ -3,11 +3,8 @@ FROM node:20-alpine AS base
 # ── Dependencies ──────────────────────────────────────────────────────────────
 FROM base AS deps
 WORKDIR /app
-# Copy only package.json — do NOT copy the local package-lock.json so Docker
-# always installs the versions declared in package.json (next@14.2.3) and
-# avoids SWC version mismatches caused by locally-upgraded lock files.
-COPY package.json ./
-RUN npm install --legacy-peer-deps
+COPY package.json package-lock.json ./
+RUN npm ci
 
 # ── Builder ───────────────────────────────────────────────────────────────────
 FROM base AS builder
