@@ -39,22 +39,9 @@ import type {
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-function statusColor(s: GateStatus) {
-  return { pass: "#10b981", fail: "#ef4444", warn: "#f59e0b", skip: "#94a3b8" }[s];
-}
-
 function StatusBadge({ status }: { status: GateStatus }) {
   const cls = { pass: "badge-pass", fail: "badge-fail", warn: "badge-warn", skip: "badge-skip" }[status];
   return <span className={cls}>{status.toUpperCase()}</span>;
-}
-
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex gap-2 text-sm">
-      <span className="text-slate-500 dark:text-slate-400 shrink-0 w-44">{label}</span>
-      <span className="text-slate-900 dark:text-slate-100 font-mono break-all">{value}</span>
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------
