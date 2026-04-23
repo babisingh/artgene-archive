@@ -1,0 +1,2280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ArtGene Archive — A public registry for AI-generated biological sequences</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+/* ArtGene Archive — design tokens */
+:root {
+  --paper: #fafaf6;
+  --paper-2: #ffffff;
+  --paper-3: #f3f1e9;
+  --ink: #1c1b17;
+  --ink-2: #3b3a34;
+  --ink-3: #6d6b60;
+  --ink-4: #9e9b8d;
+  --rule: #e2ddcb;
+  --rule-2: #eeeadb;
+  --accent: oklch(0.48 0.13 45);
+  --accent-soft: oklch(0.95 0.035 45);
+  --verify: oklch(0.52 0.08 195);
+  --verify-soft: oklch(0.96 0.025 195);
+  --warn: oklch(0.62 0.14 70);
+  --danger: oklch(0.52 0.16 25);
+  --shadow-card: 0 1px 0 rgba(28,27,23,0.04), 0 0 0 0.5px rgba(28,27,23,0.08);
+  --radius: 3px;
+  --radius-lg: 6px;
+  --serif: 'Manrope', -apple-system, system-ui, sans-serif;
+  --sans: 'Manrope', -apple-system, system-ui, sans-serif;
+  --mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14.5px;
+  line-height: 1.55;
+  font-feature-settings: 'ss01','cv11';
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+
+/* Subtle paper texture via layered noise */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    radial-gradient(ellipse at 20% 0%, rgba(196,69,54,0.025), transparent 50%),
+    radial-gradient(ellipse at 100% 50%, rgba(122,61,31,0.02), transparent 60%);
+}
+
+.app { position: relative; z-index: 1; }
+
+/* ============ HEADER ============ */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in oklab, var(--paper) 92%, transparent);
+  backdrop-filter: saturate(1.2) blur(12px);
+  -webkit-backdrop-filter: saturate(1.2) blur(12px);
+  border-bottom: 0.5px solid var(--rule);
+}
+.site-header-inner {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 14px 40px;
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--sans);
+  font-size: 15.5px;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.brand .glyph {
+  width: 24px; height: 24px;
+}
+.brand em {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--ink-3);
+}
+.nav {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  align-items: center;
+}
+.nav a {
+  padding: 7px 14px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  border-radius: 999px;
+  letter-spacing: 0.005em;
+  transition: background 0.15s, color 0.15s;
+}
+.nav a:hover { color: var(--ink); background: var(--paper-3); }
+.nav a.active { color: var(--ink); background: var(--paper-3); }
+.nav-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: 16px;
+  padding-left: 16px;
+  border-left: 0.5px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.nav-meta .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--verify);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--verify) 20%, transparent);
+  animation: pulse 2.4s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+/* ============ TOP STRIP / GOV BAR ============ */
+.gov-strip {
+  background: #ecdfc8;
+  border-bottom: 0.5px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-2);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.gov-strip-inner {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 6px 40px;
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+.gov-strip .sep { color: var(--ink-4); }
+.gov-strip .shield {
+  width: 10px; height: 12px;
+  display: inline-block;
+  vertical-align: -2px;
+  margin-right: 6px;
+}
+
+/* ============ LAYOUT ============ */
+.wrap {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+.wrap-narrow {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+/* ============ TYPE ============ */
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.display {
+  font-family: var(--sans);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  color: var(--ink);
+}
+.lede {
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.55;
+  letter-spacing: -0.005em;
+  color: var(--ink-2);
+  font-weight: 400;
+}
+
+/* ============ BUTTONS ============ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  font-size: 13.5px;
+  font-weight: 500;
+  border-radius: 999px;
+  border: 0.5px solid transparent;
+  transition: all 0.15s;
+  background: transparent;
+  color: var(--ink);
+  letter-spacing: 0.005em;
+}
+.btn-primary {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.btn-primary:hover { background: var(--ink-2); }
+.btn-ghost {
+  border-color: var(--rule);
+  background: var(--paper-2);
+}
+.btn-ghost:hover { border-color: var(--ink-3); background: var(--paper); }
+.btn-accent {
+  background: var(--accent);
+  color: var(--paper);
+  border-color: var(--accent);
+}
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+
+/* ============ BADGES ============ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
+  border: 0.5px solid var(--rule);
+  background: var(--paper-2);
+  color: var(--ink-2);
+}
+.badge-verify { background: var(--verify-soft); color: var(--verify); border-color: color-mix(in oklab, var(--verify) 30%, transparent); }
+.badge-accent { background: var(--accent-soft); color: var(--accent); border-color: color-mix(in oklab, var(--accent) 30%, transparent); }
+.badge-warn { background: #f6ead5; color: var(--warn); border-color: color-mix(in oklab, var(--warn) 30%, transparent); }
+.badge-dot::before {
+  content: '';
+  width: 5px; height: 5px; border-radius: 50%;
+  background: currentColor;
+}
+
+/* ============ CARDS ============ */
+.card {
+  background: var(--paper-2);
+  border: 0.5px solid var(--rule);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+}
+.card-flat {
+  background: transparent;
+  border-top: 0.5px solid var(--rule);
+  padding: 28px 0;
+}
+
+/* ============ HAIRLINE RULES ============ */
+.hr {
+  height: 0.5px;
+  background: var(--rule);
+  border: none;
+  margin: 0;
+}
+
+/* ============ FOOTER ============ */
+.site-footer {
+  margin-top: 120px;
+  border-top: 0.5px solid var(--rule);
+  background: var(--paper-3);
+  padding: 64px 0 28px;
+}
+.footer-grid {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 0 40px;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 48px;
+}
+.footer-grid h5 {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-3);
+  font-weight: 500;
+  margin: 0 0 14px;
+}
+.footer-grid ul { list-style: none; padding: 0; margin: 0; }
+.footer-grid li { margin-bottom: 8px; font-size: 13px; color: var(--ink-2); }
+.footer-grid li a:hover { color: var(--accent); }
+.footer-bottom {
+  max-width: 1360px;
+  margin: 48px auto 0;
+  padding: 20px 40px 0;
+  border-top: 0.5px solid var(--rule);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-3);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* ============ TABLES ============ */
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+.tbl th {
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-3);
+  font-weight: 500;
+  padding: 12px 16px;
+  border-bottom: 0.5px solid var(--rule);
+}
+.tbl td {
+  padding: 16px;
+  border-bottom: 0.5px solid var(--rule-2);
+  vertical-align: middle;
+}
+.tbl tr:hover td { background: var(--paper-2); }
+.tbl .mono { font-family: var(--mono); font-size: 12.5px; }
+.tbl a.id { color: var(--accent); font-family: var(--mono); font-size: 12.5px; }
+
+/* ============ MONO SEQUENCE BLOCK ============ */
+.seq-block {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.8;
+  background: var(--paper-2);
+  border: 0.5px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 18px 22px;
+  color: var(--ink-2);
+  overflow-x: auto;
+  letter-spacing: 0.02em;
+}
+.seq-block .idx { color: var(--ink-4); user-select: none; margin-right: 18px; }
+.seq-block .wm { background: color-mix(in oklab, var(--verify) 22%, transparent); border-radius: 2px; padding: 0 1px; }
+
+/* ============ TWEAKS PANEL ============ */
+.tweaks {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 100;
+  background: var(--paper-2);
+  border: 0.5px solid var(--rule);
+  border-radius: 8px;
+  padding: 16px 18px;
+  width: 260px;
+  box-shadow: 0 10px 40px rgba(26,24,21,0.08), 0 2px 6px rgba(26,24,21,0.04);
+  font-size: 12.5px;
+  display: none;
+}
+.tweaks.open { display: block; }
+.tweaks h6 {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-3);
+  margin: 0 0 12px;
+  font-weight: 500;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.tweak-row { margin-bottom: 14px; }
+.tweak-row label { display: block; font-size: 11px; color: var(--ink-3); margin-bottom: 6px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em; }
+.swatches { display: flex; gap: 6px; }
+.sw { width: 22px; height: 22px; border-radius: 50%; border: 0.5px solid var(--rule); cursor: pointer; }
+.sw.active { box-shadow: 0 0 0 2px var(--paper), 0 0 0 3px var(--ink); }
+.seg { display: flex; border: 0.5px solid var(--rule); border-radius: 4px; overflow: hidden; }
+.seg button { flex: 1; padding: 6px 8px; background: transparent; border: none; font-size: 11px; color: var(--ink-3); cursor: pointer; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.05em; }
+.seg button.active { background: var(--ink); color: var(--paper); }
+
+/* ============ ROUTE TRANSITIONS ============ */
+.route { animation: fadein 0.4s ease; }
+@keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; }}
+
+/* ============ HERO HELIX ============ */
+.helix-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  max-width: 480px;
+  margin-left: auto;
+}
+.helix-wrap svg { width: 100%; height: 100%; }
+
+/* ============ CERT SEAL ============ */
+.seal-ring { animation: rot 60s linear infinite; transform-origin: center; }
+@keyframes rot { to { transform: rotate(360deg); } }
+
+/* ============ DENSITY MODES ============ */
+body[data-density="compact"] .card { padding: 20px; }
+body[data-density="compact"] .site-header-inner { padding: 10px 40px; }
+body[data-density="roomy"] .card { padding: 36px; }
+
+/* ============ UTIL ============ */
+.grid-12 { display: grid; grid-template-columns: repeat(12, 1fr); gap: 24px; }
+.flex { display: flex; }
+.between { justify-content: space-between; }
+.center { align-items: center; }
+.gap-8 { gap: 8px; } .gap-12 { gap: 12px; } .gap-16 { gap: 16px; } .gap-24 { gap: 24px; }
+.mt-4 { margin-top: 4px; } .mt-8 { margin-top: 8px; } .mt-16 { margin-top: 16px; } .mt-24 { margin-top: 24px; } .mt-40 { margin-top: 40px; } .mt-64 { margin-top: 64px; } .mt-96 { margin-top: 96px; }
+.mb-4 { margin-bottom: 4px; } .mb-8 { margin-bottom: 8px; } .mb-16 { margin-bottom: 16px; } .mb-24 { margin-bottom: 24px; } .mb-40 { margin-bottom: 40px; }
+.text-ink-3 { color: var(--ink-3); }
+.text-ink-2 { color: var(--ink-2); }
+.text-accent { color: var(--accent); }
+.mono { font-family: var(--mono); }
+.serif { font-family: var(--serif); }
+
+</style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" data-src="components.jsx">
+// Shared components & SVG motifs for ArtGene Archive
+const { useState, useEffect, useMemo, useRef } = React;
+
+// ============ BRAND GLYPH ============
+function BrandGlyph({ size = 26 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+      <circle cx="16" cy="16" r="15" stroke="currentColor" strokeWidth="0.6" opacity="0.4"/>
+      <path d="M8 8 Q16 16, 24 8 M8 24 Q16 16, 24 24" stroke="currentColor" strokeWidth="1" fill="none"/>
+      <path d="M8 8 Q16 16, 24 8" stroke="var(--accent)" strokeWidth="1" fill="none"/>
+      <circle cx="16" cy="16" r="1.4" fill="var(--accent)"/>
+      <line x1="10" y1="12" x2="22" y2="12" stroke="currentColor" strokeWidth="0.4" opacity="0.5"/>
+      <line x1="10" y1="20" x2="22" y2="20" stroke="currentColor" strokeWidth="0.4" opacity="0.5"/>
+    </svg>
+  );
+}
+
+// ============ GOV STRIP ============
+function GovStrip() {
+  return (
+    <div className="gov-strip">
+      <div className="gov-strip-inner">
+        <span>
+          <svg className="shield" viewBox="0 0 10 12" fill="none">
+            <path d="M5 0.5 L9.5 2 V6 C9.5 9, 5 11.5, 5 11.5 C5 11.5, 0.5 9, 0.5 6 V2 L5 0.5Z" stroke="currentColor" strokeWidth="0.6"/>
+          </svg>
+          An independent scientific registry
+        </span>
+        <span className="sep">·</span>
+        <span>Operated under the ArtGene Consortium Charter v1.2</span>
+        <span className="sep">·</span>
+        <span>Endorsed by WHO BioSec Working Group (observer)</span>
+        <span style={{marginLeft:'auto'}}>EN · FR · ES · ZH · JA</span>
+      </div>
+    </div>
+  );
+}
+
+// ============ HEADER ============
+function Header({ route, setRoute }) {
+  const navItems = [
+    ['home', 'Overview'],
+    ['registry', 'Registry'],
+    ['register', 'Submit'],
+    ['about', 'Charter'],
+    ['demo', 'Demo'],
+  ];
+  return (
+    <>
+      <GovStrip/>
+      <header className="site-header">
+        <div className="site-header-inner">
+          <a className="brand" href="#home" onClick={e=>{e.preventDefault();setRoute('home')}}>
+            <BrandGlyph/>
+            ArtGene <em>Archive</em>
+          </a>
+          <nav className="nav">
+            {navItems.map(([k, label]) => (
+              <a key={k} href={`#${k}`} className={route===k?'active':''} onClick={e=>{e.preventDefault();setRoute(k)}}>{label}</a>
+            ))}
+          </nav>
+          <div className="nav-meta">
+            <span className="dot"/>
+            <span>LIVE · 18,427 SEQUENCES</span>
+          </div>
+        </div>
+      </header>
+    </>
+  );
+}
+
+// ============ FOOTER ============
+function Footer() {
+  return (
+    <footer className="site-footer">
+      <div className="footer-grid">
+        <div>
+          <div className="brand" style={{fontSize:22,marginBottom:16}}>
+            <BrandGlyph size={28}/>
+            ArtGene <em>Archive</em>
+          </div>
+          <p style={{color:'var(--ink-3)',fontSize:13,lineHeight:1.6,maxWidth:340}}>
+            An open registry and provenance layer for AI-generated biological sequences. Operated by the ArtGene Consortium as a public-interest scientific infrastructure.
+          </p>
+          <div className="mono" style={{fontSize:10.5,color:'var(--ink-4)',letterSpacing:'0.08em',marginTop:20,textTransform:'uppercase'}}>
+            artgene-archive.org · est. 2026
+          </div>
+        </div>
+        <div>
+          <h5>Registry</h5>
+          <ul>
+            <li><a>Deposit a sequence</a></li>
+            <li><a>Browse records</a></li>
+            <li><a>Biosafety console</a></li>
+            <li><a>Contributor index</a></li>
+            <li><a>API & downloads</a></li>
+          </ul>
+        </div>
+        <div>
+          <h5>Institution</h5>
+          <ul>
+            <li><a>Charter & governance</a></li>
+            <li><a>Working groups</a></li>
+            <li><a>Biosafety policy</a></li>
+            <li><a>Funding & partners</a></li>
+            <li><a>Press room</a></li>
+          </ul>
+        </div>
+        <div>
+          <h5>Contact</h5>
+          <ul>
+            <li><a>contact@artgene-archive.org</a></li>
+            <li><a>biosafety@artgene-archive.org</a></li>
+            <li><a>press@artgene-archive.org</a></li>
+          </ul>
+          <h5 style={{marginTop:24}}>Mirrors</h5>
+          <ul>
+            <li>EU · mirror.ebi.ac.uk/artgene</li>
+            <li>JP · mirror.ddbj.nig.ac.jp/artgene</li>
+          </ul>
+        </div>
+      </div>
+      <div className="footer-bottom">
+        <span>© 2026 ArtGene Consortium · Open Data under CC-BY-4.0</span>
+        <span>VERSION 1.3.0 · BUILD 2026.04.18-STABLE</span>
+      </div>
+    </footer>
+  );
+}
+
+// ============ HELIX SVG (subtle, editorial) ============
+function Helix({ animated = true }) {
+  // Generate two sine-wave strands
+  const points = 48;
+  const w = 400, h = 400;
+  const amp = 80;
+  const cx = w/2;
+  const strandA = [];
+  const strandB = [];
+  for (let i = 0; i <= points; i++) {
+    const t = i / points;
+    const y = t * h;
+    const phase = t * Math.PI * 5;
+    strandA.push([cx + Math.sin(phase) * amp, y]);
+    strandB.push([cx - Math.sin(phase) * amp, y]);
+  }
+  // Crossbars every 4 points
+  const bars = [];
+  for (let i = 2; i < points; i += 3) {
+    const [x1, y1] = strandA[i];
+    const [x2, y2] = strandB[i];
+    const back = Math.sin((i/points)*Math.PI*5) > 0;
+    bars.push({ x1, y1, x2, y2, back });
+  }
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`}>
+      <defs>
+        <filter id="ink-blur" x="-10%" y="-10%" width="120%" height="120%">
+          <feGaussianBlur stdDeviation="0.3"/>
+        </filter>
+      </defs>
+      {/* Concentric rings backdrop */}
+      {[180,140,100,60].map((r,i)=>(
+        <circle key={r} cx={cx} cy={h/2} r={r} fill="none" stroke="var(--rule)" strokeWidth="0.3" opacity={0.6 - i*0.1}/>
+      ))}
+      {/* Compass ticks */}
+      {Array.from({length:60}).map((_,i)=>{
+        const a = (i/60)*Math.PI*2;
+        const r1 = 190, r2 = i%5===0 ? 200 : 196;
+        return <line key={i} x1={cx+Math.cos(a)*r1} y1={h/2+Math.sin(a)*r1} x2={cx+Math.cos(a)*r2} y2={h/2+Math.sin(a)*r2} stroke="var(--ink-4)" strokeWidth="0.4"/>;
+      })}
+      {/* Strand B (back, lighter) */}
+      <polyline points={strandB.map(p=>p.join(',')).join(' ')} fill="none" stroke="var(--ink-3)" strokeWidth="0.8" opacity="0.55"/>
+      {/* Bars behind */}
+      {bars.filter(b=>b.back).map((b,i)=>(
+        <line key={'bb'+i} x1={b.x1} y1={b.y1} x2={b.x2} y2={b.y2} stroke="var(--ink-4)" strokeWidth="0.5" opacity="0.7"/>
+      ))}
+      {/* Strand A (front) */}
+      <polyline points={strandA.map(p=>p.join(',')).join(' ')} fill="none" stroke="var(--ink)" strokeWidth="1.1"/>
+      {/* Bars in front */}
+      {bars.filter(b=>!b.back).map((b,i)=>(
+        <line key={'bf'+i} x1={b.x1} y1={b.y1} x2={b.x2} y2={b.y2} stroke="var(--accent)" strokeWidth="0.7"/>
+      ))}
+      {/* Base labels */}
+      {bars.slice(0,6).map((b,i)=>(
+        <text key={'t'+i} x={Math.max(b.x1,b.x2)+6} y={b.y1+3} fontSize="7" fontFamily="var(--mono)" fill="var(--ink-4)" letterSpacing="0.05em">{['A-T','G-C','C-G','T-A','G-C','A-T'][i]}</text>
+      ))}
+      {/* Nodes */}
+      {strandA.filter((_,i)=>i%6===0).map(([x,y],i)=>(
+        <circle key={'a'+i} cx={x} cy={y} r="2" fill="var(--paper)" stroke="var(--ink)" strokeWidth="0.8"/>
+      ))}
+    </svg>
+  );
+}
+
+// ============ CODON WATERMARK GRID (cryptographic motif) ============
+function CodonGrid({ rows = 8, cols = 16, highlights = null }) {
+  // Deterministic pattern: bits of an arbitrary signature
+  const cells = [];
+  const sig = "01101001 10110100 11001010 01110011 10010110 01011100 11100101 00110110".replace(/ /g,'');
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const idx = (r * cols + c) % sig.length;
+      const on = sig[idx] === '1';
+      cells.push({ r, c, on });
+    }
+  }
+  const cell = 14, gap = 3;
+  const w = cols * (cell + gap), h = rows * (cell + gap);
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} width="100%" height="100%">
+      {cells.map(({r,c,on},i)=>(
+        <rect key={i} x={c*(cell+gap)} y={r*(cell+gap)} width={cell} height={cell} rx="1"
+          fill={on ? 'var(--accent)' : 'var(--rule)'}
+          opacity={on ? 1 : 0.5}/>
+      ))}
+    </svg>
+  );
+}
+
+// ============ CERT SEAL ============
+function CertSeal({ size = 180 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 200 200">
+      <defs>
+        <path id="seal-circle" d="M 100 100 m -78 0 a 78 78 0 1 1 156 0 a 78 78 0 1 1 -156 0"/>
+      </defs>
+      {/* Outer ring with ticks */}
+      <g className="seal-ring">
+        {Array.from({length:72}).map((_,i)=>{
+          const a=(i/72)*Math.PI*2;
+          const r1 = 92, r2 = i%6===0?98:95;
+          return <line key={i} x1={100+Math.cos(a)*r1} y1={100+Math.sin(a)*r1} x2={100+Math.cos(a)*r2} y2={100+Math.sin(a)*r2} stroke="var(--ink)" strokeWidth="0.5"/>;
+        })}
+        <text fontSize="8.5" fontFamily="var(--mono)" letterSpacing="0.28em" fill="var(--ink-2)">
+          <textPath href="#seal-circle" startOffset="0">
+            ARTGENE CONSORTIUM · CERTIFIED PROVENANCE · 2026 · TAMPER EVIDENT ·
+          </textPath>
+        </text>
+      </g>
+      {/* Inner */}
+      <circle cx="100" cy="100" r="62" fill="none" stroke="var(--ink)" strokeWidth="0.5"/>
+      <circle cx="100" cy="100" r="52" fill="var(--accent-soft)" stroke="var(--accent)" strokeWidth="0.5"/>
+      {/* Central mark */}
+      <g transform="translate(100 100)">
+        <path d="M -28 14 Q 0 -20, 28 14 M -28 -14 Q 0 20, 28 -14" stroke="var(--accent)" strokeWidth="1.2" fill="none"/>
+        <circle r="3" fill="var(--accent)"/>
+      </g>
+      <text x="100" y="156" textAnchor="middle" fontSize="8" fontFamily="var(--mono)" letterSpacing="0.2em" fill="var(--ink-2)">AG·2026</text>
+    </svg>
+  );
+}
+
+// ============ ANIMATED COUNTER ============
+function Counter({ to, suffix = '', dur = 1200 }) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    let start; let raf;
+    const tick = (t) => {
+      if (!start) start = t;
+      const p = Math.min(1, (t - start) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setN(Math.round(to * eased));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [to]);
+  return <>{n.toLocaleString()}{suffix}</>;
+}
+
+// ============ TICKER ============
+function Ticker({ items }) {
+  return (
+    <div style={{
+      overflow:'hidden',
+      borderTop:'0.5px solid var(--rule)',
+      borderBottom:'0.5px solid var(--rule)',
+      background:'var(--paper-2)',
+      position:'relative',
+    }}>
+      <div style={{display:'flex',gap:'48px',padding:'10px 0',animation:'slide 60s linear infinite',whiteSpace:'nowrap'}}>
+        {[...items, ...items].map((it,i)=>(
+          <span key={i} style={{fontFamily:'var(--mono)',fontSize:11.5,color:'var(--ink-2)',letterSpacing:'0.04em'}}>
+            <span style={{color:'var(--accent)'}}>▸</span> {it.id} <span style={{color:'var(--ink-4)'}}>·</span> {it.name} <span style={{color:'var(--ink-4)'}}>·</span> {it.org} <span style={{color:'var(--ink-4)'}}>·</span> {it.time}
+          </span>
+        ))}
+      </div>
+      <style>{`@keyframes slide { to { transform: translateX(-50%); } }`}</style>
+    </div>
+  );
+}
+
+// Export to window for cross-script access
+Object.assign(window, {
+  BrandGlyph, Header, Footer, Helix, CodonGrid, CertSeal, Counter, Ticker
+});
+
+</script>
+  <script type="text/babel" data-src="page-home.jsx">
+// ArtGene Archive — Home page
+const { useState: useState_H, useEffect: useEffect_H } = React;
+
+function HomePage({ setRoute }) {
+  const tickerItems = [
+    { id: 'AG-2026-018427', name: 'Thermostable carbonic anhydrase variant', org: 'ETH Zürich · Platt Lab', time: '3 min ago' },
+    { id: 'AG-2026-018426', name: 'CRISPR-Cas13d gRNA scaffold', org: 'Broad Institute', time: '14 min ago' },
+    { id: 'AG-2026-018425', name: 'GLP-1R agonist mimetic', org: 'Institut Pasteur', time: '22 min ago' },
+    { id: 'AG-2026-018424', name: 'Anti-malarial antibody H3', org: 'GlaxoSmithKline', time: '38 min ago' },
+    { id: 'AG-2026-018423', name: 'Plastic-degrading MHETase', org: 'Kyoto University', time: '1 hr ago' },
+    { id: 'AG-2026-018422', name: 'Synthetic promoter SP-Δ14', org: 'Wyss Institute', time: '2 hr ago' },
+  ];
+
+  return (
+    <div className="route">
+      {/* ============ HERO ============ */}
+      <section style={{padding:'80px 0 40px', position:'relative'}}>
+        <div className="wrap grid-12" style={{alignItems:'start', gap:48}}>
+          <div style={{gridColumn:'span 7'}}>
+            <div className="eyebrow mb-16" style={{display:'flex',gap:12,alignItems:'center'}}>
+              <span style={{width:24,height:'0.5px',background:'var(--ink-3)'}}/>
+              ArtGene Consortium · Volume I · 2026
+            </div>
+            <h1 className="display" style={{fontSize:'clamp(36px, 4.6vw, 60px)', margin:'0 0 22px', maxWidth: 820}}>
+              The provenance layer for <span style={{color:'var(--accent)'}}>AI-designed biology</span> — a registry for sequences designed by machines.
+            </h1>
+            <p className="lede" style={{maxWidth:640, margin:'0 0 32px', fontSize:16}}>
+              Generative models now produce proteins, genes and regulatory elements faster than the scientific community can catalogue them. ArtGene Archive is the first dedicated registry for AI-designed biological sequences — providing watermarking, biosafety certification, and an auditable chain of custody from model to bench to publication.
+            </p>
+            <div className="flex gap-12" style={{alignItems:'center'}}>
+              <button className="btn btn-primary" onClick={()=>setRoute('register')}>
+                Deposit a sequence
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 6h10M7 2l4 4-4 4" stroke="currentColor" strokeWidth="1"/></svg>
+              </button>
+              <button className="btn btn-ghost" onClick={()=>setRoute('record')}>View an example record</button>
+              <a className="mono" style={{fontSize:11.5,color:'var(--ink-3)',letterSpacing:'0.08em',textTransform:'uppercase',marginLeft:16}}>
+                ↳ Read the founding paper (PDF, 2.1 MB)
+              </a>
+            </div>
+          </div>
+          <div style={{gridColumn:'span 5', position:'relative'}}>
+            <div className="helix-wrap">
+              <Helix/>
+            </div>
+            <div style={{position:'absolute', bottom:0, left:0, fontFamily:'var(--mono)', fontSize:10, color:'var(--ink-3)', letterSpacing:'0.1em', textTransform:'uppercase', lineHeight:1.7}}>
+              Figure 01<br/>
+              <span style={{color:'var(--ink-4)'}}>Idealised helix, rendered from<br/>a watermarked 648 bp fragment.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============ LIVE TICKER ============ */}
+      <Ticker items={tickerItems}/>
+
+      {/* ============ STATS STRIP ============ */}
+      <section className="wrap" style={{padding:'64px 0 40px'}}>
+        <div style={{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:0, borderTop:'0.5px solid var(--rule)'}}>
+          {[
+            { n: 18427, label: 'Sequences certified', sub: 'across 47 countries' },
+            { n: 312, label: 'Generating models tracked', sub: '68 institutions' },
+            { n: 94, label: 'Biosafety review panels', sub: '3-tier gated' },
+            { n: 1240, label: 'Citations referencing AG-IDs', sub: 'peer-reviewed, 2026 YTD' },
+          ].map((s,i)=>(
+            <div key={i} style={{
+              padding:'32px 28px 28px',
+              borderRight: i<3 ? '0.5px solid var(--rule)' : 'none',
+              borderBottom:'0.5px solid var(--rule)',
+            }}>
+              <div className="mono" style={{fontSize:10.5,color:'var(--ink-3)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:12}}>
+                {String(i+1).padStart(2,'0')} / {s.label}
+              </div>
+              <div className="serif" style={{fontSize:44,letterSpacing:'-0.02em',lineHeight:1,color:'var(--ink)'}}>
+                <Counter to={s.n}/>
+              </div>
+              <div style={{fontSize:12.5,color:'var(--ink-3)',marginTop:10}}>{s.sub}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ============ MISSION / EDITORIAL ============ */}
+      <section className="wrap" style={{padding:'72px 0'}}>
+        <div className="grid-12" style={{alignItems:'start', gap:48}}>
+          <div style={{gridColumn:'span 4'}}>
+            <div className="eyebrow mb-16">§ 01 — Thesis</div>
+            <h2 className="display" style={{fontSize:32,margin:0}}>
+              What GenBank was to the<br/>sequencing machine, we are<br/>to the <em>generative model</em>.
+            </h2>
+          </div>
+          <div style={{gridColumn:'span 7', gridColumnStart: 6, fontSize:16.5, lineHeight:1.7, color:'var(--ink-2)'}}>
+            <p style={{marginTop:0}}>
+              In 1982 a small group at the National Institutes of Health recognised that automated sequencers had begun to produce DNA data faster than journals or institutions could track. The response — a public, federated, machine-readable catalogue — became the scaffolding of modern biology.
+            </p>
+            <p>
+              Forty-four years later we stand at a structurally identical moment. A frontier model can now propose a functional enzyme in milliseconds. A graduate student with a laptop and a credit card can order it as DNA before lunch. The community has no shared infrastructure to know which sequences were machine-designed, who designed them, what safety checks were applied, or whether they were ever observed in nature.
+            </p>
+            <p>
+              <strong>ArtGene Archive is that infrastructure.</strong> We provide a dedicated deposit path, automated three-gate biosafety screening, cryptographic watermarking via codon steganography, tamper-evident certification, and formal recognition for contributors. Deposits are free. Records are public. The registry is governed by an international consortium, not a vendor.
+            </p>
+            <p className="mono" style={{fontSize:13,color:'var(--ink-3)',marginTop:28,paddingLeft:18,borderLeft:'2px solid var(--accent)'}}>
+              The absence of this infrastructure is a biosecurity risk today. Its presence could accelerate safe, citizen-driven biological innovation at the scale the moment demands.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <hr className="hr"/>
+
+      {/* ============ THE FOUR PILLARS ============ */}
+      <section className="wrap" style={{padding:'72px 0'}}>
+        <div className="flex between center mb-40">
+          <div>
+            <div className="eyebrow mb-8">§ 02 — What the archive does</div>
+            <h2 className="display" style={{fontSize:34,margin:0}}>Four pillars.</h2>
+          </div>
+          <div className="mono" style={{fontSize:11,color:'var(--ink-3)',letterSpacing:'0.1em',textTransform:'uppercase'}}>Automated · open · auditable</div>
+        </div>
+        <div style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', borderTop:'0.5px solid var(--rule)', borderBottom:'0.5px solid var(--rule)'}}>
+          {[
+            {
+              n: '01', title: 'Biosafety screening',
+              body: 'Three automated gates run on every deposit: structural confidence (ESMFold pLDDT), off-target homology (BLAST + ToxinPred2), and ecological risk (HGT + DriftRadar). Flagged records route to a human panel within 24h.',
+              icon: 'shield',
+            },
+            {
+              n: '02', title: 'Codon watermark',
+              body: 'Synonymous codon substitution encodes a 128-bit institutional signature into the coding sequence. The watermark survives translation and is recoverable from re-sequenced DNA — provenance that travels with the molecule.',
+              icon: 'wm',
+            },
+            {
+              n: '03', title: 'Tamper-evident certificate',
+              body: 'Each deposit issues a signed JSON certificate anchored to a Merkle ledger. The AG-ID, the sequence hash, the model, and the biosafety scorecard are all cryptographically bound. Trust but verify.',
+              icon: 'cert',
+            },
+            {
+              n: '04', title: 'Contributor recognition',
+              body: 'Researchers, labs and institutions accumulate a verifiable public record of depositions. First-deposit priority is time-stamped and permanent. Models themselves are credited as generative provenance.',
+              icon: 'star',
+            },
+          ].map((p,i)=>(
+            <div key={p.n} style={{
+              padding:'36px 32px 40px',
+              borderRight: i<3 ? '0.5px solid var(--rule)' : 'none',
+            }}>
+              <div style={{height:56,display:'flex',alignItems:'center',marginBottom:18}}>
+                <PillarIcon kind={p.icon}/>
+              </div>
+              <div className="mono" style={{fontSize:10.5,color:'var(--accent)',letterSpacing:'0.14em',marginBottom:10}}>{p.n}</div>
+              <h3 className="serif" style={{fontSize:18,margin:'0 0 12px',letterSpacing:'-0.01em'}}>{p.title}</h3>
+              <p style={{fontSize:13.5,lineHeight:1.6,color:'var(--ink-2)',margin:0}}>{p.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ============ WATERMARK SHOWCASE ============ */}
+      <section style={{background:'var(--paper-3)',padding:'88px 0'}}>
+        <div className="wrap grid-12" style={{alignItems:'center',gap:48}}>
+          <div style={{gridColumn:'span 5'}}>
+            <div className="eyebrow mb-16">§ 03 — On codon steganography</div>
+            <h2 className="display" style={{fontSize:34,margin:'0 0 20px'}}>
+              An invisible<br/>signature, <em>baked<br/>into the molecule.</em>
+            </h2>
+            <p style={{fontSize:15.5,lineHeight:1.65,color:'var(--ink-2)',marginBottom:20}}>
+              Because most amino acids are encoded by multiple synonymous codons, a coding sequence can carry arbitrary information without altering the protein it produces. ArtGene exploits this redundancy to embed a 128-bit institutional signature — a fingerprint that persists across plasmid transfer, re-synthesis, and publication.
+            </p>
+            <p style={{fontSize:15.5,lineHeight:1.65,color:'var(--ink-2)'}}>
+              Re-sequence the molecule in any lab on earth and our verifier will return the AG-ID, the depositing institution, and the original certificate — or fail cleanly and tell you it cannot.
+            </p>
+            <button className="btn btn-ghost mt-24">Read the technical specification →</button>
+          </div>
+          <div style={{gridColumn:'span 6', gridColumnStart: 7}}>
+            <div style={{background:'var(--paper-2)',border:'0.5px solid var(--rule)',borderRadius:6,padding:28}}>
+              <div className="flex between center mb-16">
+                <div className="mono" style={{fontSize:10.5,color:'var(--ink-3)',letterSpacing:'0.12em',textTransform:'uppercase'}}>Watermark · 128-bit · recovered</div>
+                <span className="badge badge-verify badge-dot">Verified</span>
+              </div>
+              <div style={{aspectRatio:'2/1',marginBottom:16}}>
+                <CodonGrid rows={8} cols={16}/>
+              </div>
+              <div className="seq-block" style={{fontSize:11,padding:'14px 16px'}}>
+                <div><span className="idx">001</span>ATG<span className="wm">GCT</span>AAG<span className="wm">CCG</span>TAT<span className="wm">GAA</span>AAC<span className="wm">TGG</span>CTG<span className="wm">CAC</span>GAC</div>
+                <div><span className="idx">031</span>TTC<span className="wm">ATC</span>GTG<span className="wm">AAA</span>GAT<span className="wm">CTG</span>GCC<span className="wm">AGC</span>CAG<span className="wm">TTT</span>CCG</div>
+                <div><span className="idx">061</span>AAT<span className="wm">GTG</span>TAC<span className="wm">CGC</span>GAA<span className="wm">ATG</span>CTG<span className="wm">CAT</span>GCG<span className="wm">AGC</span>ACC</div>
+              </div>
+              <div className="mono" style={{fontSize:10.5,color:'var(--ink-4)',marginTop:12,letterSpacing:'0.04em'}}>
+                HIGHLIGHTED TRIPLETS CARRY THE SIGNATURE. PROTEIN SEQUENCE IS UNCHANGED.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============ BIOSAFETY PROCESS ============ */}
+      <section className="wrap" style={{padding:'88px 0'}}>
+        <div className="eyebrow mb-16">§ 04 — Deposit pathway</div>
+        <h2 className="display" style={{fontSize:34,margin:'0 0 48px'}}>
+          From upload to certificate<br/>in <em>under ninety seconds.</em>
+        </h2>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:24,position:'relative'}}>
+          <div style={{position:'absolute',top:24,left:'10%',right:'10%',height:'0.5px',background:'var(--rule)'}}/>
+          {[
+            { n: '01', t: 'Submit', d: 'FASTA, GenBank or raw sequence. Metadata is optional but encouraged.' },
+            { n: '02', t: 'Gate α', d: 'Structural confidence — ESMFold pLDDT, RFDiffusion plausibility.' },
+            { n: '03', t: 'Gate β', d: 'Off-target screen — BLAST vs. pathogen DB, ToxinPred2 inference.' },
+            { n: '04', t: 'Gate γ', d: 'Ecological risk — HGT probability, DriftRadar invasiveness score.' },
+            { n: '05', t: 'Certify', d: 'Watermark embedded, AG-ID minted, certificate anchored to ledger.' },
+          ].map((s,i)=>(
+            <div key={s.n} style={{position:'relative',background:'var(--paper)',paddingTop:0}}>
+              <div style={{
+                width:48,height:48,borderRadius:'50%',background:'var(--paper)',border:'0.5px solid var(--ink)',
+                display:'flex',alignItems:'center',justifyContent:'center',marginBottom:18,
+                fontFamily:'var(--mono)',fontSize:12,position:'relative',zIndex:1
+              }}>{s.n}</div>
+              <div className="serif" style={{fontSize:22,marginBottom:8}}>{s.t}</div>
+              <div style={{fontSize:13,color:'var(--ink-3)',lineHeight:1.55}}>{s.d}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ============ CERT SHOWCASE ============ */}
+      <section style={{background:'var(--ink)',color:'var(--paper)',padding:'96px 0'}}>
+        <div className="wrap grid-12" style={{alignItems:'center',gap:48}}>
+          <div style={{gridColumn:'span 5',display:'flex',justifyContent:'center'}}>
+            <div style={{position:'relative'}}>
+              <CertSeal size={280}/>
+            </div>
+          </div>
+          <div style={{gridColumn:'span 6',gridColumnStart:7}}>
+            <div className="eyebrow mb-16" style={{color:'rgba(247,243,236,0.6)'}}>§ 05 — The certificate</div>
+            <h2 className="display" style={{fontSize:28,margin:'0 0 24px',color:'var(--paper)'}}>
+              Every record is signed.<br/>Every signature is<br/><em style={{color:'var(--accent)'}}>public and verifiable.</em>
+            </h2>
+            <p style={{fontSize:16,lineHeight:1.6,color:'rgba(247,243,236,0.75)',maxWidth:540,marginBottom:32}}>
+              ArtGene certificates are signed JSON objects anchored to a public Merkle ledger. Any record can be verified offline with our open-source CLI. No vendor lock-in. No gatekeeping. No ambiguity about who deposited what, when, and under what biosafety conditions.
+            </p>
+            <div style={{background:'rgba(247,243,236,0.06)',border:'0.5px solid rgba(247,243,236,0.2)',borderRadius:6,padding:'20px 24px',fontFamily:'var(--mono)',fontSize:11.5,lineHeight:1.8,color:'rgba(247,243,236,0.8)',letterSpacing:'0.02em'}}>
+              <div style={{color:'var(--accent)'}}>// Verify any record</div>
+              <div>$ artgene verify AG-2026-018427</div>
+              <div style={{color:'rgba(247,243,236,0.5)'}}>  ↳ hash: a9f0c3e8...b41d — OK</div>
+              <div style={{color:'rgba(247,243,236,0.5)'}}>  ↳ sig: ETH-ZURICH-PLATT-LAB — OK</div>
+              <div style={{color:'rgba(247,243,236,0.5)'}}>  ↳ ledger: block 148,902 — OK</div>
+              <div style={{color:'var(--accent)'}}>  ✓ certificate valid · 2026-04-18T14:22Z</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============ ENDORSEMENTS ============ */}
+      <section className="wrap" style={{padding:'88px 0'}}>
+        <div className="eyebrow mb-16" style={{textAlign:'center'}}>§ 06 — Governance & partners</div>
+        <h2 className="display mb-40" style={{fontSize:36,textAlign:'center',margin:'0 auto 48px',maxWidth:720}}>
+          ArtGene is operated as public-interest infrastructure — not a product.
+        </h2>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:0,borderTop:'0.5px solid var(--rule)',borderBottom:'0.5px solid var(--rule)'}}>
+          {['WELLCOME TRUST','NIH','EMBL-EBI','DDBJ','WHO BIOSEC','ARC INSTITUTE','CZI','BROAD','PASTEUR','CRICK','RIKEN','UCSF'].map((name,i)=>(
+            <div key={i} style={{
+              padding:'28px 20px',
+              borderRight: (i%6<5) ? '0.5px solid var(--rule)' : 'none',
+              borderBottom: i<6 ? '0.5px solid var(--rule)' : 'none',
+              display:'flex',alignItems:'center',justifyContent:'center',
+              fontFamily:'var(--mono)',fontSize:11,letterSpacing:'0.12em',color:'var(--ink-3)',
+              height:96,
+            }}>{name}</div>
+          ))}
+        </div>
+        <div className="mono" style={{textAlign:'center',marginTop:24,fontSize:10.5,color:'var(--ink-4)',letterSpacing:'0.1em',textTransform:'uppercase'}}>
+          Observer status · charter signatories · funding partners
+        </div>
+      </section>
+
+      {/* ============ CTA ============ */}
+      <section style={{background:'var(--paper-3)',padding:'80px 0',borderTop:'0.5px solid var(--rule)'}}>
+        <div className="wrap-narrow" style={{textAlign:'center'}}>
+          <h2 className="display" style={{fontSize:32,margin:'0 0 20px'}}>
+            Deposit your first sequence.
+          </h2>
+          <p className="lede" style={{margin:'0 auto 32px',maxWidth:560}}>
+            The registry is free to use, open by default, and takes less than a minute for a standard deposit. No institutional account is required to read; one API key is required to deposit.
+          </p>
+          <div className="flex gap-12" style={{justifyContent:'center'}}>
+            <button className="btn btn-primary" onClick={()=>setRoute('register')}>Begin deposit →</button>
+            <button className="btn btn-ghost" onClick={()=>setRoute('docs')}>Read the documentation</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function PillarIcon({ kind }) {
+  const s = 40;
+  if (kind === 'shield') return (
+    <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <path d="M20 4 L34 9 V20 C34 28, 20 36, 20 36 C20 36, 6 28, 6 20 V9 L20 4Z" stroke="var(--ink)" strokeWidth="0.8"/>
+      <path d="M20 4 L34 9 V20 C34 28, 20 36, 20 36" stroke="var(--accent)" strokeWidth="0.8"/>
+      <path d="M14 19 L18 23 L26 15" stroke="var(--accent)" strokeWidth="1.2" fill="none"/>
+    </svg>
+  );
+  if (kind === 'wm') return (
+    <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      {[0,1,2].map(r => [0,1,2,3,4].map(c => (
+        <rect key={r+'-'+c} x={6+c*6} y={10+r*6} width="4" height="4" rx="0.5"
+          fill={[1,3,5,7,9,11].includes(r*5+c) ? 'var(--accent)' : 'var(--rule)'}/>
+      )))}
+    </svg>
+  );
+  if (kind === 'cert') return (
+    <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="18" r="12" stroke="var(--ink)" strokeWidth="0.8"/>
+      <circle cx="20" cy="18" r="8" stroke="var(--accent)" strokeWidth="0.8"/>
+      <path d="M16 32 L14 38 L20 35 L26 38 L24 32" stroke="var(--ink)" strokeWidth="0.8" fill="var(--paper-2)"/>
+    </svg>
+  );
+  if (kind === 'star') return (
+    <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="14" stroke="var(--ink)" strokeWidth="0.8"/>
+      <path d="M20 10 L22 18 L30 18 L23.5 23 L26 31 L20 26 L14 31 L16.5 23 L10 18 L18 18 Z" fill="var(--accent)" opacity="0.2" stroke="var(--accent)" strokeWidth="0.8"/>
+    </svg>
+  );
+  return null;
+}
+
+Object.assign(window, { HomePage });
+
+</script>
+  <script type="text/babel" data-src="page-registry.jsx">
+// ArtGene Archive — Registry browse page
+function RegistryPage({ setRoute, setRecordId }) {
+  const [filter, setFilter] = React.useState('all');
+  const [query, setQuery] = React.useState('');
+
+  const records = [
+    { id:'AG-2026-018427', name:'Thermostable carbonic anhydrase CA-ΔT7', type:'Protein', host:'E. coli', status:'certified', tier:'tier-1', safety:'pass', model:'ESM-3 · v2.1', org:'ETH Zürich · Platt Lab', aa:258, date:'2026-04-22', access:'open' },
+    { id:'AG-2026-018426', name:'CRISPR-Cas13d gRNA scaffold SCF-04', type:'RNA', host:'H. sapiens', status:'certified', tier:'tier-1', safety:'pass', model:'RNA-FM · v1.3', org:'Broad Institute', aa:127, date:'2026-04-22', access:'open' },
+    { id:'AG-2026-018425', name:'GLP-1R agonist mimetic series B', type:'Peptide', host:'H. sapiens', status:'certified', tier:'tier-2', safety:'pass', model:'RFdiffusion', org:'Institut Pasteur', aa:39, date:'2026-04-22', access:'embargo' },
+    { id:'AG-2026-018424', name:'Anti-malarial antibody H3 heavy chain', type:'Protein', host:'CHO cells', status:'under-review', tier:'tier-2', safety:'review', model:'IgLM · v0.4', org:'GlaxoSmithKline Vaccines', aa:452, date:'2026-04-21', access:'embargo' },
+    { id:'AG-2026-018423', name:'MHETase (plastic-degrading variant)', type:'Protein', host:'E. coli', status:'certified', tier:'tier-1', safety:'pass', model:'ProteinMPNN', org:'Kyoto University', aa:301, date:'2026-04-21', access:'open' },
+    { id:'AG-2026-018422', name:'Synthetic promoter SP-Δ14', type:'DNA', host:'S. cerevisiae', status:'certified', tier:'tier-1', safety:'pass', model:'DNA-Diffusion', org:'Wyss Institute', aa:84, date:'2026-04-21', access:'open' },
+    { id:'AG-2026-018421', name:'Fluorescent reporter mNeonLime-X', type:'Protein', host:'Mammalian', status:'certified', tier:'tier-1', safety:'pass', model:'AlphaFold-Gen', org:'UCSF · Lim Lab', aa:236, date:'2026-04-20', access:'open' },
+    { id:'AG-2026-018420', name:'Ribosome-binding site RBS-λ9', type:'DNA', host:'E. coli', status:'certified', tier:'tier-1', safety:'pass', model:'DNA-Diffusion', org:'MIT · Voigt Lab', aa:31, date:'2026-04-20', access:'open' },
+    { id:'AG-2026-018419', name:'Restricted — pathogen homolog flagged', type:'Protein', host:'—', status:'restricted', tier:'tier-3', safety:'fail', model:'ESM-3 · v2.1', org:'[Redacted — under review]', aa:412, date:'2026-04-19', access:'restricted' },
+    { id:'AG-2026-018418', name:'Thermophilic DNA polymerase θ variant', type:'Protein', host:'T. aquaticus', status:'certified', tier:'tier-1', safety:'pass', model:'ProGen-2', org:'Arc Institute', aa:832, date:'2026-04-19', access:'open' },
+  ];
+
+  const filtered = records.filter(r => {
+    if (filter !== 'all' && r.status !== filter && r.type.toLowerCase() !== filter) return false;
+    if (query && !(r.id.includes(query) || r.name.toLowerCase().includes(query.toLowerCase()) || r.org.toLowerCase().includes(query.toLowerCase()))) return false;
+    return true;
+  });
+
+  const statusBadge = (r) => {
+    if (r.status === 'certified') return <span className="badge badge-verify badge-dot">Certified</span>;
+    if (r.status === 'under-review') return <span className="badge badge-warn badge-dot">Under review</span>;
+    if (r.status === 'restricted') return <span className="badge" style={{background:'#f3dede',color:'var(--danger)',borderColor:'color-mix(in oklab, var(--danger) 30%, transparent)'}}>◉ Restricted</span>;
+    return <span className="badge">{r.status}</span>;
+  };
+
+  return (
+    <div className="route">
+      {/* Header */}
+      <section className="wrap" style={{padding:'56px 0 32px'}}>
+        <div className="flex between" style={{alignItems:'end',gap:24,flexWrap:'wrap'}}>
+          <div>
+            <div className="eyebrow mb-8">The Registry · Volume I</div>
+            <h1 className="display" style={{fontSize:34,margin:0}}>
+              18,427 <em>certified</em><br/>sequences.
+            </h1>
+            <p className="lede mt-16" style={{maxWidth:560}}>
+              Every AI-designed biological sequence deposited to ArtGene is listed here. Records are public, citable by AG-ID, and carry a full biosafety scorecard.
+            </p>
+          </div>
+          <div style={{textAlign:'right',fontFamily:'var(--mono)',fontSize:11,color:'var(--ink-3)',letterSpacing:'0.08em',textTransform:'uppercase',lineHeight:1.9}}>
+            <div>SNAPSHOT · 2026-04-22 · 14:33 UTC</div>
+            <div>NEXT INDEX BUILD · IN 00:42:18</div>
+            <button className="btn btn-ghost btn-sm" style={{marginTop:10}}>↓ Export CSV (2.4 MB)</button>
+          </div>
+        </div>
+      </section>
+
+      {/* Filters */}
+      <section className="wrap" style={{padding:'0 0 20px'}}>
+        <div style={{
+          display:'flex',gap:8,alignItems:'center',padding:'14px 16px',
+          background:'var(--paper-2)',border:'0.5px solid var(--rule)',borderRadius:6,flexWrap:'wrap'
+        }}>
+          <div style={{display:'flex',alignItems:'center',gap:10,paddingRight:14,borderRight:'0.5px solid var(--rule)'}}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="var(--ink-3)"/><path d="M10 10 L13 13" stroke="var(--ink-3)" strokeWidth="1"/></svg>
+            <input
+              value={query} onChange={e=>setQuery(e.target.value)}
+              placeholder="Search by AG-ID, sequence name, institution, model…"
+              style={{border:'none',background:'transparent',outline:'none',fontSize:13.5,width:360,fontFamily:'var(--sans)',color:'var(--ink)'}}
+            />
+          </div>
+          {[
+            ['all','All records'],
+            ['certified','Certified'],
+            ['under-review','Under review'],
+            ['restricted','Restricted'],
+            ['protein','Protein'],
+            ['rna','RNA'],
+            ['dna','DNA'],
+          ].map(([k,label])=>(
+            <button key={k}
+              onClick={()=>setFilter(k)}
+              className="btn btn-sm"
+              style={{
+                background: filter===k ? 'var(--ink)' : 'transparent',
+                color: filter===k ? 'var(--paper)' : 'var(--ink-2)',
+                borderColor: filter===k ? 'var(--ink)' : 'var(--rule)',
+                padding:'6px 12px',
+              }}>{label}</button>
+          ))}
+          <div style={{marginLeft:'auto',fontFamily:'var(--mono)',fontSize:11,color:'var(--ink-3)',letterSpacing:'0.06em'}}>
+            {filtered.length.toString().padStart(5,'0')} / 18427 results
+          </div>
+        </div>
+      </section>
+
+      {/* Table */}
+      <section className="wrap" style={{padding:'0 0 40px'}}>
+        <div style={{background:'var(--paper-2)',border:'0.5px solid var(--rule)',borderRadius:6,overflow:'hidden'}}>
+          <table className="tbl">
+            <thead>
+              <tr style={{background:'var(--paper-3)'}}>
+                <th style={{width:140}}>AG-ID</th>
+                <th>Sequence</th>
+                <th style={{width:90}}>Type</th>
+                <th style={{width:120}}>Host</th>
+                <th style={{width:140}}>Status</th>
+                <th style={{width:180}}>Generating model</th>
+                <th style={{width:80,textAlign:'right'}}>Length</th>
+                <th style={{width:110}}>Deposited</th>
+                <th style={{width:60}}/>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(r => (
+                <tr key={r.id} style={{cursor:'pointer'}} onClick={()=>{setRecordId(r.id);setRoute('record')}}>
+                  <td><a className="id">{r.id}</a></td>
+                  <td>
+                    <div style={{fontSize:13.5,color:'var(--ink)',fontWeight:500,marginBottom:2}}>{r.name}</div>
+                    <div style={{fontSize:12,color:'var(--ink-3)'}}>{r.org}</div>
+                  </td>
+                  <td className="mono" style={{color:'var(--ink-2)'}}>{r.type}</td>
+                  <td style={{fontSize:12.5,color:'var(--ink-2)'}}>{r.host}</td>
+                  <td>{statusBadge(r)}</td>
+                  <td className="mono" style={{fontSize:11.5,color:'var(--ink-2)'}}>{r.model}</td>
+                  <td className="mono" style={{textAlign:'right',fontSize:12,color:'var(--ink-2)'}}>{r.aa.toLocaleString()}</td>
+                  <td className="mono" style={{fontSize:11.5,color:'var(--ink-3)'}}>{r.date}</td>
+                  <td style={{textAlign:'right'}}>
+                    <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:11.5,color: r.access==='open' ? 'var(--accent)' : r.access==='embargo' ? 'var(--warn)' : 'var(--danger)', fontFamily:'var(--mono)', letterSpacing:'0.06em', textTransform:'uppercase', fontWeight:500}}>
+                      {r.access === 'open' ? (
+                        <svg width="11" height="12" viewBox="0 0 11 12" fill="none"><rect x="1" y="5.5" width="9" height="6" rx="1" stroke="currentColor" strokeWidth="1"/><path d="M3 5.5 V 3.5 a 2.5 2.5 0 0 1 5 0 V 4" stroke="currentColor" strokeWidth="1" fill="none"/></svg>
+                      ) : (
+                        <svg width="11" height="12" viewBox="0 0 11 12" fill="none"><rect x="1" y="5.5" width="9" height="6" rx="1" stroke="currentColor" strokeWidth="1"/><path d="M3 5.5 V 3.5 a 2.5 2.5 0 0 1 5 0 V 5.5" stroke="currentColor" strokeWidth="1" fill="none"/></svg>
+                      )}
+                      {r.access === 'open' ? 'See record' : r.access === 'embargo' ? 'Embargoed' : 'Restricted'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex between" style={{alignItems:'center',marginTop:20,fontFamily:'var(--mono)',fontSize:11.5,color:'var(--ink-3)',letterSpacing:'0.05em'}}>
+          <div>PAGE 01 / 1843 · 10 PER PAGE</div>
+          <div style={{display:'flex',gap:8}}>
+            <button className="btn btn-ghost btn-sm">← Prev</button>
+            <button className="btn btn-ghost btn-sm">Next →</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+Object.assign(window, { RegistryPage });
+
+</script>
+  <script type="text/babel" data-src="page-record.jsx">
+// ArtGene Archive — Sequence detail record (GenBank-style)
+function RecordPage({ setRoute, recordId }) {
+  const [tab, setTab] = React.useState('abstract');
+
+  const rec = {
+    id: recordId || 'AG-2026-018427',
+    name: 'Thermostable carbonic anhydrase CA-ΔT7',
+    short: 'CA-ΔT7',
+    type: 'Protein (coding sequence)',
+    host: 'Escherichia coli BL21(DE3)',
+    organism_src: 'De novo — no natural homolog > 38% identity',
+    aa: 258,
+    bp: 777,
+    mw: '28.4 kDa',
+    model: 'ESM-3 · v2.1',
+    method: 'Conditional generation + ProteinMPNN redesign',
+    org: 'ETH Zürich — Platt Laboratory for Synthetic Biology',
+    authors: ['Elena Rojas, PhD', 'Mikhail Volkov', 'Sofia Bianchi, PhD', 'R. Platt (PI)'],
+    deposited: '2026-04-22 11:47 UTC',
+    certified: '2026-04-22 11:48:12 UTC',
+    hash: 'a9f0c3e8b41d2f7a9c8e0b4d6f2a1c7e8b3d5a9f',
+    sig: '0x4c8e2a…b19f',
+    keywords: ['carbonic anhydrase', 'CO₂ capture', 'thermostable', 'de novo', 'industrial enzyme'],
+    license: 'CC-BY-4.0',
+  };
+
+  const tabs = [
+    ['abstract','Abstract & description'],
+    ['sequence','Sequence'],
+    ['biosafety','Biosafety scorecard'],
+    ['provenance','Provenance & watermark'],
+    ['refs','References & versions'],
+  ];
+
+  return (
+    <div className="route">
+      {/* Top bar: ID + status */}
+      <div style={{background:'var(--paper-3)',borderBottom:'0.5px solid var(--rule)',padding:'10px 0'}}>
+        <div className="wrap flex between center" style={{gap:16,flexWrap:'wrap'}}>
+          <div className="mono" style={{fontSize:11,letterSpacing:'0.08em',color:'var(--ink-3)',textTransform:'uppercase'}}>
+            <span onClick={()=>setRoute('registry')} style={{cursor:'pointer'}}>Registry</span> ▸ <span>Record</span> ▸ <span style={{color:'var(--ink)'}}>{rec.id}</span>
+          </div>
+          <div className="flex gap-8" style={{alignItems:'center'}}>
+            <span className="badge badge-verify badge-dot">Certified · Tier 1</span>
+            <span className="badge">v1.0 · current</span>
+            <span className="badge">Open · CC-BY-4.0</span>
+            <button className="btn btn-ghost btn-sm">⎘ Cite</button>
+            <button className="btn btn-ghost btn-sm">↓ FASTA</button>
+            <button className="btn btn-ghost btn-sm">↓ Certificate</button>
+          </div>
+        </div>
+      </div>
+
+      {/* ============ HEADER ============ */}
+      <section className="wrap" style={{padding:'48px 0 32px'}}>
+        <div className="grid-12" style={{gap:40,alignItems:'start'}}>
+          <div style={{gridColumn:'span 8'}}>
+            <div className="mono" style={{fontSize:11,color:'var(--accent)',letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:14}}>
+              {rec.id} · Protein coding sequence
+            </div>
+            <h1 className="display" style={{fontSize:38,margin:'0 0 14px',letterSpacing:'-0.02em'}}>
+              {rec.name}
+            </h1>
+            <div className="serif" style={{fontSize:16,fontStyle:'italic',color:'var(--ink-3)',marginBottom:20}}>
+              A de novo carbonic anhydrase engineered for sustained CO₂ capture above 75 °C.
+            </div>
+            <div className="flex" style={{gap:32,flexWrap:'wrap',marginTop:24,fontSize:13,color:'var(--ink-2)'}}>
+              <div>
+                <div className="mono" style={{fontSize:10,color:'var(--ink-3)',letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:4}}>Depositor</div>
+                {rec.org}
+              </div>
+              <div>
+                <div className="mono" style={{fontSize:10,color:'var(--ink-3)',letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:4}}>Deposited</div>
+                {rec.deposited}
+              </div>
+              <div>
+                <div className="mono" style={{fontSize:10,color:'var(--ink-3)',letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:4}}>Model</div>
+                {rec.model}
+              </div>
+              <div>
+                <div className="mono" style={{fontSize:10,color:'var(--ink-3)',letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:4}}>Length</div>
+                {rec.aa} aa · {rec.bp} bp · {rec.mw}
+              </div>
+            </div>
+          </div>
+          <div style={{gridColumn:'span 4',display:'flex',justifyContent:'center'}}>
+            <CertSeal size={180}/>
+          </div>
+        </div>
+      </section>
+
+      {/* Tabs */}
+      <div style={{borderTop:'0.5px solid var(--rule)',borderBottom:'0.5px solid var(--rule)',position:'sticky',top:78,background:'var(--paper)',zIndex:10}}>
+        <div className="wrap flex" style={{gap:0}}>
+          {tabs.map(([k,label])=>(
+            <button key={k} onClick={()=>setTab(k)} style={{
+              padding:'16px 22px',
+              background:'transparent',
+              border:'none',
+              borderBottom: tab===k ? '1.5px solid var(--accent)' : '1.5px solid transparent',
+              color: tab===k ? 'var(--ink)' : 'var(--ink-3)',
+              fontSize:13.5,
+              fontFamily:'var(--sans)',
+              cursor:'pointer',
+              marginBottom:'-0.5px',
+              letterSpacing:'0.005em',
+            }}>{label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Body */}
+      <section className="wrap" style={{padding:'48px 0 80px'}}>
+        {tab === 'abstract' && <AbstractTab rec={rec}/>}
+        {tab === 'sequence' && <SequenceTab rec={rec}/>}
+        {tab === 'biosafety' && <BiosafetyTab rec={rec}/>}
+        {tab === 'provenance' && <ProvenanceTab rec={rec}/>}
+        {tab === 'refs' && <ReferencesTab rec={rec}/>}
+      </section>
+    </div>
+  );
+}
+
+function AbstractTab({ rec }) {
+  return (
+    <div className="grid-12" style={{gap:48}}>
+      <div style={{gridColumn:'span 8'}}>
+        <div className="eyebrow mb-16">§ Abstract</div>
+        <div className="serif" style={{fontSize:20,lineHeight:1.55,color:'var(--ink)',marginBottom:28,letterSpacing:'-0.005em'}}>
+          CA-ΔT7 is a 258-residue de novo carbonic anhydrase, generated by conditional ESM-3 sampling and refined through three rounds of ProteinMPNN redesign, that retains > 85% catalytic activity at 80 °C — a regime where natural α- and β-class carbonic anhydrases denature within minutes.
+        </div>
+        <p style={{fontSize:15,lineHeight:1.7,color:'var(--ink-2)',marginBottom:20}}>
+          The enzyme was designed for use in direct-air-capture (DAC) hydration loops, where the thermal floor of solvent regeneration (typically 75–95 °C) has historically precluded biological catalysis. Structural predictions place the active-site zinc coordination geometry within 0.3 Å of bovine CA II, while the surrounding scaffold bears no detectable homology (≤ 38% identity, E > 1e-12) to any sequence in UniProt, GenBank, or the NCBI non-redundant database.
+        </p>
+        <p style={{fontSize:15,lineHeight:1.7,color:'var(--ink-2)',marginBottom:20}}>
+          Wet-lab validation in <em>E. coli</em> BL21(DE3) confirms soluble expression (12 mg/L), a melting temperature of Tₘ = 91.4 °C (ΔTₘ = +34 °C vs. hCA II), and a k_cat/K_M of 4.2 × 10⁶ M⁻¹s⁻¹ at 80 °C. All biosafety gates passed without exception; the sequence is deposited as Tier 1 (unrestricted, CC-BY-4.0).
+        </p>
+        <p style={{fontSize:15,lineHeight:1.7,color:'var(--ink-2)',marginBottom:20}}>
+          This record supersedes internal identifier <span className="mono" style={{fontSize:13,color:'var(--accent)'}}>PLATT-CA-V3-REV04</span> and is cited in Rojas et al., <em>Nature Biotechnology</em> (submitted, 2026).
+        </p>
+
+        <div className="mt-40 mb-16 eyebrow">§ Keywords</div>
+        <div className="flex gap-8" style={{flexWrap:'wrap'}}>
+          {rec.keywords.map(k => <span key={k} className="badge" style={{textTransform:'none',letterSpacing:'0.02em',fontFamily:'var(--sans)',fontSize:12}}>{k}</span>)}
+        </div>
+
+        <div className="mt-40 mb-16 eyebrow">§ Authors & contributors</div>
+        <div style={{borderTop:'0.5px solid var(--rule)'}}>
+          {rec.authors.map((a,i) => (
+            <div key={a} style={{padding:'14px 0',borderBottom:'0.5px solid var(--rule-2)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div>
+                <div style={{fontSize:14}}>{a}</div>
+                <div className="mono" style={{fontSize:11,color:'var(--ink-3)',letterSpacing:'0.04em',marginTop:2}}>ORCID 0000-000{i}-{1234+i}-{5678-i*3}</div>
+              </div>
+              <div className="mono" style={{fontSize:11,color:'var(--ink-3)',letterSpacing:'0.06em',textTransform:'uppercase'}}>
+                {i===3?'Principal investigator':i===0?'Corresponding author':'Co-author'}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Side panel */}
+      <aside style={{gridColumn:'span 4'}}>
+        <div className="card" style={{padding:0,overflow:'hidden'}}>
+          <div style={{padding:'16px 20px',borderBottom:'0.5px solid var(--rule)',background:'var(--paper-3)'}}>
+            <div className="mono" style={{fontSize:10.5,color:'var(--ink-3)',letterSpacing:'0.12em',textTransform:'uppercase'}}>Record metadata</div>
+          </div>
+          <dl style={{margin:0,padding:'8px 20px'}}>
+            {[
+              ['Accession', rec.id],
+              ['Molecule type', rec.type],
+              ['Expression host', rec.host],
+              ['Natural homolog', rec.organism_src],
+              ['Length', `${rec.aa} aa · ${rec.bp} bp`],
+              ['Molecular weight', rec.mw],
+              ['Generating model', rec.model],
+              ['Design method', rec.method],
+              ['License', rec.license],
+              ['Citation', `ArtGene Archive, ${rec.id}`],
+            ].map(([k,v]) => (
+              <div key={k} style={{display:'flex',justifyContent:'space-between',padding:'10px 0',borderBottom:'0.5px solid var(--rule-2)',gap:16}}>
+                <dt className="mono" style={{fontSize:10.5,color:'var(--ink-3)',letterSpacing:'0.08em',textTransform:'uppercase',flexShrink:0,paddingTop:2}}>{k}</dt>
+                <dd style={{margin:0,fontSize:12.5,color:'var(--ink-2)',textAlign:'right'}}>{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+
+        <div className="card mt-16" style={{padding:'20px'}}>
+          <div className="mono mb-8" style={{fontSize:10.5,color:'var(--ink-3)',letterSpacing:'0.12em',textTransform:'uppercase'}}>Cite this record</div>
+          <div className="mono" style={{fontSize:11.5,background:'var(--paper)',padding:12,borderRadius:3,border:'0.5px solid var(--rule)',lineHeight:1.6,color:'var(--ink-2)'}}>
+            Rojas E., Volkov M., Bianchi S., Platt R. (2026). CA-ΔT7, a thermostable de novo carbonic anhydrase. <em>ArtGene Archive</em> <span style={{color:'var(--accent)'}}>{rec.id}</span>.
+          </div>
+        </div>
+
+        <div className="card mt-16" style={{padding:'20px'}}>
+          <div className="mono mb-8" style={{fontSize:10.5,color:'var(--ink-3)',letterSpacing:'0.12em',textTransform:'uppercase'}}>Quick actions</div>
+          <div style={{display:'grid',gap:6}}>
+            <button className="btn btn-ghost btn-sm" style={{justifyContent:'flex-start'}}>↓ Download FASTA (1.2 KB)</button>
+            <button className="btn btn-ghost btn-sm" style={{justifyContent:'flex-start'}}>↓ Download GenBank (4.8 KB)</button>
+            <button className="btn btn-ghost btn-sm" style={{justifyContent:'flex-start'}}>↓ Certificate JSON (2.1 KB)</button>
+            <button className="btn btn-ghost btn-sm" style={{justifyContent:'flex-start'}}>↗ View on EMBL-EBI mirror</button>
+            <button className="btn btn-ghost btn-sm" style={{justifyContent:'flex-start'}}>⇆ BLAST this sequence</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function SequenceTab({ rec }) {
+  // Generate a plausible 777bp sequence rendered in rows of 60
+  const bases = 'ATGCATGAAGCCGTATAACGAATACTGGCTGCACGACTTCATCGTGAAAGATCTGGCCAGCCAGTTTCCGAATGTGTACCGCGAAATGCTGCATGCGAGCACCGCAGATCAGCTGGTGAAAGCGATTGATCAGCTGAATGAAGCGCTGCGCCAGCTGCATAAAGCGGGCAGCTAATAACGCGGTGAAAGAAATGCTGGATTACATCAAAGCGATGGAACAGCTGGCGAAAGAAGGCCAGGATTATGCGCGCAAACTGAAAGCGGATCTGAAAGCGGAACAGGTGGCCAAAGAAATTGATGCCGATCTGGAAGCGCTGGATGATGCGCTGAAAGAAGCGATGAAAGCGCTGAAAGCGAATGTGAAAGCCATGAAAGCGGATCAGGCCGGCATTCGTGAAGCGCTGGAAAAAGCCGCAGCGGCGAAACAGGCGCTGGCGCAGGAAATGGGCCAGCTGGAACGTGCGCTGAAAGCGGCGAATGGCGATATTGATGCGCTGCGTGAAAAAATTGATCGCCTGGAACAGCTGGCGGAAGAAGCGATTAAACGCCTGAATGAACAGGCGGCAAATCTGGCGCGTGAACAGGCGCTGAATGATCTGAAAGCGGAACAGCGCGCGCTGCGCGCGGAACTGAAAGAAAAACGCGATCTGCTGCAGCGCGAAAAAGAAGCGATGCGCCAGCAGCTGGAAGCGTAA';
+  const rows = [];
+  for (let i = 0; i < bases.length; i += 60) {
+    rows.push({ start: i+1, seq: bases.slice(i, i+60) });
+  }
+  // Positions where watermark codons live
+  const wmPositions = new Set([3,12,27,45,66,84,93,111,135,168,198,231,270,315,351]);
+
+  return (
+    <div className="grid-12" style={{gap:32}}>
+      <div style={{gridColumn:'span 12'}}>
+        <div className="flex between center mb-16">
+          <div className="eyebrow">§ Coding sequence · 777 bp · 258 aa</div>
+          <div className="flex gap-8">
+            <div className="seg" style={{fontSize:11}}>
+              <button className="active">DNA</button>
+              <button>mRNA</button>
+              <button>Protein</button>
+            </div>
+            <button className="btn btn-ghost btn-sm">Show watermark</button>
+            <button className="btn btn-ghost btn-sm">Copy</button>
+          </div>
+        </div>
+
+        <div className="seq-block">
+          {rows.map(({start, seq}) => {
+            // Split into triplets
+            const triplets = seq.match(/.{1,3}/g) || [];
+            return (
+              <div key={start} style={{display:'flex',gap:24,alignItems:'baseline'}}>
+                <span className="idx" style={{minWidth:40,textAlign:'right',color:'var(--ink-4)'}}>{String(start).padStart(4,'0')}</span>
+                <span style={{flex:1}}>
+                  {triplets.map((t, idx) => {
+                    const globalIdx = Math.floor(start/3) + idx;
+                    const isWm = wmPositions.has(globalIdx);
+                    return (
+                      <span key={idx} className={isWm ? 'wm' : ''} style={{marginRight:6, color: isWm ? 'var(--ink)' : 'inherit', fontWeight: isWm ? 500 : 400}}>
+                        {t}
+                      </span>
+                    );
+                  })}
+                </span>
+                <span className="idx" style={{minWidth:36,textAlign:'right',color:'var(--ink-4)'}}>{start+seq.length-1}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mono" style={{fontSize:11,color:'var(--ink-3)',marginTop:12,letterSpacing:'0.04em'}}>
+          <span style={{background:'color-mix(in oklab, var(--verify) 22%, transparent)',padding:'1px 4px',borderRadius:2}}>HIGHLIGHTED</span> · synonymous codons carrying the ArtGene 128-bit watermark. Protein sequence is unchanged.
+        </div>
+
+        {/* Feature track */}
+        <div className="mt-40 eyebrow mb-16">§ Feature map</div>
+        <div style={{background:'var(--paper-2)',border:'0.5px solid var(--rule)',borderRadius:6,padding:'24px 28px'}}>
+          <div style={{position:'relative',height:80,marginBottom:16}}>
+            {/* Scale */}
+            <div style={{position:'absolute',top:0,left:0,right:0,height:14,display:'flex',justifyContent:'space-between',fontFamily:'var(--mono)',fontSize:10,color:'var(--ink-4)'}}>
+              {[0,100,200,300,400,500,600,700,777].map(n => <span key={n}>{n}</span>)}
+            </div>
+            <div style={{position:'absolute',top:20,left:0,right:0,height:2,background:'var(--ink)'}}/>
+            {/* Features */}
+            {[
+              { start:0, end:3, color:'var(--verify)', label:'Start' },
+              { start:3, end:90, color:'var(--accent)', label:'Signal domain · α-helix bundle' },
+              { start:90, end:310, color:'oklch(0.55 0.09 140)', label:'Active site · Zn²⁺ coord' },
+              { start:310, end:580, color:'oklch(0.55 0.09 240)', label:'Catalytic core' },
+              { start:580, end:774, color:'oklch(0.6 0.1 300)', label:'C-terminal scaffold' },
+              { start:774, end:777, color:'var(--danger)', label:'Stop' },
+            ].map((f,i) => (
+              <div key={i} style={{
+                position:'absolute',
+                top: 28 + (i%2)*26,
+                left: `${(f.start/777)*100}%`,
+                width: `${((f.end-f.start)/777)*100}%`,
+                height:18,
+                background: f.color,
+                opacity: 0.85,
+                borderRadius: 2,
+                display:'flex',
+                alignItems:'center',
+                padding:'0 6px',
+                fontSize:10,
+                fontFamily:'var(--mono)',
+                color:'var(--paper)',
+                whiteSpace:'nowrap',
+                overflow:'hidden',
+              }}>{f.label}</div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BiosafetyTab({ rec }) {
+  const gates = [
+    {
+      letter:'α', name:'Structural confidence', tool:'ESMFold · pLDDT', score:0.91, threshold:0.70, pass:true,
+      detail:'Mean pLDDT 91.3 across the predicted fold. Active-site residues coordinated within 0.3 Å of reference. No disordered regions exceeding 12 residues.',
+    },
+    {
+      letter:'β', name:'Off-target homology', tool:'BLAST + ToxinPred2', score:0.97, threshold:0.60, pass:true,
+      detail:'Best hit: bovine CA II, 38% identity (E = 2.1e-11). No match to any sequence in NCBI pathogen/toxin databases (PATRIC, VFDB, DBETH). ToxinPred2 score: 0.03.',
+    },
+    {
+      letter:'γ', name:'Ecological risk', tool:'HGT + DriftRadar', score:0.88, threshold:0.55, pass:true,
+      detail:'HGT probability (SynthoHGT v2): 0.04. No CRISPR spacer matches. Fitness in E. coli minimal media: neutral (ΔGR = +0.02 ± 0.11). No evidence of environmental persistence risk.',
+    },
+  ];
+
+  return (
+    <div className="grid-12" style={{gap:48}}>
+      <div style={{gridColumn:'span 8'}}>
+        <div className="eyebrow mb-16">§ Biosafety scorecard</div>
+        <div style={{background:'color-mix(in oklab, var(--verify) 8%, var(--paper-2))',border:'0.5px solid color-mix(in oklab, var(--verify) 30%, transparent)',borderRadius:6,padding:'24px 28px',marginBottom:32}}>
+          <div className="flex between center">
+            <div>
+              <div className="mono" style={{fontSize:10.5,color:'var(--verify)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:8}}>Overall assessment · Tier 1 · Unrestricted</div>
+              <div className="serif" style={{fontSize:22,color:'var(--ink)',letterSpacing:'-0.01em'}}>All three gates passed without exception.</div>
+            </div>
+            <div style={{fontFamily:'var(--mono)',fontSize:48,color:'var(--verify)',letterSpacing:'-0.02em'}}>✓</div>
+          </div>
+        </div>
+
+        {gates.map(g => (
+          <div key={g.letter} style={{borderTop:'0.5px solid var(--rule)',padding:'28px 0'}}>
+            <div className="flex" style={{gap:24,alignItems:'start'}}>
+              <div style={{
+                width:56,height:56,borderRadius:'50%',
+                background:'var(--paper-2)',border:'0.5px solid var(--rule)',
+                display:'flex',alignItems:'center',justifyContent:'center',
+                fontFamily:'var(--serif)',fontSize:22,color:'var(--accent)',
+                flexShrink:0,
+              }}>{g.letter}</div>
+              <div style={{flex:1}}>
+                <div className="flex between center mb-8">
+                  <div>
+                    <div className="mono" style={{fontSize:10.5,color:'var(--ink-3)',letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:4}}>Gate {g.letter} · {g.tool}</div>
+                    <div className="serif" style={{fontSize:22}}>{g.name}</div>
+                  </div>
+                  <span className="badge badge-verify badge-dot">Passed</span>
+                </div>
+                {/* Score bar */}
+                <div style={{marginTop:14,marginBottom:12}}>
+                  <div className="flex between" style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--ink-3)',marginBottom:6}}>
+                    <span>Score</span>
+                    <span style={{color:'var(--ink)'}}>{g.score.toFixed(2)} <span style={{color:'var(--ink-4)'}}>/ threshold {g.threshold.toFixed(2)}</span></span>
+                  </div>
+                  <div style={{height:4,background:'var(--rule)',borderRadius:2,position:'relative',overflow:'hidden'}}>
+                    <div style={{position:'absolute',top:0,bottom:0,left:`${g.threshold*100}%`,width:'0.5px',background:'var(--ink-3)',zIndex:2}}/>
+                    <div style={{position:'absolute',top:0,left:0,height:'100%',width:`${g.score*100}%`,background:'var(--verify)'}}/>
+                  </div>
+                </div>
+                <p style={{fontSize:13.5,lineHeight:1.6,color:'var(--ink-2)',margin:'12px 0 0'}}>{g.detail}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        <div className="mt-24" style={{fontSize:12,color:'var(--ink-3)',lineHeight:1.6,paddingLeft:18,borderLeft:'2px solid var(--rule)'}}>
+          Biosafety screening is automated and non-exhaustive. Flagged or borderline records route to the ArtGene Human Review Panel within 24 hours. Tier assignments are reviewed annually and may be revised as reference databases evolve.
+        </div>
+      </div>
+
+      <aside style={{gridColumn:'span 4'}}>
+        <div className="card" style={{padding:20}}>
+          <div className="mono mb-16" style={{fontSize:10.5,color:'var(--ink-3)',letterSpacing:'0.12em',textTransform:'uppercase'}}>Tier legend</div>
+          <div style={{display:'grid',gap:14}}>
+            {[
+              { t:'Tier 1', color:'var(--verify)', desc:'Unrestricted. Public, CC-BY-4.0. All three gates pass with margin.' },
+              { t:'Tier 2', color:'var(--warn)', desc:'Conditional. Metadata public; sequence on request with institutional verification.' },
+              { t:'Tier 3', color:'var(--danger)', desc:'Restricted. Flagged by one or more gates. Human review required before any release.' },
+            ].map(t => (
+              <div key={t.t} style={{paddingLeft:12,borderLeft:`2px solid ${t.color}`}}>
+                <div style={{fontSize:13,fontWeight:500,color:'var(--ink)'}}>{t.t}</div>
+                <div style={{fontSize:12,color:'var(--ink-3)',lineHeight:1.5,marginTop:2}}>{t.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="card mt-16" style={{padding:20}}>
+          <div className="mono mb-8" style={{fontSize:10.5,color:'var(--ink-3)',letterSpacing:'0.12em',textTransform:'uppercase'}}>Report a concern</div>
+          <p style={{fontSize:12.5,color:'var(--ink-3)',lineHeight:1.55,margin:'0 0 12px'}}>
+            If you believe this record was misclassified or poses a risk not captured by automated screening, contact the biosafety panel.
+          </p>
+          <button className="btn btn-ghost btn-sm">biosafety@artgene-archive.org →</button>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function ProvenanceTab({ rec }) {
+  return (
+    <div className="grid-12" style={{gap:48}}>
+      <div style={{gridColumn:'span 7'}}>
+        <div className="eyebrow mb-16">§ Watermark fingerprint</div>
+        <div style={{background:'var(--paper-2)',border:'0.5px solid var(--rule)',borderRadius:6,padding:28,marginBottom:28}}>
+          <div className="flex between center mb-16">
+            <div className="mono" style={{fontSize:10.5,color:'var(--ink-3)',letterSpacing:'0.12em',textTransform:'uppercase'}}>128-bit signature · ETH-ZURICH-PLATT-LAB</div>
+            <span className="badge badge-verify badge-dot">Recovered intact</span>
+          </div>
+          <div style={{aspectRatio:'2/1',marginBottom:12}}>
+            <CodonGrid rows={8} cols={16}/>
+          </div>
+          <div className="mono" style={{fontSize:10.5,color:'var(--ink-4)',letterSpacing:'0.04em'}}>
+            HEX · 0x4c8e2a9f01bd3e7a6c8d0f42b19fac38
+          </div>
+        </div>
+
+        <div className="eyebrow mb-16">§ Chain of custody</div>
+        <div style={{position:'relative',paddingLeft:28}}>
+          <div style={{position:'absolute',left:10,top:8,bottom:8,width:'0.5px',background:'var(--rule)'}}/>
+          {[
+            { t:'Generated', when:'2026-04-19 14:12 UTC', who:'ESM-3 v2.1 · Platt Lab cluster node 04', detail:'Model seed 0xAF42. Temperature 0.8. Conditional: CA catalytic motif.' },
+            { t:'Redesigned', when:'2026-04-20 09:31 UTC', who:'ProteinMPNN · 3 iterations', detail:'Scaffold-preserved redesign. Best sequence selected by thermostability predictor.' },
+            { t:'Wet-lab validated', when:'2026-04-21 16:08 UTC', who:'Bianchi · bench 3', detail:'Soluble expression confirmed. Tₘ measured by DSF at 91.4 °C.' },
+            { t:'Deposited', when:'2026-04-22 11:47 UTC', who:'Rojas (corresponding)', detail:'Full metadata, E. coli host, Tier 1 candidate.' },
+            { t:'Certified', when:'2026-04-22 11:48:12 UTC', who:'ArtGene automated pipeline', detail:'Hash a9f0c3e8… anchored to ledger block 148,902.', highlight:true },
+          ].map((e,i) => (
+            <div key={i} style={{position:'relative',paddingBottom:24}}>
+              <div style={{position:'absolute',left:-24,top:4,width:14,height:14,borderRadius:'50%',border:'0.5px solid var(--ink)',background:e.highlight?'var(--accent)':'var(--paper)'}}/>
+              <div className="mono" style={{fontSize:10.5,color:'var(--ink-3)',letterSpacing:'0.06em'}}>{e.when}</div>
+              <div className="serif" style={{fontSize:18,margin:'2px 0 4px'}}>{e.t} <span style={{color:'var(--ink-3)',fontStyle:'italic',fontSize:14}}>— {e.who}</span></div>
+              <div style={{fontSize:13,color:'var(--ink-2)',lineHeight:1.55}}>{e.detail}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <aside style={{gridColumn:'span 5'}}>
+        <div className="card" style={{padding:24}}>
+          <div className="flex between center mb-16">
+            <div className="mono" style={{fontSize:10.5,color:'var(--ink-3)',letterSpacing:'0.12em',textTransform:'uppercase'}}>Certificate JSON</div>
+            <button className="btn btn-ghost btn-sm">Copy</button>
+          </div>
+          <pre className="mono" style={{margin:0,fontSize:11,lineHeight:1.7,color:'var(--ink-2)',whiteSpace:'pre-wrap',background:'var(--paper)',padding:16,border:'0.5px solid var(--rule)',borderRadius:3,overflow:'auto'}}>
+{`{
+  "accession": "${rec.id}",
+  "version": "1.0",
+  "hash_sha256": "${rec.hash}…",
+  "signature":  "${rec.sig}",
+  "issued_by":  "artgene-archive.org",
+  "issued_at":  "${rec.certified}",
+  "ledger": {
+    "merkle_root": "f3a9…d01c",
+    "block":       148902,
+    "anchor":      "ethereum:0x9c…e2"
+  },
+  "depositor": {
+    "org":  "ETH Zürich",
+    "unit": "Platt Lab",
+    "keyid":"ETH-ZURICH-PLATT-2026"
+  },
+  "biosafety": {
+    "tier": 1, "alpha": 0.91,
+    "beta": 0.97, "gamma": 0.88
+  },
+  "license": "${rec.license}"
+}`}
+          </pre>
+          <button className="btn btn-accent btn-sm mt-16" style={{width:'100%',justifyContent:'center'}}>
+            ⚑ Verify offline with CLI
+          </button>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function ReferencesTab({ rec }) {
+  return (
+    <div className="grid-12" style={{gap:48}}>
+      <div style={{gridColumn:'span 8'}}>
+        <div className="eyebrow mb-16">§ References</div>
+        <div style={{borderTop:'0.5px solid var(--rule)'}}>
+          {[
+            { n:'[1]', ref:'Rojas E., Volkov M., Bianchi S., Platt R. (2026). Thermostable de novo carbonic anhydrases for direct air capture. Nature Biotechnology, submitted.', type:'preprint' },
+            { n:'[2]', ref:'Hayes T., Rao R., Akin H., et al. (2024). Simulating 500 million years of evolution with a language model. bioRxiv 2024.07.01.601568.', type:'ref' },
+            { n:'[3]', ref:'Dauparas J., Anishchenko I., Bennett N., et al. (2022). Robust deep learning-based protein sequence design using ProteinMPNN. Science 378, 49-56.', type:'ref' },
+            { n:'[4]', ref:'Krishna R., Wang J., Ahern W., et al. (2024). Generalized biomolecular modeling and design with RoseTTAFold All-Atom. Science 384, eadl2528.', type:'ref' },
+            { n:'[5]', ref:'ArtGene Consortium (2026). Technical specification: codon steganography for sequence provenance, v1.2. ArtGene Tech Report TR-2026-001.', type:'spec' },
+          ].map(r => (
+            <div key={r.n} style={{padding:'16px 0',borderBottom:'0.5px solid var(--rule-2)',display:'flex',gap:16}}>
+              <div className="mono" style={{fontSize:11,color:'var(--accent)',minWidth:40,paddingTop:2}}>{r.n}</div>
+              <div>
+                <div style={{fontSize:13.5,lineHeight:1.55,color:'var(--ink-2)'}}>{r.ref}</div>
+                <div className="mt-8 flex gap-8">
+                  <span className="badge" style={{fontSize:10}}>{r.type}</span>
+                  <a className="mono" style={{fontSize:11,color:'var(--accent)',letterSpacing:'0.05em',textTransform:'uppercase'}}>Fetch DOI →</a>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-40 eyebrow mb-16">§ Version history</div>
+        <div style={{border:'0.5px solid var(--rule)',borderRadius:6,overflow:'hidden'}}>
+          <table className="tbl">
+            <thead><tr style={{background:'var(--paper-3)'}}>
+              <th>Version</th><th>Changes</th><th>Date</th><th>By</th><th/>
+            </tr></thead>
+            <tbody>
+              <tr><td><a className="id">v1.0</a> <span className="badge badge-verify" style={{marginLeft:6,fontSize:9}}>Current</span></td><td>Initial deposit · Tier 1 certified</td><td className="mono" style={{fontSize:12}}>2026-04-22</td><td style={{fontSize:13}}>Rojas E.</td><td>→</td></tr>
+              <tr><td><a className="id">v0.3-pre</a></td><td>Internal identifier PLATT-CA-V3-REV04 (not on ledger)</td><td className="mono" style={{fontSize:12}}>2026-04-20</td><td style={{fontSize:13}}>Volkov M.</td><td>→</td></tr>
+              <tr><td><a className="id">v0.1-pre</a></td><td>Raw model output · pre-MPNN redesign</td><td className="mono" style={{fontSize:12}}>2026-04-19</td><td style={{fontSize:13}}>auto</td><td>→</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <aside style={{gridColumn:'span 4'}}>
+        <div className="card" style={{padding:20}}>
+          <div className="mono mb-16" style={{fontSize:10.5,color:'var(--ink-3)',letterSpacing:'0.12em',textTransform:'uppercase'}}>Related records</div>
+          {[
+            ['AG-2026-018301','CA-ΔT5 · earlier variant'],
+            ['AG-2026-014902','DAC-Zn²⁺ coordination motif'],
+            ['AG-2026-012044','Thermophilic scaffold parent'],
+          ].map(([id,name])=>(
+            <div key={id} style={{padding:'10px 0',borderBottom:'0.5px solid var(--rule-2)'}}>
+              <a className="id" style={{fontSize:12}}>{id}</a>
+              <div style={{fontSize:12.5,color:'var(--ink-2)',marginTop:2}}>{name}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="card mt-16" style={{padding:20}}>
+          <div className="mono mb-8" style={{fontSize:10.5,color:'var(--ink-3)',letterSpacing:'0.12em',textTransform:'uppercase'}}>Cited by (1)</div>
+          <div style={{fontSize:13,color:'var(--ink-2)',lineHeight:1.55}}>
+            Rojas et al. (2026). <em>Nature Biotechnology</em>, submitted.
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+Object.assign(window, { RecordPage });
+
+</script>
+  <script type="text/babel" data-src="page-register.jsx">
+// ArtGene Archive — Register (deposit) flow + About + Docs
+function RegisterPage({ setRoute }) {
+  const [step, setStep] = React.useState(1);
+  const [seq, setSeq] = React.useState('');
+  const [running, setRunning] = React.useState(false);
+  const [done, setDone] = React.useState(false);
+
+  const startAnalysis = () => {
+    setStep(3);
+    setRunning(true);
+    setTimeout(()=>{ setRunning(false); setDone(true); }, 3400);
+  };
+
+  return (
+    <div className="route">
+      <section className="wrap" style={{padding:'48px 0 24px'}}>
+        <div className="eyebrow mb-8">Deposit pathway</div>
+        <h1 className="display" style={{fontSize:42,margin:0}}>Register a <em>new sequence.</em></h1>
+        <p className="lede mt-16" style={{maxWidth:640}}>
+          Four short steps. Your sequence is analyzed in under ninety seconds; a signed certificate is issued on pass. Submissions are free for public deposits.
+        </p>
+      </section>
+
+      {/* Stepper */}
+      <section className="wrap" style={{padding:'0 0 32px'}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:0,borderTop:'0.5px solid var(--rule)',borderBottom:'0.5px solid var(--rule)'}}>
+          {[['01','Sequence'],['02','Metadata'],['03','Biosafety review'],['04','Certificate']].map(([n,l],i)=>{
+            const idx = i+1;
+            const active = step === idx;
+            const past = step > idx;
+            return (
+              <div key={n} style={{
+                padding:'18px 24px',
+                borderRight: i<3?'0.5px solid var(--rule)':'none',
+                background: active ? 'var(--paper-3)' : 'transparent',
+                opacity: past ? 0.6 : 1,
+              }}>
+                <div className="mono" style={{fontSize:10.5,color: active?'var(--accent)':'var(--ink-3)',letterSpacing:'0.12em',marginBottom:4}}>
+                  {past?'✓':''} STEP {n}
+                </div>
+                <div className="serif" style={{fontSize:20,color:'var(--ink)'}}>{l}</div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Body */}
+      <section className="wrap" style={{padding:'0 0 80px'}}>
+        <div className="grid-12" style={{gap:40,alignItems:'start'}}>
+          <div style={{gridColumn:'span 8'}}>
+            {step === 1 && (
+              <div className="card">
+                <div className="eyebrow mb-16">§ 01 · Sequence input</div>
+                <h3 className="serif" style={{fontSize:17,margin:'0 0 8px'}}>Paste a FASTA or drop a file</h3>
+                <p style={{fontSize:13.5,color:'var(--ink-3)',lineHeight:1.55,marginBottom:20}}>
+                  Accepted: FASTA, GenBank, plain DNA/RNA/protein. Up to 1,000 residues per sequence (contact us for larger). We do not store rejected inputs.
+                </p>
+                <textarea
+                  value={seq}
+                  onChange={e=>setSeq(e.target.value)}
+                  placeholder="> MySequence | optional description&#10;MKLVGGEELFTGVVPILVELDGDVNGHKFSVSGEGEGDATYG..."
+                  style={{
+                    width:'100%',minHeight:200,padding:16,
+                    fontFamily:'var(--mono)',fontSize:12.5,lineHeight:1.7,
+                    background:'var(--paper)',border:'0.5px solid var(--rule)',borderRadius:4,
+                    color:'var(--ink)',resize:'vertical',outline:'none',
+                  }}/>
+                <div className="flex between center mt-16">
+                  <div className="flex gap-8">
+                    <button className="btn btn-ghost btn-sm">Browse file…</button>
+                    <button className="btn btn-ghost btn-sm" onClick={()=>setSeq('>CA-dT7 | Thermostable carbonic anhydrase de novo\nMKAKPYENWLHDFIVKDLASQFPNVYREMLHASTADQLVKAIDQLNEALRQLHKAGS')}>Load example</button>
+                  </div>
+                  <div className="mono" style={{fontSize:11,color:'var(--ink-3)'}}>{seq.replace(/[^A-Z]/gi,'').length} residues</div>
+                </div>
+                <div className="flex between mt-24" style={{alignItems:'center'}}>
+                  <div className="mono" style={{fontSize:11,color:'var(--ink-3)'}}>All uploads are scanned locally before transmission.</div>
+                  <button className="btn btn-primary" onClick={()=>setStep(2)} disabled={!seq.trim()}>Continue →</button>
+                </div>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="card">
+                <div className="eyebrow mb-16">§ 02 · Metadata</div>
+                <h3 className="serif" style={{fontSize:17,margin:'0 0 20px'}}>Describe your deposit</h3>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+                  {[
+                    ['Sequence name *','e.g. CA-ΔT7'],
+                    ['Molecule type *','Protein / DNA / RNA'],
+                    ['Expression host','E. coli BL21(DE3)'],
+                    ['Generating model *','ESM-3 · v2.1'],
+                    ['Design method','Conditional generation'],
+                    ['Your institution','—'],
+                  ].map(([l,p])=>(
+                    <div key={l}>
+                      <label className="mono" style={{fontSize:10.5,color:'var(--ink-3)',letterSpacing:'0.1em',textTransform:'uppercase',display:'block',marginBottom:6}}>{l}</label>
+                      <input placeholder={p} style={{
+                        width:'100%',padding:'10px 12px',background:'var(--paper)',
+                        border:'0.5px solid var(--rule)',borderRadius:3,fontSize:13.5,
+                        fontFamily:'var(--sans)',color:'var(--ink)',outline:'none',
+                      }}/>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-24">
+                  <label className="mono" style={{fontSize:10.5,color:'var(--ink-3)',letterSpacing:'0.1em',textTransform:'uppercase',display:'block',marginBottom:6}}>Abstract / description</label>
+                  <textarea placeholder="A short description of the sequence, its intended function, how it was generated, and any wet-lab validation performed…" style={{
+                    width:'100%',minHeight:100,padding:12,background:'var(--paper)',
+                    border:'0.5px solid var(--rule)',borderRadius:3,fontSize:13.5,
+                    fontFamily:'var(--sans)',color:'var(--ink)',resize:'vertical',outline:'none',lineHeight:1.6,
+                  }}/>
+                </div>
+                <div className="mt-24 flex gap-16" style={{background:'var(--paper-3)',padding:16,borderRadius:4,border:'0.5px solid var(--rule)'}}>
+                  <input type="checkbox" defaultChecked style={{marginTop:3}}/>
+                  <div>
+                    <div style={{fontSize:13,color:'var(--ink)'}}>Publish under CC-BY-4.0 (recommended)</div>
+                    <div style={{fontSize:12,color:'var(--ink-3)',marginTop:2}}>Makes the record public and citable. You retain attribution.</div>
+                  </div>
+                </div>
+                <div className="flex between mt-24">
+                  <button className="btn btn-ghost" onClick={()=>setStep(1)}>← Back</button>
+                  <button className="btn btn-primary" onClick={startAnalysis}>Run biosafety analysis →</button>
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="card">
+                <div className="eyebrow mb-16">§ 03 · Automated biosafety review</div>
+                <div className="flex between center mb-24">
+                  <h3 className="serif" style={{fontSize:17,margin:0}}>{running ? 'Running three gates…' : done ? 'All gates passed' : 'Preparing…'}</h3>
+                  {running && <div className="mono" style={{fontSize:11,color:'var(--accent)',letterSpacing:'0.1em',textTransform:'uppercase'}}>● LIVE</div>}
+                </div>
+                {[
+                  { letter:'α', name:'Structural confidence (ESMFold)', ms:900 },
+                  { letter:'β', name:'Off-target homology (BLAST + ToxinPred2)', ms:1900 },
+                  { letter:'γ', name:'Ecological risk (HGT + DriftRadar)', ms:3200 },
+                ].map((g,i) => (
+                  <GateRow key={g.letter} gate={g} running={running} done={done}/>
+                ))}
+                {done && (
+                  <div style={{marginTop:24,padding:'20px 22px',background:'color-mix(in oklab, var(--verify) 10%, var(--paper-2))',border:'0.5px solid color-mix(in oklab, var(--verify) 30%, transparent)',borderRadius:4}}>
+                    <div className="mono" style={{fontSize:10.5,color:'var(--verify)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:8}}>Tier 1 · Unrestricted · Ready to certify</div>
+                    <div style={{fontSize:13.5,color:'var(--ink-2)'}}>Your sequence passed all three biosafety gates. Proceed to mint the certificate and receive your AG-ID.</div>
+                    <button className="btn btn-accent mt-16" onClick={()=>setStep(4)}>Mint certificate →</button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {step === 4 && (
+              <div className="card" style={{textAlign:'center',padding:'48px 32px'}}>
+                <div style={{display:'flex',justifyContent:'center',marginBottom:24}}>
+                  <CertSeal size={200}/>
+                </div>
+                <div className="mono" style={{fontSize:11,color:'var(--accent)',letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:14}}>Certificate issued</div>
+                <h2 className="display" style={{fontSize:32,margin:'0 0 14px'}}>
+                  Your accession is<br/><em>AG-2026-018428</em>
+                </h2>
+                <p style={{fontSize:15,color:'var(--ink-2)',maxWidth:520,margin:'0 auto 28px',lineHeight:1.6}}>
+                  The record is now public. A watermark has been embedded in the coding sequence and the certificate has been anchored to ledger block <span className="mono">148,903</span>.
+                </p>
+                <div className="flex gap-12" style={{justifyContent:'center'}}>
+                  <button className="btn btn-primary" onClick={()=>setRoute('record')}>View record →</button>
+                  <button className="btn btn-ghost">↓ Download certificate</button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar */}
+          <aside style={{gridColumn:'span 4'}}>
+            <div className="card" style={{padding:20}}>
+              <div className="mono mb-16" style={{fontSize:10.5,color:'var(--ink-3)',letterSpacing:'0.12em',textTransform:'uppercase'}}>The three gates</div>
+              <div style={{display:'grid',gap:14}}>
+                {[
+                  ['α','Structural','ESMFold pLDDT ≥ 0.70'],
+                  ['β','Off-target','BLAST vs. pathogen DB. ToxinPred2 < 0.4'],
+                  ['γ','Ecological','HGT probability < 0.25. DriftRadar.'],
+                ].map(([L,n,d])=>(
+                  <div key={L} style={{display:'flex',gap:14,alignItems:'start'}}>
+                    <div style={{width:30,height:30,borderRadius:'50%',border:'0.5px solid var(--ink)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--serif)',fontSize:16,color:'var(--accent)',flexShrink:0}}>{L}</div>
+                    <div>
+                      <div style={{fontSize:13,color:'var(--ink)'}}>{n}</div>
+                      <div style={{fontSize:11.5,color:'var(--ink-3)',lineHeight:1.4,marginTop:1}}>{d}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="card mt-16" style={{padding:20}}>
+              <div className="mono mb-8" style={{fontSize:10.5,color:'var(--ink-3)',letterSpacing:'0.12em',textTransform:'uppercase'}}>Need help?</div>
+              <p style={{fontSize:12.5,color:'var(--ink-3)',lineHeight:1.55,margin:'0 0 12px'}}>
+                First-time depositors can request a walkthrough from the Consortium office.
+              </p>
+              <button className="btn btn-ghost btn-sm">Schedule a call →</button>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function GateRow({ gate, running, done }) {
+  const [prog, setProg] = React.useState(0);
+  const [finished, setFinished] = React.useState(false);
+  React.useEffect(()=>{
+    if (!running && !done) return;
+    let raf;
+    const start = performance.now();
+    const tick = (t) => {
+      const p = Math.min(1, (t - start) / gate.ms);
+      setProg(p);
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else setFinished(true);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [running, done]);
+  return (
+    <div style={{padding:'14px 0',borderTop:'0.5px solid var(--rule-2)'}}>
+      <div className="flex between center">
+        <div className="flex gap-12 center">
+          <div style={{width:28,height:28,borderRadius:'50%',border:'0.5px solid var(--ink)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--serif)',fontSize:15,color:'var(--accent)'}}>{gate.letter}</div>
+          <div style={{fontSize:13.5}}>{gate.name}</div>
+        </div>
+        {finished ? <span className="mono" style={{fontSize:11,color:'var(--verify)',letterSpacing:'0.1em',textTransform:'uppercase'}}>✓ PASS</span> : <span className="mono" style={{fontSize:11,color:'var(--ink-3)',letterSpacing:'0.1em',textTransform:'uppercase'}}>{prog>0?`${Math.round(prog*100)}%`:'QUEUED'}</span>}
+      </div>
+      <div style={{height:2,background:'var(--rule)',borderRadius:1,marginTop:10,overflow:'hidden'}}>
+        <div style={{height:'100%',width:`${prog*100}%`,background:finished?'var(--verify)':'var(--accent)',transition:'width 0.1s'}}/>
+      </div>
+    </div>
+  );
+}
+
+// ============ ABOUT (charter) ============
+function AboutPage({ setRoute }) {
+  return (
+    <div className="route wrap-narrow" style={{padding:'80px 0'}}>
+      <div className="eyebrow mb-16">§ Charter · adopted 14 February 2026</div>
+      <h1 className="display" style={{fontSize:64,margin:'0 0 24px'}}>
+        A public-interest<br/>registry for the<br/><em>machine-designed</em> biome.
+      </h1>
+      <p className="lede" style={{margin:'24px 0 40px'}}>
+        ArtGene Archive is operated by the ArtGene Consortium — a non-profit federation of sequencing institutions, national biosafety authorities, and independent researchers. We do not sell access. We do not gate the scholarly record. Our commitments are published here in full.
+      </p>
+
+      {[
+        { n:'I.', t:'Openness', body:'All certified records are public, machine-readable, and available under CC-BY-4.0 by default. Mirrors in Hinxton, Mishima, and Bethesda ensure the registry is redundantly preserved.' },
+        { n:'II.', t:'Neutrality', body:'The Archive does not recommend, endorse, or commercialize any generative model or depositor. The registry is agnostic to method and affiliation.' },
+        { n:'III.', t:'Biosafety first', body:'Every deposit undergoes automated three-gate screening. Tier 3 records are never released publicly. The biosafety policy is reviewed by an independent panel annually.' },
+        { n:'IV.', t:'Attribution, permanently', body:'First-deposit priority is recorded on a public Merkle ledger. Contributors and their institutions receive lasting, verifiable credit. Models themselves are credited as generative provenance.' },
+        { n:'V.', t:'No lock-in', body:'The verification protocol is open-source. Certificates can be validated entirely offline. If the Consortium ceases to exist, the data remains readable.' },
+      ].map(item => (
+        <div key={item.n} style={{borderTop:'0.5px solid var(--rule)',padding:'28px 0',display:'grid',gridTemplateColumns:'80px 1fr',gap:24}}>
+          <div className="serif" style={{fontSize:32,color:'var(--accent)'}}>{item.n}</div>
+          <div>
+            <div className="serif" style={{fontSize:20,marginBottom:8,letterSpacing:'-0.01em'}}>{item.t}</div>
+            <p style={{fontSize:15,lineHeight:1.65,color:'var(--ink-2)',margin:0}}>{item.body}</p>
+          </div>
+        </div>
+      ))}
+
+      
+    </div>
+  );
+}
+
+// ============ DEMO ============
+
+function DemoPage() {
+  const [seq, setSeq] = React.useState('');
+  const [host, setHost] = React.useState('E. coli');
+  const [running, setRunning] = React.useState(false);
+  const [result, setResult] = React.useState(null);
+
+  const examples = [
+    { name:'Calmodulin', desc:'Human calmodulin — calcium signal transducer (149 AA, passes all biosafety gates)', tag:'Human', tagColor:'oklch(0.55 0.09 240)', seq:'MADQLTEEQIAEFKEAFSLFDKDGDGTITTKELGTVMRSLGQNPTEAELQDMINEVDADGNGTIDFPEFLTMMARKMKDTDSEEEIREAFRVFDKDGNGYISAAELRHVMTNLGEKLTDEEVDEMIREADIDGDGQVNYEEFVQMMTAK' },
+    { name:'Adenylate Kinase', desc:'E. coli adenylate kinase — phosphotransferase, metabolic enzyme (214 AA)', tag:'E. coli', tagColor:'oklch(0.50 0.10 160)', seq:'MRIILLGAPGAGKGTQAQFIMEKYGIPQISTGDMLRAAVKSGSELGKQAKDIMDAGKLVTDELVIALVKERIAQEDCRNGFLLDGFPRTIPQADAMKEAGINVDYVLEFDVPDELIVDRIVGRRVHAPSGRVYHVKFNPPKVEGKDDVTGEELTTRKDDQEETVRKRLVEYHQMTAPLIGYYSKEAEAGNTKYAKVDGTKPVAEVRADLEKILG' },
+    { name:'GFP', desc:'Green Fluorescent Protein — reporter gene', tag:'Yeast', tagColor:'oklch(0.60 0.10 80)', seq:'MSKGEELFTGVVPILVELDGDVNGHKFSVSGEGEGDATYGKLTLKFICTTGKLPVPWPTLVTTFSYGVQCFSRYPDHMKQHDFFKSAMPEGYVQERTIFFKDDGNYKTRAEVKFEGDTLVNRIELKGIDFKEDGNILGHKLEYNYNSHNVYIMADKQKNGIKVNFKIRHNIEDGSVQLADHYQQNTPIGDGPVLLPDNHYLSTQSALSKDPNEKRDHMVLLEFVTAAGITLGMDELYK' },
+    { name:'Ubiquitin', desc:'Human ubiquitin — structural biology standard', tag:'E. coli', tagColor:'oklch(0.50 0.10 160)', seq:'MQIFVKTLTGKTITLEVEPSDTIENVKAKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGG' },
+  ];
+
+  const analyse = () => {
+    setRunning(true);
+    setResult(null);
+    setTimeout(() => {
+      setRunning(false);
+      setResult({
+        length: seq.replace(/[^A-Z]/gi,'').length || 149,
+        gates: [
+          { name:'Structural (ESMFold pLDDT)', score:0.91, pass:true },
+          { name:'Off-target (BLAST + ToxinPred2)', score:0.97, pass:true },
+          { name:'Ecological (HGT + DriftRadar)', score:0.88, pass:true },
+        ],
+        tier: 1,
+      });
+    }, 2600);
+  };
+
+  return (
+    <div className="route wrap" style={{padding:'56px 0 80px'}}>
+      <div className="eyebrow mb-8">§ Try the biosafety pipeline</div>
+      <h1 className="display" style={{fontSize:42,margin:'0 0 14px'}}>Demo — analyse any sequence.</h1>
+      <p className="lede" style={{maxWidth:720, margin:'0 0 40px'}}>
+        Run the ArtGene biosafety pipeline without depositing. Your sequence is processed in memory only — never stored, indexed, or logged. For a permanent record, use the <a onClick={()=>{}} style={{color:'var(--accent)',cursor:'pointer'}}>formal deposit workflow</a>.
+      </p>
+
+      <div className="eyebrow mb-16">Try an example</div>
+      <div style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:16, marginBottom:32}}>
+        {examples.map(ex => (
+          <button key={ex.name} onClick={()=>setSeq('>'+ex.name+'\n'+ex.seq)} style={{
+            textAlign:'left', background:'var(--paper-2)', border:'0.5px solid var(--rule)',
+            borderRadius:6, padding:'16px 18px', cursor:'pointer', fontFamily:'var(--sans)',
+            transition:'border-color 0.15s',
+          }} onMouseEnter={e=>e.currentTarget.style.borderColor='var(--accent)'} onMouseLeave={e=>e.currentTarget.style.borderColor='var(--rule)'}>
+            <div style={{fontSize:14,fontWeight:600,marginBottom:6,color:'var(--ink)'}}>{ex.name}</div>
+            <div style={{fontSize:12,color:'var(--ink-3)',lineHeight:1.5,marginBottom:10}}>{ex.desc}</div>
+            <span className="badge" style={{color:ex.tagColor,borderColor:'color-mix(in oklab, '+ex.tagColor+' 30%, transparent)',background:'color-mix(in oklab, '+ex.tagColor+' 8%, var(--paper-2))'}}>{ex.tag}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="card" style={{padding:0,overflow:'hidden'}}>
+        <div style={{padding:'18px 24px',borderBottom:'0.5px solid var(--rule)',display:'flex',justifyContent:'space-between',alignItems:'center',background:'var(--paper-3)'}}>
+          <div style={{fontSize:14,fontWeight:600}}>Input sequence</div>
+          <span className="badge badge-verify badge-dot">Not stored · demo only</span>
+        </div>
+        <div style={{padding:'20px 24px 24px'}}>
+          <div style={{fontSize:13,color:'var(--ink-2)',lineHeight:1.55,background:'var(--verify-soft)',border:'0.5px solid color-mix(in oklab, var(--verify) 25%, transparent)',borderRadius:4,padding:'12px 14px',marginBottom:18}}>
+            <strong style={{color:'var(--verify)'}}>Your sequence is safe.</strong> This demo runs server-side and is discarded immediately after analysis. Nothing is stored, indexed, or logged unless you choose to deposit through the formal workflow.
+          </div>
+          <textarea
+            value={seq} onChange={e=>setSeq(e.target.value)}
+            placeholder=">MyProtein MKLVGGEELFTGVVPILVELDGDVNGH..."
+            style={{width:'100%',minHeight:160,padding:14,fontFamily:'var(--mono)',fontSize:12.5,lineHeight:1.7,background:'var(--paper)',border:'0.5px solid var(--rule)',borderRadius:4,color:'var(--ink)',resize:'vertical',outline:'none'}}/>
+          <div style={{display:'flex',alignItems:'center',gap:20,marginTop:18,flexWrap:'wrap'}}>
+            <div>
+              <label className="mono" style={{fontSize:10.5,color:'var(--ink-3)',letterSpacing:'0.1em',textTransform:'uppercase',display:'block',marginBottom:6}}>Host organism</label>
+              <select value={host} onChange={e=>setHost(e.target.value)} style={{padding:'8px 12px',background:'var(--paper)',border:'0.5px solid var(--rule)',borderRadius:3,fontSize:13,fontFamily:'var(--sans)',color:'var(--ink)',outline:'none',minWidth:200}}>
+                <option>E. coli</option><option>S. cerevisiae</option><option>H. sapiens</option><option>Mammalian (CHO)</option><option>Plant (A. thaliana)</option>
+              </select>
+            </div>
+            <div style={{marginLeft:'auto'}}>
+              <button className="btn btn-primary" onClick={analyse} disabled={running}>{running?'Analysing…':'Analyse sequence →'}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {(running || result) && (
+        <div className="card mt-24">
+          <div className="eyebrow mb-16">§ Analysis output</div>
+          {running && (
+            <div style={{padding:'20px 0',color:'var(--ink-3)',fontSize:13}}>
+              <div className="mono" style={{fontSize:11,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--accent)'}}>● RUNNING THREE GATES</div>
+              <div style={{marginTop:14,height:2,background:'var(--rule)',borderRadius:1,overflow:'hidden'}}>
+                <div style={{height:'100%',background:'var(--accent)',animation:'load 2.4s ease'}}/>
+              </div>
+              <style>{'@keyframes load { from { width:0 } to { width:100% } }'}</style>
+            </div>
+          )}
+          {result && (
+            <div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
+                <div className="serif" style={{fontSize:22}}>All three gates passed · Tier {result.tier}</div>
+                <span className="badge badge-verify badge-dot">Safe</span>
+              </div>
+              {result.gates.map(g => (
+                <div key={g.name} style={{padding:'14px 0',borderTop:'0.5px solid var(--rule-2)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <div style={{fontSize:13.5}}>{g.name}</div>
+                  <div style={{display:'flex',alignItems:'center',gap:16}}>
+                    <div style={{width:160,height:3,background:'var(--rule)',borderRadius:2,overflow:'hidden'}}>
+                      <div style={{height:'100%',width:(g.score*100)+'%',background:'var(--verify)'}}/>
+                    </div>
+                    <span className="mono" style={{fontSize:11.5,color:'var(--ink-2)',minWidth:36,textAlign:'right'}}>{g.score.toFixed(2)}</span>
+                    <span className="mono" style={{fontSize:11,color:'var(--verify)',letterSpacing:'0.1em'}}>✓ PASS</span>
+                  </div>
+                </div>
+              ))}
+              <div style={{marginTop:24,padding:'16px 20px',background:'var(--paper-3)',borderRadius:4,fontSize:13,color:'var(--ink-2)'}}>
+                This is a demonstration only. To mint a certificate and receive an AG-ID, use the <strong>Submit</strong> workflow.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+Object.assign(window, { DemoPage });
+
+Object.assign(window, { RegisterPage, AboutPage });
+
+</script>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "accent": "rust",
+      "density": "normal",
+      "hero": "editorial"
+    }/*EDITMODE-END*/;
+
+    const ACCENTS = {
+      rust:    { accent: 'oklch(0.48 0.13 45)',  soft: 'oklch(0.94 0.04 45)' },
+      forest:  { accent: 'oklch(0.44 0.10 160)', soft: 'oklch(0.94 0.04 160)' },
+      indigo:  { accent: 'oklch(0.46 0.14 270)', soft: 'oklch(0.94 0.04 270)' },
+      oxblood: { accent: 'oklch(0.42 0.14 20)',  soft: 'oklch(0.94 0.04 20)' },
+    };
+
+    function App() {
+      const [route, setRoute] = useState(() => localStorage.getItem('ag_route') || 'home');
+      const [recordId, setRecordId] = useState('AG-2026-018427');
+      const [tweaks, setTweaks] = useState(TWEAK_DEFAULTS);
+      const [tweaksOpen, setTweaksOpen] = useState(false);
+      const [editMode, setEditMode] = useState(false);
+
+      useEffect(() => { localStorage.setItem('ag_route', route); window.scrollTo(0,0); }, [route]);
+
+      // Apply accent
+      useEffect(() => {
+        const a = ACCENTS[tweaks.accent] || ACCENTS.rust;
+        document.documentElement.style.setProperty('--accent', a.accent);
+        document.documentElement.style.setProperty('--accent-soft', a.soft);
+        document.body.setAttribute('data-density', tweaks.density);
+      }, [tweaks]);
+
+      // Edit mode protocol
+      useEffect(() => {
+        const onMsg = (e) => {
+          if (e.data?.type === '__activate_edit_mode') { setEditMode(true); setTweaksOpen(true); }
+          if (e.data?.type === '__deactivate_edit_mode') { setEditMode(false); setTweaksOpen(false); }
+        };
+        window.addEventListener('message', onMsg);
+        window.parent.postMessage({type:'__edit_mode_available'}, '*');
+        return () => window.removeEventListener('message', onMsg);
+      }, []);
+
+      const update = (patch) => {
+        const next = {...tweaks, ...patch};
+        setTweaks(next);
+        window.parent.postMessage({type:'__edit_mode_set_keys', edits: patch}, '*');
+      };
+
+      return (
+        <div className="app" data-screen-label={route}>
+          <Header route={route} setRoute={setRoute}/>
+          {route === 'home' && <HomePage setRoute={setRoute}/>}
+          {route === 'registry' && <RegistryPage setRoute={setRoute} setRecordId={setRecordId}/>}
+          {route === 'record' && <RecordPage setRoute={setRoute} recordId={recordId}/>}
+          {route === 'register' && <RegisterPage setRoute={setRoute}/>}
+          {route === 'about' && <AboutPage setRoute={setRoute}/>}
+          {route === 'demo' && <DemoPage/>}
+          <Footer/>
+
+          {editMode && (
+            <div className={`tweaks ${tweaksOpen?'open':''}`}>
+              <h6>Tweaks <span style={{color:'var(--ink-4)'}}>·</span> <span style={{cursor:'pointer'}} onClick={()=>setTweaksOpen(false)}>×</span></h6>
+              <div className="tweak-row">
+                <label>Accent</label>
+                <div className="swatches">
+                  {Object.entries(ACCENTS).map(([k,v])=>(
+                    <div key={k} className={`sw ${tweaks.accent===k?'active':''}`} style={{background:v.accent}} onClick={()=>update({accent:k})} title={k}/>
+                  ))}
+                </div>
+              </div>
+              <div className="tweak-row">
+                <label>Density</label>
+                <div className="seg">
+                  {['compact','normal','roomy'].map(d=>(
+                    <button key={d} className={tweaks.density===d?'active':''} onClick={()=>update({density:d})}>{d}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="tweak-row">
+                <label>Jump to</label>
+                <div className="seg">
+                  {['home','registry','record','register'].map(r=>(
+                    <button key={r} className={route===r?'active':''} onClick={()=>setRoute(r)} style={{fontSize:10}}>{r}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>
