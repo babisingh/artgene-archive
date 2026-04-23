@@ -1796,66 +1796,281 @@ function RefsTabPlaceholder() {
   );
 }
 
-// Wraps existing gate panels with Greek-letter labels; full redesign in 3c-4
-function BiosafetyTabExisting({ cert }: { cert: Certificate }) {
+function BiosafetyTab({ cert }: { cert: Certificate }) {
   const report = cert.consequence_report;
-  const overallStatus: GateStatus = report?.overall_status ?? "skip";
+  const overall: GateStatus = report?.overall_status ?? "skip";
 
   if (!report) {
     return (
       <div className="card" style={{ padding: 24, color: "var(--ink-3)", fontSize: 14 }}>
-        No biosafety report available.
+        No biosafety report available for this record.
       </div>
     );
   }
 
+  // Build gate rows from available gate results
+  type GateRow = {
+    letter: string;
+    name: string;
+    tool: string;
+    status: GateStatus;
+    score: number | null;
+    threshold: number | null;
+    summary: string;
+    panel: React.ReactNode;
+  };
+
+  const gateRows: GateRow[] = [];
+
+  if (report.gate1) {
+    const g = report.gate1 as Gate1Result;
+    gateRows.push({
+      letter: "α", name: "Structural confidence", tool: "ESMFold · pLDDT",
+      status: g.status,
+      score: g.plddt_mean,
+      threshold: 70,
+      summary: g.message ?? (g.plddt_mean != null ? `Mean pLDDT ${g.plddt_mean.toFixed(1)}` : ""),
+      panel: <Gate1Panel gate1={g} />,
+    });
+  }
+  if (report.gate2) {
+    const g = report.gate2 as Gate2Result;
+    const isChained = g.screening_method === "chained_v1";
+    gateRows.push({
+      letter: "β", name: "Off-target homology",
+      tool: isChained ? "SecureDNA + IBBIS + Composition" : "Toxin / Allergen heuristic",
+      status: g.status,
+      score: g.toxin_probability != null ? (1 - g.toxin_probability) : null,
+      threshold: 0.70,
+      summary: g.message ?? (g.toxin_probability != null ? `Toxin probability ${(g.toxin_probability * 100).toFixed(1)}%` : ""),
+      panel: <Gate2Panel gate2={g} />,
+    });
+  }
+  if (report.gate3) {
+    const g = report.gate3 as Gate3Result;
+    gateRows.push({
+      letter: "γ", name: "Ecological risk", tool: "HGT + DriftRadar",
+      status: g.status,
+      score: g.hgt_score != null ? (1 - g.hgt_score / 100) : null,
+      threshold: 0.55,
+      summary: g.message ?? (g.hgt_score != null ? `HGT score ${g.hgt_score.toFixed(1)} / 100` : ""),
+      panel: <Gate3Panel gate3={g} />,
+    });
+  }
+  if (report.gate4) {
+    const g = report.gate4 as Gate4Result;
+    gateRows.push({
+      letter: "δ", name: "Functional analogue",
+      tool: g.method === "esm2_cosine_v1" ? "ESM-2 cosine similarity" : "Composition fingerprint",
+      status: g.status,
+      score: g.max_similarity != null ? (1 - g.max_similarity) : null,
+      threshold: g.threshold_fail != null ? (1 - g.threshold_fail) : 0.50,
+      summary: g.message ?? (g.max_similarity != null ? `Max similarity ${g.max_similarity.toFixed(4)}` : ""),
+      panel: <Gate4Panel gate4={g} />,
+    });
+  }
+
+  const allPassed = gateRows.every(g => g.status === "pass");
+  const overallColor = overall === "pass" ? "var(--verify)" : overall === "fail" ? "var(--danger)" : "var(--warn)";
+
+  const tierMap: Record<string, string> = {
+    FULL: "Tier 1", STANDARD: "Tier 2", REDUCED: "Tier 3", MINIMAL: "Tier 4", REJECTED: "Restricted",
+  };
+  const tierLabel = tierMap[cert.tier] ?? cert.tier;
+
   return (
-    <div className="space-y-3">
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--ink)", margin: 0 }}>Biosafety Gates</h2>
-        <StatusBadge status={overallStatus} />
+    <div className="grid-12" style={{ gap: 48 }}>
+
+      {/* ── Main column ── */}
+      <div style={{ gridColumn: "span 8" }}>
+        <div className="eyebrow mb-16">§ Biosafety scorecard</div>
+
+        {/* Overall assessment banner */}
+        <div
+          style={{
+            background: `color-mix(in oklab, ${overallColor} 8%, var(--paper-2))`,
+            border: `0.5px solid color-mix(in oklab, ${overallColor} 30%, transparent)`,
+            borderRadius: 6,
+            padding: "24px 28px",
+            marginBottom: 32,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div
+                className="mono"
+                style={{ fontSize: 10.5, color: overallColor, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}
+              >
+                Overall assessment · {tierLabel}
+              </div>
+              <div style={{ fontSize: 22, color: "var(--ink)", letterSpacing: "-0.01em" }}>
+                {allPassed
+                  ? "All gates passed without exception."
+                  : overall === "fail"
+                  ? "One or more gates failed — manual review required."
+                  : "Gates passed with warnings — see details below."}
+              </div>
+            </div>
+            <div
+              className="mono"
+              style={{ fontSize: 42, color: overallColor, letterSpacing: "-0.02em", lineHeight: 1 }}
+            >
+              {overall === "pass" ? "✓" : overall === "fail" ? "✗" : "⚠"}
+            </div>
+          </div>
+        </div>
+
+        {/* Gate rows */}
+        {gateRows.map(g => (
+          <div key={g.letter} style={{ borderTop: "0.5px solid var(--rule)", padding: "28px 0" }}>
+            <div style={{ display: "flex", gap: 24, alignItems: "start" }}>
+              {/* Greek-letter circle */}
+              <div
+                style={{
+                  width: 56, height: 56, borderRadius: "50%",
+                  background: "var(--paper-2)", border: "0.5px solid var(--rule)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 26, color: "var(--accent)",
+                  fontFamily: "var(--serif, var(--sans))",
+                  flexShrink: 0,
+                }}
+              >
+                {g.letter}
+              </div>
+
+              <div style={{ flex: 1 }}>
+                {/* Gate header */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <div>
+                    <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+                      Gate {g.letter} · {g.tool}
+                    </div>
+                    <div style={{ fontSize: 20, color: "var(--ink)" }}>{g.name}</div>
+                  </div>
+                  <StatusBadge status={g.status} />
+                </div>
+
+                {/* Score bar */}
+                {g.score !== null && g.threshold !== null && (
+                  <div style={{ marginTop: 14, marginBottom: 12 }}>
+                    <div
+                      style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-3)", marginBottom: 6 }}
+                    >
+                      <span>Score</span>
+                      <span style={{ color: "var(--ink)" }}>
+                        {g.score.toFixed(2)}{" "}
+                        <span style={{ color: "var(--ink-4)" }}>/ threshold {g.threshold.toFixed(2)}</span>
+                      </span>
+                    </div>
+                    <div style={{ height: 4, background: "var(--rule)", borderRadius: 2, position: "relative", overflow: "hidden" }}>
+                      <div
+                        style={{ position: "absolute", top: 0, bottom: 0, left: `${g.threshold * 100}%`, width: "0.5px", background: "var(--ink-3)", zIndex: 2 }}
+                      />
+                      <div
+                        style={{
+                          position: "absolute", top: 0, left: 0, height: "100%",
+                          width: `${Math.min(100, Math.max(0, g.score) * 100)}%`,
+                          background: g.status === "pass" ? "var(--verify)" : g.status === "fail" ? "var(--danger)" : "var(--warn)",
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {g.summary && (
+                  <p style={{ fontSize: 13.5, lineHeight: 1.6, color: "var(--ink-2)", margin: "12px 0 0" }}>{g.summary}</p>
+                )}
+
+                {/* Detailed panel (collapsible via existing GateItem, but here flat) */}
+                <details style={{ marginTop: 16 }}>
+                  <summary
+                    className="mono"
+                    style={{ fontSize: 11, color: "var(--ink-3)", cursor: "pointer", letterSpacing: "0.06em", textTransform: "uppercase", userSelect: "none" }}
+                  >
+                    Show full details ▸
+                  </summary>
+                  <div style={{ marginTop: 16, paddingTop: 16, borderTop: "0.5px solid var(--rule-2)" }}>
+                    {g.panel}
+                  </div>
+                </details>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {report.skipped_gates.length > 0 && (
+          <div className="mt-24 mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>
+            Gates {report.skipped_gates.join(", ")} skipped (fail-fast after gate failure).
+          </div>
+        )}
+
+        <div
+          className="mt-24"
+          style={{ fontSize: 12, color: "var(--ink-3)", lineHeight: 1.6, paddingLeft: 18, borderLeft: "2px solid var(--rule)" }}
+        >
+          Biosafety screening is automated and non-exhaustive. Flagged or borderline records route
+          to the ArtGene Human Review Panel. Tier assignments are reviewed annually.
+        </div>
       </div>
 
-      {report.gate1 && (
-        <GateItem title="Gate α · Structural Analysis (ESMFold pLDDT)" status={report.gate1.status}>
-          <Gate1Panel gate1={report.gate1 as Gate1Result} />
-        </GateItem>
-      )}
-      {report.gate2 && (
-        <GateItem
-          title={
-            report.gate2.screening_method === "chained_v1"
-              ? "Gate β · Off-Target Screening (Composition + SecureDNA + IBBIS)"
-              : "Gate β · Off-Target Screening (Toxin / Allergen)"
-          }
-          status={report.gate2.status}
-        >
-          <Gate2Panel gate2={report.gate2 as Gate2Result} />
-        </GateItem>
-      )}
-      {report.gate3 && (
-        <GateItem title="Gate γ · Ecological Risk (HGT / Codon Adaptation)" status={report.gate3.status}>
-          <Gate3Panel gate3={report.gate3 as Gate3Result} />
-        </GateItem>
-      )}
-      {report.gate4 && (
-        <GateItem
-          title={
-            report.gate4.method === "esm2_cosine_v1"
-              ? "Gate δ · Functional Analogue Detection (ESM-2 Cosine Similarity)"
-              : "Gate δ · Functional Analogue Detection (Composition Fingerprint · Demo)"
-          }
-          status={report.gate4.status}
-        >
-          <Gate4Panel gate4={report.gate4 as Gate4Result} />
-        </GateItem>
-      )}
+      {/* ── Sidebar ── */}
+      <aside style={{ gridColumn: "span 4" }}>
+        <div className="card" style={{ padding: 20 }}>
+          <div className="mono mb-16" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            Tier legend
+          </div>
+          <div style={{ display: "grid", gap: 14 }}>
+            {[
+              { t: "Tier 1", color: "var(--verify)", desc: "Unrestricted. Public, open access. All gates pass with margin." },
+              { t: "Tier 2", color: "var(--warn)",   desc: "Conditional. Metadata public; sequence on request with institutional verification." },
+              { t: "Tier 3", color: "var(--danger)", desc: "Restricted. Flagged by one or more gates. Human review required." },
+            ].map(tier => (
+              <div key={tier.t} style={{ paddingLeft: 12, borderLeft: `2px solid ${tier.color}` }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>{tier.t}</div>
+                <div style={{ fontSize: 12, color: "var(--ink-3)", lineHeight: 1.5, marginTop: 2 }}>{tier.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
 
-      {report.skipped_gates.length > 0 && (
-        <p className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>
-          Gates {report.skipped_gates.join(", ")} skipped (fail-fast).
-        </p>
-      )}
+        <div className="card mt-16" style={{ padding: 20 }}>
+          <div className="mono mb-8" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            Report a concern
+          </div>
+          <p style={{ fontSize: 12.5, color: "var(--ink-3)", lineHeight: 1.55, margin: "0 0 12px" }}>
+            If you believe this record was misclassified or poses a risk not captured by automated
+            screening, contact the biosafety panel.
+          </p>
+          <a
+            href="mailto:biosafety@artgene-archive.org"
+            className="btn btn-ghost btn-sm"
+            style={{ display: "inline-block" }}
+          >
+            biosafety@artgene-archive.org →
+          </a>
+        </div>
+
+        {report.gate_mode && (
+          <div className="card mt-16" style={{ padding: 20 }}>
+            <div className="mono mb-8" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+              Screen mode
+            </div>
+            <span
+              className="mono"
+              style={{
+                fontSize: 11,
+                background: report.gate_mode === "real" ? "color-mix(in oklab, var(--verify) 12%, var(--paper))" : "var(--paper-3)",
+                color: report.gate_mode === "real" ? "var(--verify)" : "var(--ink-3)",
+                padding: "4px 10px",
+                borderRadius: 3,
+                border: "0.5px solid var(--rule)",
+              }}
+            >
+              {report.gate_mode === "real" ? "● LIVE" : `${report.gate_mode}`}
+            </span>
+          </div>
+        )}
+      </aside>
     </div>
   );
 }
@@ -2100,7 +2315,7 @@ export default function CertificatePage({
       <section className="wrap" style={{ padding: "48px 0 80px" }}>
         {activeTab === "abstract"   && <AbstractTab cert={cert} />}
         {activeTab === "sequence"   && <SequenceTab cert={cert} />}
-        {activeTab === "biosafety"  && <BiosafetyTabExisting cert={cert} />}
+        {activeTab === "biosafety"  && <BiosafetyTab cert={cert} />}
         {activeTab === "provenance" && (
           <ProvenanceTab
             sequenceId={id}
