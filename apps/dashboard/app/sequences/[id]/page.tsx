@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { useApiKey } from "../../../lib/providers";
 import { CertSeal } from "../../../components/design/CertSeal";
+import { CodonGrid } from "../../../components/design/CodonGrid";
 import type {
   ApiClient,
   BlastHit,
@@ -1125,7 +1126,7 @@ function DistributeModal({
   );
 }
 
-function ProvenanceTab({
+function DistributionSection({
   sequenceId,
   client,
   showModal,
@@ -1219,6 +1220,231 @@ function ProvenanceTab({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Provenance & Watermark tab — 3c-5: watermark visual + distribution section
+// ---------------------------------------------------------------------------
+
+function ProvenanceTab({
+  cert,
+  sequenceId,
+  client,
+  showModal,
+  onOpenModal,
+  onCloseModal,
+}: {
+  cert: Certificate;
+  sequenceId: string;
+  client: ApiClient;
+  showModal: boolean;
+  onOpenModal: () => void;
+  onCloseModal: () => void;
+}) {
+  const [copiedJson, setCopiedJson] = useState(false);
+  const wm = cert.watermark_metadata;
+
+  const highlights = wm?.anchor_map?.carrier_indices ?? null;
+
+  // Build a minimal 2-event chain from cert timestamps
+  const custodyEvents = [
+    {
+      t: "Deposited",
+      when: new Date(cert.timestamp).toISOString().slice(0, 16).replace("T", " ") + " UTC",
+      who: cert.owner_id,
+      detail: `Full metadata submitted. Host: ${cert.host_organism}. Ethics: ${cert.ethics_code}.`,
+      highlight: false,
+    },
+    {
+      t: "Certified",
+      when: new Date(cert.timestamp).toISOString().slice(0, 16).replace("T", " ") + " UTC",
+      who: "ArtGene automated pipeline",
+      detail: `Certificate hash ${cert.certificate_hash.slice(0, 16)}… anchored. Tier ${cert.tier}.`,
+      highlight: true,
+    },
+  ];
+
+  const certJson = JSON.stringify({
+    accession:    cert.registry_id,
+    version:      "1.0",
+    hash_sha3_512: cert.certificate_hash.slice(0, 16) + "…",
+    pq_algorithm: cert.pq_algorithm,
+    pq_is_stub:   cert.pq_is_stub,
+    issued_by:    "artgene-archive.org",
+    issued_at:    cert.timestamp,
+    depositor:    { id: cert.owner_id, org: cert.org_id || "—" },
+    biosafety: {
+      tier:   cert.tier,
+      status: cert.status,
+    },
+    watermark: wm
+      ? {
+          id:               wm.watermark_id,
+          carrier_positions: wm.carrier_positions,
+          signature_hex:    wm.signature_hex,
+        }
+      : null,
+  }, null, 2);
+
+  function handleCopyJson() {
+    navigator.clipboard.writeText(certJson);
+    setCopiedJson(true);
+    setTimeout(() => setCopiedJson(false), 1800);
+  }
+
+  return (
+    <div className="grid-12" style={{ gap: 48 }}>
+
+      {/* ── Left column ── */}
+      <div style={{ gridColumn: "span 7" }}>
+
+        {/* Watermark fingerprint */}
+        <div className="eyebrow mb-16">§ Watermark fingerprint</div>
+        {wm ? (
+          <div
+            style={{
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 6,
+              padding: 28,
+              marginBottom: 28,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+                {(wm.config?.sig_bytes ?? 16) * 8}-bit signature · {cert.org_id || cert.owner_id}
+              </div>
+              <span className="badge badge-verify badge-dot">Watermark present</span>
+            </div>
+            <div style={{ aspectRatio: "2/1", marginBottom: 12 }}>
+              <CodonGrid rows={8} cols={16} highlights={highlights} />
+            </div>
+            <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-4)", letterSpacing: "0.04em" }}>
+              HEX · {wm.signature_hex ? `0x${wm.signature_hex}` : "—"}
+            </div>
+            <div className="mono" style={{ fontSize: 10, color: "var(--ink-4)", marginTop: 4 }}>
+              {wm.carrier_positions} carrier positions ·{" "}
+              χ² {wm.codon_bias_metrics?.chi_squared?.toFixed(3) ?? "—"} ·{" "}
+              covert: {wm.codon_bias_metrics?.is_covert ? "yes" : "no"}
+            </div>
+          </div>
+        ) : (
+          <div
+            style={{
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 6,
+              padding: 24,
+              marginBottom: 28,
+              color: "var(--ink-4)",
+              fontSize: 13,
+            }}
+          >
+            Watermark metadata not available for this record.
+          </div>
+        )}
+
+        {/* Chain of custody */}
+        <div className="eyebrow mb-16">§ Chain of custody</div>
+        <div style={{ position: "relative", paddingLeft: 28 }}>
+          <div style={{ position: "absolute", left: 10, top: 8, bottom: 8, width: "0.5px", background: "var(--rule)" }} />
+          {custodyEvents.map((e, i) => (
+            <div key={i} style={{ position: "relative", paddingBottom: 24 }}>
+              <div
+                style={{
+                  position: "absolute", left: -24, top: 4,
+                  width: 14, height: 14, borderRadius: "50%",
+                  border: "0.5px solid var(--ink)",
+                  background: e.highlight ? "var(--accent)" : "var(--paper)",
+                }}
+              />
+              <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.06em" }}>{e.when}</div>
+              <div style={{ fontSize: 18, margin: "2px 0 4px", color: "var(--ink)" }}>
+                {e.t}{" "}
+                <span style={{ color: "var(--ink-3)", fontStyle: "italic", fontSize: 14 }}>— {e.who}</span>
+              </div>
+              <div style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.55 }}>{e.detail}</div>
+            </div>
+          ))}
+          <p style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 8 }}>
+            Full event log (generation, wet-lab, redesign) will be available once the backend exposes
+            a custody event endpoint.
+          </p>
+        </div>
+
+        {/* Distribution section */}
+        <div className="eyebrow mt-48 mb-16">§ Distribution copies</div>
+        <DistributionSection
+          sequenceId={sequenceId}
+          client={client}
+          showModal={showModal}
+          onOpenModal={onOpenModal}
+          onCloseModal={onCloseModal}
+        />
+      </div>
+
+      {/* ── Right column ── */}
+      <aside style={{ gridColumn: "span 5" }}>
+        <div className="card" style={{ padding: 24 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+              Certificate JSON
+            </div>
+            <button className="btn btn-ghost btn-sm" onClick={handleCopyJson}>
+              {copiedJson ? "Copied ✓" : "Copy"}
+            </button>
+          </div>
+          <pre
+            className="mono"
+            style={{
+              margin: 0, fontSize: 11, lineHeight: 1.7, color: "var(--ink-2)",
+              whiteSpace: "pre-wrap", background: "var(--paper)", padding: 16,
+              border: "0.5px solid var(--rule)", borderRadius: 3, overflow: "auto",
+              maxHeight: 380,
+            }}
+          >
+            {certJson}
+          </pre>
+          <button
+            className="btn btn-ghost btn-sm mt-16"
+            style={{ width: "100%", justifyContent: "center" }}
+            onClick={() => {
+              const blob = new Blob([certJson], { type: "application/json" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `${cert.registry_id}-certificate.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
+            ↓ Download Certificate JSON
+          </button>
+        </div>
+
+        {wm && (
+          <div className="card mt-16" style={{ padding: 20 }}>
+            <div className="mono mb-8" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+              Verify offline
+            </div>
+            <p style={{ fontSize: 12.5, color: "var(--ink-3)", lineHeight: 1.55, margin: "0 0 12px" }}>
+              Verify this record&apos;s certificate hash using the ArtGene CLI:
+            </p>
+            <pre
+              className="mono"
+              style={{
+                fontSize: 11, background: "var(--paper)", padding: "10px 14px",
+                border: "0.5px solid var(--rule)", borderRadius: 3,
+                color: "var(--ink-2)", lineHeight: 1.6,
+              }}
+            >
+              {`artgene verify ${cert.registry_id}`}
+            </pre>
+          </div>
+        )}
+      </aside>
     </div>
   );
 }
@@ -2318,6 +2544,7 @@ export default function CertificatePage({
         {activeTab === "biosafety"  && <BiosafetyTab cert={cert} />}
         {activeTab === "provenance" && (
           <ProvenanceTab
+            cert={cert}
             sequenceId={id}
             client={client}
             showModal={showDistributeModal}
