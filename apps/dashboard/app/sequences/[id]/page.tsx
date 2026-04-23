@@ -3,7 +3,7 @@
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { use, useState } from "react";
+import React, { use, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -1434,12 +1434,177 @@ function SynthesizerTab({
 // Phase 3c — stubs filled in 3c-2 through 3c-6
 // ---------------------------------------------------------------------------
 
-function AbstractTabPlaceholder({ cert }: { cert: Certificate }) {
+function AbstractTab({ cert }: { cert: Certificate }) {
+  const wm = cert.watermark_metadata;
+  const aaLength = wm?.original_protein?.length ?? null;
+  const bpLength = wm?.dna_sequence?.length ?? null;
+
+  const tierMap: Record<string, string> = {
+    FULL: "Tier 1 — Unrestricted",
+    STANDARD: "Tier 2 — Conditional",
+    REDUCED: "Tier 3 — Restricted",
+    MINIMAL: "Tier 4 — Minimal",
+    REJECTED: "Rejected",
+  };
+
+  const metaRows: [string, React.ReactNode][] = [
+    ["Accession",       cert.registry_id],
+    ["Molecule type",   cert.sequence_type.toUpperCase()],
+    ["Expression host", cert.host_organism || "—"],
+    ["Ethics code",     cert.ethics_code],
+    ["Length",          [aaLength ? `${aaLength} aa` : null, bpLength ? `${bpLength} bp` : null].filter(Boolean).join(" · ") || "—"],
+    ["Watermark ID",    wm?.watermark_id ?? "—"],
+    ["Tier",            tierMap[cert.tier] ?? cert.tier],
+    ["Deposited",       new Date(cert.timestamp).toISOString().slice(0, 10)],
+    ["Organisation",    cert.org_id || "—"],
+    ["Generating model","— (not yet in API)"],
+    ["Design method",   "— (not yet in API)"],
+    ["License",         "— (not yet in API)"],
+    ["Citation",        `ArtGene Archive, ${cert.registry_id}`],
+  ];
+
   return (
-    <div style={{ color: "var(--ink-3)", fontSize: 14, padding: "24px 0" }}>
-      <div className="eyebrow" style={{ marginBottom: 12 }}>§ Abstract &amp; description</div>
-      <p>Abstract metadata — coming in step 3c-2.</p>
-      <p className="mono" style={{ fontSize: 12, marginTop: 8 }}>{cert.registry_id}</p>
+    <div className="grid-12" style={{ gap: 48 }}>
+
+      {/* ── Main column ── */}
+      <div style={{ gridColumn: "span 8" }}>
+        <div className="eyebrow mb-16">§ Abstract</div>
+
+        {/* Empty-state for abstract text (backend not yet exposing this field) */}
+        <div
+          style={{
+            background: "var(--paper-2)",
+            border: "0.5px solid var(--rule)",
+            borderRadius: 6,
+            padding: "24px 28px",
+            marginBottom: 28,
+            color: "var(--ink-3)",
+            fontSize: 14,
+            lineHeight: 1.7,
+          }}
+        >
+          <p style={{ marginBottom: 10 }}>
+            Abstract text is not yet exposed by the API. This field will be populated once the
+            backend supports the <code className="mono" style={{ fontSize: 12 }}>abstract</code> metadata field on{" "}
+            <code className="mono" style={{ fontSize: 12 }}>Certificate</code>.
+          </p>
+          <p>
+            Record: <span className="mono" style={{ color: "var(--accent)", fontSize: 13 }}>{cert.registry_id}</span>
+            {" · "}{cert.sequence_type} · deposited {new Date(cert.timestamp).toISOString().slice(0, 10)}
+          </p>
+        </div>
+
+        {/* Keywords */}
+        <div className="mt-40 mb-16 eyebrow">§ Keywords</div>
+        <div style={{ color: "var(--ink-4)", fontSize: 13, marginBottom: 32 }}>
+          Keywords not yet available in API response.
+        </div>
+
+        {/* Authors */}
+        <div className="mt-40 mb-16 eyebrow">§ Authors &amp; contributors</div>
+        <div style={{ borderTop: "0.5px solid var(--rule)" }}>
+          <div
+            style={{
+              padding: "14px 0",
+              borderBottom: "0.5px solid var(--rule-2)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 14, color: "var(--ink)" }}>{cert.owner_id}</div>
+              <div className="mono" style={{ fontSize: 11, color: "var(--ink-3)", letterSpacing: "0.04em", marginTop: 2 }}>
+                ORCID — (not yet in API)
+              </div>
+            </div>
+            <div className="mono" style={{ fontSize: 11, color: "var(--ink-3)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              Depositor
+            </div>
+          </div>
+          <div style={{ padding: "12px 0", color: "var(--ink-4)", fontSize: 13 }}>
+            Additional authors/ORCID fields not yet available in API response.
+          </div>
+        </div>
+      </div>
+
+      {/* ── Sidebar ── */}
+      <aside style={{ gridColumn: "span 4" }}>
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div style={{ padding: "16px 20px", borderBottom: "0.5px solid var(--rule)", background: "var(--paper-3)" }}>
+            <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+              Record metadata
+            </div>
+          </div>
+          <dl style={{ margin: 0, padding: "8px 20px" }}>
+            {metaRows.map(([k, v]) => (
+              <div
+                key={k}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  padding: "10px 0",
+                  borderBottom: "0.5px solid var(--rule-2)",
+                  gap: 16,
+                }}
+              >
+                <dt className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.08em", textTransform: "uppercase", flexShrink: 0, paddingTop: 2 }}>
+                  {k}
+                </dt>
+                <dd style={{ margin: 0, fontSize: 12.5, color: "var(--ink-2)", textAlign: "right", wordBreak: "break-all" }}>
+                  {v}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+
+        <div className="card mt-16" style={{ padding: 20 }}>
+          <div className="mono mb-8" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            Cite this record
+          </div>
+          <div
+            className="mono"
+            style={{
+              fontSize: 11.5,
+              background: "var(--paper)",
+              padding: 12,
+              borderRadius: 3,
+              border: "0.5px solid var(--rule)",
+              lineHeight: 1.6,
+              color: "var(--ink-2)",
+            }}
+          >
+            {cert.owner_id} ({new Date(cert.timestamp).getFullYear()}).{" "}
+            {cert.sequence_type} sequence. <em>ArtGene Archive</em>{" "}
+            <span style={{ color: "var(--accent)" }}>{cert.registry_id}</span>.
+          </div>
+        </div>
+
+        <div className="card mt-16" style={{ padding: 20 }}>
+          <div className="mono mb-8" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            Quick actions
+          </div>
+          <div style={{ display: "grid", gap: 6 }}>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ justifyContent: "flex-start" }}
+              onClick={() => {
+                const text = `${cert.owner_id} (${new Date(cert.timestamp).getFullYear()}). ${cert.sequence_type} sequence. ArtGene Archive ${cert.registry_id}.`;
+                navigator.clipboard.writeText(text);
+              }}
+            >
+              ⎘ Copy citation
+            </button>
+            <button className="btn btn-ghost btn-sm" style={{ justifyContent: "flex-start" }}>
+              ↓ Download FASTA
+            </button>
+            <button className="btn btn-ghost btn-sm" style={{ justifyContent: "flex-start" }}>
+              ↓ Certificate JSON
+            </button>
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }
@@ -1770,7 +1935,7 @@ export default function CertificatePage({
 
       {/* ── Tab body ── */}
       <section className="wrap" style={{ padding: "48px 0 80px" }}>
-        {activeTab === "abstract"   && <AbstractTabPlaceholder cert={cert} />}
+        {activeTab === "abstract"   && <AbstractTab cert={cert} />}
         {activeTab === "sequence"   && <SequenceTabPlaceholder cert={cert} />}
         {activeTab === "biosafety"  && <BiosafetyTabExisting cert={cert} />}
         {activeTab === "provenance" && (
