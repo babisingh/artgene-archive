@@ -2013,11 +2013,106 @@ function SequenceTab({ cert }: { cert: Certificate }) {
   );
 }
 
-function RefsTabPlaceholder() {
+function RefsTab({ cert }: { cert: Certificate }) {
+  const depositDate = new Date(cert.timestamp).toISOString().slice(0, 10);
+
   return (
-    <div style={{ color: "var(--ink-3)", fontSize: 14, padding: "24px 0" }}>
-      <div className="eyebrow" style={{ marginBottom: 12 }}>§ References &amp; versions</div>
-      <p>References and version history — coming in step 3c-6.</p>
+    <div className="grid-12" style={{ gap: 48 }}>
+
+      {/* ── Main column ── */}
+      <div style={{ gridColumn: "span 8" }}>
+        <div className="eyebrow mb-16">§ References</div>
+
+        {/* Empty state for references (no API endpoint yet) */}
+        <div style={{ borderTop: "0.5px solid var(--rule)" }}>
+          <div style={{ padding: "24px 0", color: "var(--ink-4)", fontSize: 13, lineHeight: 1.7 }}>
+            Reference list is not yet available. This field will be populated once the backend
+            exposes a <code className="mono" style={{ fontSize: 12 }}>references</code> endpoint
+            on <code className="mono" style={{ fontSize: 12 }}>Certificate</code>.
+          </div>
+        </div>
+
+        {/* Version history */}
+        <div className="mt-40 eyebrow mb-16">§ Version history</div>
+        <div style={{ border: "0.5px solid var(--rule)", borderRadius: 6, overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "var(--paper-3)" }}>
+                <th style={{ textAlign: "left", padding: "10px 16px", fontWeight: 500, color: "var(--ink-2)", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "var(--mono)" }}>Version</th>
+                <th style={{ textAlign: "left", padding: "10px 16px", fontWeight: 500, color: "var(--ink-2)", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "var(--mono)" }}>Changes</th>
+                <th style={{ textAlign: "left", padding: "10px 16px", fontWeight: 500, color: "var(--ink-2)", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "var(--mono)" }}>Date</th>
+                <th style={{ textAlign: "left", padding: "10px 16px", fontWeight: 500, color: "var(--ink-2)", fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "var(--mono)" }}>By</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style={{ borderTop: "0.5px solid var(--rule-2)" }}>
+                <td style={{ padding: "12px 16px" }}>
+                  <span className="mono" style={{ fontSize: 12, color: "var(--accent)" }}>v1.0</span>
+                  {" "}
+                  <span className="badge badge-verify" style={{ fontSize: 9, marginLeft: 6 }}>Current</span>
+                </td>
+                <td style={{ padding: "12px 16px", color: "var(--ink-2)" }}>
+                  Initial deposit · {cert.tier} certified · {cert.status}
+                </td>
+                <td style={{ padding: "12px 16px" }}>
+                  <span className="mono" style={{ fontSize: 12, color: "var(--ink-3)" }}>{depositDate}</span>
+                </td>
+                <td style={{ padding: "12px 16px", color: "var(--ink-2)" }}>{cert.owner_id}</td>
+              </tr>
+              <tr style={{ borderTop: "0.5px solid var(--rule-2)", background: "var(--paper-2)" }}>
+                <td colSpan={4} style={{ padding: "12px 16px", color: "var(--ink-4)", fontSize: 12 }}>
+                  Earlier versions not yet tracked — version history endpoint pending backend implementation.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── Sidebar ── */}
+      <aside style={{ gridColumn: "span 4" }}>
+        <div className="card" style={{ padding: 20 }}>
+          <div className="mono mb-16" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            Related records
+          </div>
+          <div style={{ color: "var(--ink-4)", fontSize: 12.5, lineHeight: 1.55, marginBottom: 8 }}>
+            Related record discovery is not yet available. This will be populated once the backend
+            exposes a similarity or citation graph endpoint.
+          </div>
+          <div style={{ padding: "10px 0", borderTop: "0.5px solid var(--rule-2)" }}>
+            <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>{cert.registry_id}</span>
+            <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>This record (current)</div>
+          </div>
+        </div>
+
+        <div className="card mt-16" style={{ padding: 20 }}>
+          <div className="mono mb-8" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            Cited by
+          </div>
+          <div style={{ color: "var(--ink-4)", fontSize: 12.5, lineHeight: 1.55 }}>
+            Citation tracking not yet available. Forward-citation data will be surfaced once the
+            backend exposes a citation index.
+          </div>
+        </div>
+
+        <div className="card mt-16" style={{ padding: 20 }}>
+          <div className="mono mb-8" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            Cite this record
+          </div>
+          <div
+            className="mono"
+            style={{
+              fontSize: 11, background: "var(--paper)", padding: 12,
+              borderRadius: 3, border: "0.5px solid var(--rule)",
+              lineHeight: 1.6, color: "var(--ink-2)",
+            }}
+          >
+            {cert.owner_id} ({new Date(cert.timestamp).getFullYear()}).{" "}
+            {cert.sequence_type} sequence. <em>ArtGene Archive</em>{" "}
+            <span style={{ color: "var(--accent)" }}>{cert.registry_id}</span>.
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }
@@ -2552,7 +2647,7 @@ export default function CertificatePage({
             onCloseModal={() => setShowDistributeModal(false)}
           />
         )}
-        {activeTab === "refs"        && <RefsTabPlaceholder />}
+        {activeTab === "refs"        && <RefsTab cert={cert} />}
         {activeTab === "compliance"  && <ComplianceTab id={id} client={client} />}
         {activeTab === "synthesizer" && (
           <SynthesizerTab
