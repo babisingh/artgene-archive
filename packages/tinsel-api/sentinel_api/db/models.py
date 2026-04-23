@@ -2,12 +2,13 @@
 
 Tables
 ------
-organisations       — registered organisations with hashed API credentials
-certificates        — issued TINSEL certificates (one per sequence+owner pair)
-registry_audit_log  — tamper-evident append-only log (blockchain-style)
-pathways            — multi-gene Merkle pathway bundles
-api_keys            — per-organisation API key records
-fragment_kmer_index — SHA3-256 hashes of 20-mer subsequences (assembly risk detection)
+organisations          — registered organisations with hashed API credentials
+certificates           — issued certificates (one per sequence+owner pair)
+registry_audit_log     — tamper-evident append-only log (blockchain-style)
+pathways               — multi-gene Merkle pathway bundles
+api_keys               — per-organisation API key records
+fragment_kmer_index    — SHA3-256 hashes of 20-mer subsequences (assembly risk detection)
+sequence_distributions — per-recipient provenance fingerprint issuance records
 
 CRITICAL: registry_audit_log must NEVER be updated or deleted.
           The AppendOnlyMixin enforces this at the ORM layer.
@@ -266,4 +267,55 @@ class FragmentKmerIndex(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+# ---------------------------------------------------------------------------
+# sequence_distributions
+# ---------------------------------------------------------------------------
+
+class SequenceDistribution(Base):
+    """Per-recipient provenance fingerprint issuance records.
+
+    Each row represents a distribution copy issued to one recipient.
+    The fingerprint_seed (stored as hex) is used to both generate the
+    recipient-specific codon pattern and to verify a leaked copy later.
+    The full fingerprinted FASTA is never stored — only the seed needed
+    to re-derive it.
+    """
+
+    __tablename__ = "sequence_distributions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    sequence_id: Mapped[str] = mapped_column(
+        String(20), ForeignKey("certificates.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organisations.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    recipient_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    recipient_org: Mapped[str] = mapped_column(String(255), nullable=False)
+    recipient_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    purpose: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="other",
+        comment="cmo | collaboration | validation | other"
+    )
+    fingerprint_id: Mapped[str] = mapped_column(
+        String(64), nullable=False, unique=True,
+        comment="Stable label used as part of the HMAC key derivation"
+    )
+    fingerprint_seed_hex: Mapped[str] = mapped_column(
+        String(64), nullable=False,
+        comment="Hex-encoded HMAC seed used to generate and verify this copy"
+    )
+    host_organism: Mapped[str] = mapped_column(String(32), nullable=False, default="ECOLI")
+    issued_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
