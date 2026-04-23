@@ -1609,17 +1609,180 @@ function AbstractTab({ cert }: { cert: Certificate }) {
   );
 }
 
-function SequenceTabPlaceholder({ cert }: { cert: Certificate }) {
+function SequenceTab({ cert }: { cert: Certificate }) {
+  const [view, setView] = useState<"dna" | "protein">("dna");
+  const [showWatermark, setShowWatermark] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   const wm = cert.watermark_metadata;
+  const dnaSeq  = wm?.dna_sequence ?? "";
+  const aaSeq   = wm?.original_protein ?? "";
+  const carrierIndices = new Set<number>(wm?.anchor_map?.carrier_indices ?? []);
+
+  const activeSeq  = view === "dna" ? dnaSeq : aaSeq;
+  const chunkSize  = view === "dna" ? 60 : 60;
+  const codonWidth = view === "dna" ? 3 : 1;
+
+  // Build rows of {start, seq}
+  const rows: { start: number; seq: string }[] = [];
+  for (let i = 0; i < activeSeq.length; i += chunkSize) {
+    rows.push({ start: i + 1, seq: activeSeq.slice(i, i + chunkSize) });
+  }
+
+  function handleCopy() {
+    navigator.clipboard.writeText(`>${cert.registry_id}\n${activeSeq}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  }
+
+  if (!activeSeq) {
+    return (
+      <div style={{ color: "var(--ink-3)", fontSize: 14, padding: "24px 0" }}>
+        <div className="eyebrow" style={{ marginBottom: 12 }}>§ Sequence</div>
+        <p>Sequence data is not available for this record (watermark metadata absent).</p>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ color: "var(--ink-3)", fontSize: 14, padding: "24px 0" }}>
-      <div className="eyebrow" style={{ marginBottom: 12 }}>§ Sequence</div>
-      <p>Sequence viewer — coming in step 3c-3.</p>
-      {wm && (
-        <p className="mono" style={{ fontSize: 11, marginTop: 8 }}>
-          {wm.dna_sequence?.length ?? 0} bp · {wm.original_protein?.length ?? 0} aa available
-        </p>
-      )}
+    <div className="grid-12" style={{ gap: 32 }}>
+      <div style={{ gridColumn: "span 12" }}>
+
+        {/* Controls */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div className="eyebrow">
+            § {view === "dna" ? `Coding sequence · ${dnaSeq.length} bp` : `Protein sequence · ${aaSeq.length} aa`}
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {/* Sequence type toggle */}
+            <div style={{ display: "flex", border: "0.5px solid var(--rule)", borderRadius: 3, overflow: "hidden", fontSize: 11 }}>
+              <button
+                onClick={() => setView("dna")}
+                style={{
+                  padding: "5px 12px",
+                  background: view === "dna" ? "var(--ink)" : "transparent",
+                  color: view === "dna" ? "var(--paper)" : "var(--ink-3)",
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: "var(--mono)",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                DNA
+              </button>
+              {aaSeq && (
+                <button
+                  onClick={() => setView("protein")}
+                  style={{
+                    padding: "5px 12px",
+                    background: view === "protein" ? "var(--ink)" : "transparent",
+                    color: view === "protein" ? "var(--paper)" : "var(--ink-3)",
+                    border: "none",
+                    borderLeft: "0.5px solid var(--rule)",
+                    cursor: "pointer",
+                    fontFamily: "var(--mono)",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  Protein
+                </button>
+              )}
+            </div>
+            {view === "dna" && wm && (
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowWatermark(v => !v)}
+                style={{ background: showWatermark ? "var(--accent-soft)" : undefined }}
+              >
+                {showWatermark ? "Hide watermark" : "Show watermark"}
+              </button>
+            )}
+            <button className="btn btn-ghost btn-sm" onClick={handleCopy}>
+              {copied ? "Copied ✓" : "Copy FASTA"}
+            </button>
+          </div>
+        </div>
+
+        {/* Sequence block */}
+        <div className="seq-block">
+          {rows.map(({ start, seq }) => {
+            const chunks = seq.match(new RegExp(`.{1,${codonWidth}}`, "g")) ?? [];
+            return (
+              <div key={start} style={{ display: "flex", gap: 24, alignItems: "baseline" }}>
+                <span
+                  className="mono"
+                  style={{ minWidth: 44, textAlign: "right", color: "var(--ink-4)", fontSize: 11, userSelect: "none" }}
+                >
+                  {String(start).padStart(4, "0")}
+                </span>
+                <span style={{ flex: 1, letterSpacing: view === "dna" ? "0.05em" : "0.08em" }}>
+                  {chunks.map((chunk, idx) => {
+                    const codonPos = Math.floor((start - 1) / codonWidth) + idx;
+                    const isWm = showWatermark && view === "dna" && carrierIndices.has(codonPos);
+                    return (
+                      <span
+                        key={idx}
+                        style={{
+                          marginRight: view === "dna" ? 5 : 0,
+                          color: isWm ? "var(--ink)" : "inherit",
+                          fontWeight: isWm ? 500 : 400,
+                          background: isWm
+                            ? "color-mix(in oklab, var(--verify) 22%, transparent)"
+                            : undefined,
+                          borderRadius: isWm ? 2 : undefined,
+                          padding: isWm ? "1px 2px" : undefined,
+                        }}
+                      >
+                        {chunk}
+                      </span>
+                    );
+                  })}
+                </span>
+                <span
+                  className="mono"
+                  style={{ minWidth: 40, textAlign: "right", color: "var(--ink-4)", fontSize: 11, userSelect: "none" }}
+                >
+                  {start + seq.length - 1}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Watermark legend */}
+        {showWatermark && view === "dna" && wm && (
+          <div className="mono" style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 12, letterSpacing: "0.04em" }}>
+            <span
+              style={{
+                background: "color-mix(in oklab, var(--verify) 22%, transparent)",
+                padding: "1px 4px",
+                borderRadius: 2,
+              }}
+            >
+              HIGHLIGHTED
+            </span>
+            {" "}· synonymous codons carrying the ArtGene {(wm.config?.sig_bytes ?? 16) * 8}-bit watermark.
+            Protein sequence unchanged. {carrierIndices.size} carrier positions.
+          </div>
+        )}
+
+        {/* Feature map — placeholder (no annotation endpoint yet) */}
+        <div className="mt-40 eyebrow mb-16">§ Feature map</div>
+        <div
+          style={{
+            background: "var(--paper-2)",
+            border: "0.5px solid var(--rule)",
+            borderRadius: 6,
+            padding: "20px 28px",
+            color: "var(--ink-4)",
+            fontSize: 13,
+          }}
+        >
+          Feature annotation (Start / domains / Stop track) will be available once the backend
+          exposes sequence annotation data. Length: {dnaSeq.length > 0 ? `${dnaSeq.length} bp` : "unknown"}.
+        </div>
+
+      </div>
     </div>
   );
 }
@@ -1936,7 +2099,7 @@ export default function CertificatePage({
       {/* ── Tab body ── */}
       <section className="wrap" style={{ padding: "48px 0 80px" }}>
         {activeTab === "abstract"   && <AbstractTab cert={cert} />}
-        {activeTab === "sequence"   && <SequenceTabPlaceholder cert={cert} />}
+        {activeTab === "sequence"   && <SequenceTab cert={cert} />}
         {activeTab === "biosafety"  && <BiosafetyTabExisting cert={cert} />}
         {activeTab === "provenance" && (
           <ProvenanceTab
