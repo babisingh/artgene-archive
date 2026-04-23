@@ -49,8 +49,12 @@ export function Providers({ children }: { children: ReactNode }) {
   const queryClient = getQueryClient();
 
   const [apiKey, setApiKeyState] = useState<string>(() => {
-    if (typeof window === "undefined") return "";
-    return sessionStorage.getItem("artgene_api_key") ?? "";
+    if (typeof window === "undefined") return process.env.NEXT_PUBLIC_API_KEY ?? "";
+    return (
+      process.env.NEXT_PUBLIC_API_KEY ||
+      sessionStorage.getItem("artgene_api_key") ||
+      ""
+    );
   });
 
   function setApiKey(key: string) {
