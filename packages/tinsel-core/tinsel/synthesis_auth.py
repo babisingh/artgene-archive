@@ -1,4 +1,4 @@
-"""TINSEL Synthesis Authorization Document (SAD) — spec version TINSEL-SAD-1.0.
+"""ArtGene Synthesis Clearance Document (SCD) — spec version ArtGene-SCD-1.0.
 
 Machine-readable synthesis clearance format for benchtop synthesizers.
 Complies with US OSTP 2023 guidance (NIH DURC) and EU Directive 2000/54/EC.
@@ -84,8 +84,8 @@ class SynthesisAuthorization(BaseModel):
 # ---------------------------------------------------------------------------
 
 _NOTICE = (
-    "This Synthesis Authorization Document is issued by ArtGene Archive under "
-    "TINSEL-SAD-1.0 specification. It constitutes a technical biosafety screening "
+    "This Synthesis Clearance Document is issued by ArtGene Archive under "
+    "ArtGene-SCD-1.0 specification. It constitutes a technical biosafety screening "
     "record and does not replace formal regulatory registration (CDC/USDA Select "
     "Agent Program, NIH IBC approval, or EU Directive 2000/54/EC national "
     "implementation). Synthesizers must retain this document for audit purposes."
@@ -93,7 +93,7 @@ _NOTICE = (
 
 
 class SynthesisAuthDocument(BaseModel):
-    spec_version: str = "TINSEL-SAD-1.0"
+    spec_version: str = "ArtGene-SCD-1.0"
     issued_by: str = "ArtGene Archive"
     issued_at: str
     registry_id: str
@@ -119,7 +119,7 @@ def _gate_summary(report: dict) -> dict[str, str]:
 
 
 def build_synthesis_auth_document(cert: dict) -> SynthesisAuthDocument:
-    """Build a TINSEL-SAD-1.0 document from a certificate data dict.
+    """Build an ArtGene-SCD-1.0 Synthesis Clearance Document from a certificate data dict.
 
     ``cert`` must contain: registry_id, sequence_hash, certificate_hash,
     status, timestamp, host_organism, consequence_report, wots_public_key,

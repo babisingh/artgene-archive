@@ -1,7 +1,5 @@
 "use client";
 
-"use client";
-
 import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
@@ -1224,7 +1222,7 @@ function ProvenanceTab({
 }
 
 // ---------------------------------------------------------------------------
-// Synthesizer tab — SAD document viewer + revocation
+// Synthesizer tab — SCD document viewer + revocation
 // ---------------------------------------------------------------------------
 
 function SadDecisionBanner({ sad }: { sad: SynthesisAuthDocument }) {
@@ -1390,7 +1388,7 @@ function SynthesizerTab({
             <polyline points="7 10 12 15 17 10" />
             <line x1="12" y1="15" x2="12" y2="3" />
           </svg>
-          Download SAD (.json)
+          Download SCD (.json)
         </button>
         {!revoked && (
           <button
@@ -1414,10 +1412,10 @@ function SynthesizerTab({
         ⚠ {sad.notice}
       </div>
 
-      {/* Full SAD JSON viewer */}
+      {/* Full SCD JSON viewer */}
       <div>
         <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
-          Full SAD-1.0 document
+          Full ArtGene-SCD-1.0 document
         </div>
         <pre
           className="text-xs font-mono overflow-auto max-h-[560px] p-4 bg-slate-50 dark:bg-slate-900/60 rounded-lg border border-slate-200 dark:border-slate-700 leading-relaxed"
@@ -1677,7 +1675,7 @@ export default function CertificatePage({
         <ComplianceTab id={id} client={client} />
       )}
 
-      {/* Synthesizer / SAD */}
+      {/* Synthesizer / SCD */}
       {activeTab === "synthesizer" && (
         <SynthesizerTab
           id={id}
