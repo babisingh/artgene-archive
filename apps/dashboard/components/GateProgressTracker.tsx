@@ -28,7 +28,8 @@ function StepIcon({ status }: { status: GateStepProps["status"] }) {
     return (
       <span className="flex h-7 w-7 items-center justify-center">
         <svg
-          className="animate-spin h-5 w-5 text-blue-500"
+          className="animate-spin h-5 w-5"
+          style={{ color: "var(--accent)" }}
           fill="none"
           viewBox="0 0 24 24"
         >
@@ -73,7 +74,7 @@ function StepIcon({ status }: { status: GateStepProps["status"] }) {
   }
   // pending
   return (
-    <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-slate-300 dark:border-slate-600 text-xs font-medium text-slate-400" />
+    <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 text-xs font-medium" style={{ borderColor: "var(--rule)", color: "var(--ink-4)" }} />
   );
 }
 
@@ -85,16 +86,23 @@ function GateStep({ number, label, sublabel, status }: GateStepProps) {
     <div
       className={`flex items-start gap-3 p-3 rounded-lg transition-colors ${
         active
-          ? "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
+          ? "border"
           : done
-            ? "bg-slate-50 dark:bg-slate-800/50"
+            ? ""
             : "opacity-50"
       }`}
+      style={
+        active
+          ? { background: "var(--accent-soft)", borderColor: "var(--accent)" }
+          : done
+            ? { background: "var(--paper-3)" }
+            : undefined
+      }
     >
       <StepIcon status={status} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+          <span className="text-xs font-medium text-slate-500" style={{ fontFamily: "var(--mono)" }}>
             Gate {number}
           </span>
           {status !== "pending" && status !== "running" && (
@@ -113,16 +121,16 @@ function GateStep({ number, label, sublabel, status }: GateStepProps) {
             </span>
           )}
           {status === "running" && (
-            <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+            <span className="text-xs font-medium" style={{ color: "var(--accent)" }}>
               Running…
             </span>
           )}
         </div>
-        <div className="text-sm font-semibold text-slate-900 dark:text-white mt-0.5">
+        <div className="text-sm font-semibold mt-0.5" style={{ color: "var(--ink)" }}>
           {label}
         </div>
         {sublabel && (
-          <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <div className="text-xs mt-0.5" style={{ color: "var(--ink-3)", fontFamily: "var(--mono)" }}>
             {sublabel}
           </div>
         )}
@@ -164,15 +172,15 @@ export function GateProgressTracker({ phase, report }: GateProgressTrackerProps)
   return (
     <div className="space-y-2">
       <GateStep
-        number={1}
-        label="Structural Analysis"
+        number="α"
+        label="Structural Confidence"
         sublabel="ESMFold pLDDT · LinearFold ΔMFE"
         status={g1Status()}
       />
       <GateStep
-        number="2 + 3"
+        number="β + γ"
         label="Off-Target & Ecological"
-        sublabel="BLAST · ToxinPred2 · AllerTop · HGT · DriftRadar"
+        sublabel="BLAST · SecureDNA · IBBIS · HGT"
         status={
           // Show the worse of gate 2/3 if done
           phase === "done" && report
