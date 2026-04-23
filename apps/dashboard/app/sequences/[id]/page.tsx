@@ -14,9 +14,11 @@ import {
   YAxis,
 } from "recharts";
 import { useApiKey } from "../../../lib/providers";
+import { CertSeal } from "../../../components/design/CertSeal";
 import type {
   ApiClient,
   BlastHit,
+  Certificate,
   ComplianceManifest,
   DatabaseQueried,
   DistributionSummary,
@@ -1429,6 +1431,108 @@ function SynthesizerTab({
 }
 
 // ---------------------------------------------------------------------------
+// Phase 3c — stubs filled in 3c-2 through 3c-6
+// ---------------------------------------------------------------------------
+
+function AbstractTabPlaceholder({ cert }: { cert: Certificate }) {
+  return (
+    <div style={{ color: "var(--ink-3)", fontSize: 14, padding: "24px 0" }}>
+      <div className="eyebrow" style={{ marginBottom: 12 }}>§ Abstract &amp; description</div>
+      <p>Abstract metadata — coming in step 3c-2.</p>
+      <p className="mono" style={{ fontSize: 12, marginTop: 8 }}>{cert.registry_id}</p>
+    </div>
+  );
+}
+
+function SequenceTabPlaceholder({ cert }: { cert: Certificate }) {
+  const wm = cert.watermark_metadata;
+  return (
+    <div style={{ color: "var(--ink-3)", fontSize: 14, padding: "24px 0" }}>
+      <div className="eyebrow" style={{ marginBottom: 12 }}>§ Sequence</div>
+      <p>Sequence viewer — coming in step 3c-3.</p>
+      {wm && (
+        <p className="mono" style={{ fontSize: 11, marginTop: 8 }}>
+          {wm.dna_sequence?.length ?? 0} bp · {wm.original_protein?.length ?? 0} aa available
+        </p>
+      )}
+    </div>
+  );
+}
+
+function RefsTabPlaceholder() {
+  return (
+    <div style={{ color: "var(--ink-3)", fontSize: 14, padding: "24px 0" }}>
+      <div className="eyebrow" style={{ marginBottom: 12 }}>§ References &amp; versions</div>
+      <p>References and version history — coming in step 3c-6.</p>
+    </div>
+  );
+}
+
+// Wraps existing gate panels with Greek-letter labels; full redesign in 3c-4
+function BiosafetyTabExisting({ cert }: { cert: Certificate }) {
+  const report = cert.consequence_report;
+  const overallStatus: GateStatus = report?.overall_status ?? "skip";
+
+  if (!report) {
+    return (
+      <div className="card" style={{ padding: 24, color: "var(--ink-3)", fontSize: 14 }}>
+        No biosafety report available.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--ink)", margin: 0 }}>Biosafety Gates</h2>
+        <StatusBadge status={overallStatus} />
+      </div>
+
+      {report.gate1 && (
+        <GateItem title="Gate α · Structural Analysis (ESMFold pLDDT)" status={report.gate1.status}>
+          <Gate1Panel gate1={report.gate1 as Gate1Result} />
+        </GateItem>
+      )}
+      {report.gate2 && (
+        <GateItem
+          title={
+            report.gate2.screening_method === "chained_v1"
+              ? "Gate β · Off-Target Screening (Composition + SecureDNA + IBBIS)"
+              : "Gate β · Off-Target Screening (Toxin / Allergen)"
+          }
+          status={report.gate2.status}
+        >
+          <Gate2Panel gate2={report.gate2 as Gate2Result} />
+        </GateItem>
+      )}
+      {report.gate3 && (
+        <GateItem title="Gate γ · Ecological Risk (HGT / Codon Adaptation)" status={report.gate3.status}>
+          <Gate3Panel gate3={report.gate3 as Gate3Result} />
+        </GateItem>
+      )}
+      {report.gate4 && (
+        <GateItem
+          title={
+            report.gate4.method === "esm2_cosine_v1"
+              ? "Gate δ · Functional Analogue Detection (ESM-2 Cosine Similarity)"
+              : "Gate δ · Functional Analogue Detection (Composition Fingerprint · Demo)"
+          }
+          status={report.gate4.status}
+        >
+          <Gate4Panel gate4={report.gate4 as Gate4Result} />
+        </GateItem>
+      )}
+
+      {report.skipped_gates.length > 0 && (
+        <p className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>
+          Gates {report.skipped_gates.join(", ")} skipped (fail-fast).
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -1441,7 +1545,9 @@ export default function CertificatePage({
   const { client, apiKey } = useApiKey();
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"gates" | "provenance" | "compliance" | "synthesizer">("gates");
+  const [activeTab, setActiveTab] = useState<
+    "abstract" | "sequence" | "biosafety" | "provenance" | "refs" | "compliance" | "synthesizer"
+  >("abstract");
   const [showDistributeModal, setShowDistributeModal] = useState(false);
 
   async function handleExport() {
@@ -1471,254 +1577,222 @@ export default function CertificatePage({
 
   if (!apiKey) {
     return (
-      <div className="card p-8 text-center text-amber-600 dark:text-amber-400 text-sm">
-        ⚠ No API key set — click <strong>Set API Key</strong> in the navigation bar.
+      <div className="wrap" style={{ padding: "80px 0", textAlign: "center", color: "var(--ink-3)" }}>
+        <p>No API key configured. Add <code>NEXT_PUBLIC_API_KEY</code> to your environment.</p>
+        <Link href="/sequences" className="btn btn-ghost btn-sm" style={{ marginTop: 16, display: "inline-block" }}>
+          ← Back to sequences
+        </Link>
       </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20 text-slate-500 dark:text-slate-400">
-        Loading certificate…
+      <div className="wrap" style={{ padding: "80px 0", textAlign: "center", color: "var(--ink-3)" }}>
+        Loading record…
       </div>
     );
   }
 
   if (isError || !cert) {
     return (
-      <div className="card p-8 text-center">
-        <p className="text-red-500 mb-4">
+      <div className="wrap" style={{ padding: "80px 0", textAlign: "center" }}>
+        <p style={{ color: "var(--danger)", marginBottom: 16 }}>
           {error instanceof Error ? error.message : "Certificate not found"}
         </p>
-        <Link href="/sequences" className="btn-secondary">
-          ← Back to registry
-        </Link>
+        <Link href="/sequences" className="btn btn-ghost btn-sm">← Back to sequences</Link>
       </div>
     );
   }
 
-  const report = cert.consequence_report;
-  const overallStatus: GateStatus = report?.overall_status ?? "skip";
+  const TABS = [
+    { key: "abstract",    label: "Abstract & description" },
+    { key: "sequence",    label: "Sequence" },
+    { key: "biosafety",   label: "Biosafety scorecard" },
+    { key: "provenance",  label: "Provenance & watermark" },
+    { key: "refs",        label: "References & versions" },
+    { key: "compliance",  label: "Compliance" },
+    { key: "synthesizer", label: "Synthesizer" },
+  ] as const;
+
+  const statusLabel =
+    cert.status === "CERTIFIED"               ? "Certified" :
+    cert.status === "CERTIFIED_WITH_WARNINGS" ? "Certified (warnings)" :
+    cert.status === "REVOKED"                 ? "Revoked" : cert.status;
+
+  const statusBadgeClass =
+    cert.status === "CERTIFIED"               ? "badge badge-verify badge-dot" :
+    cert.status === "CERTIFIED_WITH_WARNINGS" ? "badge badge-warn badge-dot" :
+    "badge";
+
+  const tierMap: Record<string, string> = {
+    FULL: "Tier 1", STANDARD: "Tier 2", REDUCED: "Tier 3", MINIMAL: "Tier 4", REJECTED: "Restricted",
+  };
+  const tierLabel = tierMap[cert.tier] ?? cert.tier;
+
+  const wm = cert.watermark_metadata;
+  const aaLength = wm?.original_protein?.length ?? null;
+  const bpLength = wm?.dna_sequence?.length ?? null;
 
   return (
-    <div className="space-y-6">
-      {/* Breadcrumb */}
-      <nav className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1">
-        <Link href="/sequences" className="hover:text-blue-600 dark:hover:text-blue-400">
-          Sequences
-        </Link>
-        <span>/</span>
-        <span className="font-mono text-slate-900 dark:text-white">{cert.registry_id}</span>
-      </nav>
+    <div className="route">
 
-      {/* Summary card */}
-      <div className="card p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold font-mono text-slate-900 dark:text-white">
-              {cert.registry_id}
-            </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Registered {new Date(cert.timestamp).toLocaleString()}
-            </p>
+      {/* ── Top bar ── */}
+      <div style={{ background: "var(--paper-3)", borderBottom: "0.5px solid var(--rule)", padding: "10px 0" }}>
+        <div
+          className="wrap"
+          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}
+        >
+          <div className="mono" style={{ fontSize: 11, letterSpacing: "0.08em", color: "var(--ink-3)", textTransform: "uppercase" }}>
+            <Link href="/registry" style={{ color: "var(--ink-3)", textDecoration: "none" }}>Registry</Link>
+            {" ▸ "}
+            <Link href="/sequences" style={{ color: "var(--ink-3)", textDecoration: "none" }}>Sequences</Link>
+            {" ▸ "}
+            <span style={{ color: "var(--ink)" }}>{cert.registry_id}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className={`badge text-sm px-3 py-1 ${
-              cert.status === "CERTIFIED" ? "badge-pass" :
-              cert.status === "CERTIFIED_WITH_WARNINGS" ? "badge-warn" :
-              "badge-fail"
-            }`}>
-              {cert.status === "CERTIFIED_WITH_WARNINGS" ? "CERTIFIED (WARNINGS)" : cert.status}
-            </span>
-            <span
-              className={`badge text-sm px-3 py-1 ${{
-                FULL: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-400",
-                STANDARD: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400",
-                REDUCED: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400",
-                MINIMAL: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300",
-                REJECTED: "badge-fail",
-              }[cert.tier] ?? "badge-skip"}`}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span className={statusBadgeClass}>{statusLabel} · {tierLabel}</span>
+            <span className="badge">{cert.sequence_type.toUpperCase()}</span>
+            <button className="btn btn-ghost btn-sm" onClick={() => setActiveTab("refs")}>⎘ Cite</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setActiveTab("sequence")}>↓ FASTA</button>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={handleExport}
+              disabled={exporting}
+              aria-busy={exporting}
             >
-              {cert.tier}
-            </span>
-            {/* Post-quantum signature badge */}
-            {cert.pq_is_stub === false ? (
-              <span className="badge text-sm px-3 py-1 bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300 font-mono">
-                ✓ WOTS+ (PQ)
-              </span>
-            ) : (
-              <span className="badge text-sm px-3 py-1 bg-slate-100 text-slate-500 dark:bg-slate-700/50 dark:text-slate-400 font-mono" title="Pre-Session-3 certificate — PQ signature is a zero-filled stub">
-                ⚠ PQ stub
-              </span>
-            )}
+              {exporting ? "Exporting…" : "↓ Certificate"}
+            </button>
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <Field label="Owner" value={cert.owner_id} />
-          <Field label="Ethics Code" value={cert.ethics_code} />
-          <Field label="Sequence Type" value={cert.sequence_type.toUpperCase()} />
-          <Field label="Host Organism" value={cert.host_organism} />
-          <Field
-            label="Cert Hash (SHA3-512)"
-            value={<span className="text-xs">{cert.certificate_hash.slice(0, 32)}…</span>}
-          />
-          {cert.pq_algorithm && cert.pq_is_stub === false && (
-            <Field
-              label="PQ Algorithm"
-              value={<span className="text-xs font-mono text-teal-700 dark:text-teal-400">{cert.pq_algorithm}</span>}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Tab bar */}
-      <div className="flex border-b border-slate-200 dark:border-slate-700">
-        {(
-          [
-            { key: "gates", label: "Biosafety Gates" },
-            { key: "provenance", label: "Provenance Tracing" },
-            { key: "compliance", label: "Compliance" },
-            { key: "synthesizer", label: "Synthesizer" },
-          ] as const
-        ).map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
-              activeTab === key
-                ? "border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 -mb-px"
-                : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Consequence report */}
-      {activeTab === "gates" && report && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-              Biosafety Gates
-            </h2>
-            <StatusBadge status={overallStatus} />
-          </div>
-
-          {report.gate1 && (
-            <GateItem title="Gate 1: Structural Analysis (ESMFold pLDDT)" status={report.gate1.status}>
-              <Gate1Panel gate1={report.gate1 as Gate1Result} />
-            </GateItem>
-          )}
-
-          {report.gate2 && (
-            <GateItem
-              title={
-                report.gate2.screening_method === "chained_v1"
-                  ? "Gate 2: Off-Target Screening (Composition + SecureDNA DOPRF + IBBIS commec)"
-                  : "Gate 2: Off-Target Screening (Toxin / Allergen)"
-              }
-              status={report.gate2.status}
-            >
-              <Gate2Panel gate2={report.gate2 as Gate2Result} />
-            </GateItem>
-          )}
-
-          {report.gate3 && (
-            <GateItem title="Gate 3: Ecological Risk (HGT / Codon Adaptation)" status={report.gate3.status}>
-              <Gate3Panel gate3={report.gate3 as Gate3Result} />
-            </GateItem>
-          )}
-
-          {report.gate4 && (
-            <GateItem
-              title={
-                report.gate4.method === "esm2_cosine_v1"
-                  ? "Gate 4: Functional Analogue Detection (ESM-2 Embedding Cosine Similarity)"
-                  : "Gate 4: Functional Analogue Detection (Composition Fingerprint · Demo)"
-              }
-              status={report.gate4.status}
-            >
-              <Gate4Panel gate4={report.gate4 as Gate4Result} />
-            </GateItem>
-          )}
-
-          {report.skipped_gates.length > 0 && (
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Gates {report.skipped_gates.join(", ")} were skipped (Gate 1 fail-fast).
-            </p>
-          )}
-        </div>
-      )}
-
-      {activeTab === "gates" && !report && (
-        <div className="card p-6 text-slate-500 dark:text-slate-400 text-sm">
-          No biosafety report available.
-        </div>
-      )}
-
-      {/* Provenance Tracing */}
-      {activeTab === "provenance" && (
-        <ProvenanceTab
-          sequenceId={id}
-          client={client}
-          showModal={showDistributeModal}
-          onOpenModal={() => setShowDistributeModal(true)}
-          onCloseModal={() => setShowDistributeModal(false)}
-        />
-      )}
-
-      {/* Compliance attestation */}
-      {activeTab === "compliance" && (
-        <ComplianceTab id={id} client={client} />
-      )}
-
-      {/* Synthesizer / SCD */}
-      {activeTab === "synthesizer" && (
-        <SynthesizerTab
-          id={id}
-          client={client}
-          onRevoked={() => setActiveTab("gates")}
-        />
-      )}
-
-      <div className="pt-2 space-y-2">
-        <div className="flex items-center gap-3">
-          <Link href="/sequences" className="btn-secondary">
-            ← Back to registry
-          </Link>
-          <button
-            onClick={handleExport}
-            disabled={exporting}
-            aria-busy={exporting}
-            className="btn-secondary flex items-center gap-1.5"
-          >
-            {exporting ? (
-              <>
-                <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Exporting…
-              </>
-            ) : (
-              <>
-                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                Export JSON
-              </>
-            )}
-          </button>
         </div>
         {exportError && (
-          <p className="text-xs text-red-500" role="alert">{exportError}</p>
+          <div className="wrap" style={{ paddingTop: 4 }}>
+            <p className="mono" style={{ fontSize: 11, color: "var(--danger)" }} role="alert">{exportError}</p>
+          </div>
         )}
       </div>
+
+      {/* ── Record header ── */}
+      <section className="wrap" style={{ padding: "48px 0 32px" }}>
+        <div className="grid-12" style={{ gap: 40, alignItems: "start" }}>
+          <div style={{ gridColumn: "span 8" }}>
+            <div
+              className="mono"
+              style={{ fontSize: 11, color: "var(--accent)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 14 }}
+            >
+              {cert.registry_id} · {cert.sequence_type}
+            </div>
+            <h1
+              className="display"
+              style={{ fontSize: 42, margin: "0 0 14px", letterSpacing: "-0.02em" }}
+            >
+              {cert.registry_id}
+            </h1>
+            <div style={{ fontSize: 16, fontStyle: "italic", color: "var(--ink-3)", marginBottom: 20 }}>
+              {cert.sequence_type} sequence · deposited by {cert.owner_id}
+            </div>
+            <div style={{ display: "flex", gap: 32, flexWrap: "wrap", marginTop: 24, fontSize: 13, color: "var(--ink-2)" }}>
+              <div>
+                <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+                  Depositor
+                </div>
+                {cert.owner_id}
+              </div>
+              <div>
+                <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+                  Deposited
+                </div>
+                {new Date(cert.timestamp).toISOString().slice(0, 16).replace("T", " ") + " UTC"}
+              </div>
+              <div>
+                <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+                  Organisation
+                </div>
+                {cert.org_id || "—"}
+              </div>
+              {(aaLength !== null || bpLength !== null) && (
+                <div>
+                  <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+                    Length
+                  </div>
+                  {[aaLength ? `${aaLength} aa` : null, bpLength ? `${bpLength} bp` : null].filter(Boolean).join(" · ")}
+                </div>
+              )}
+              <div>
+                <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+                  Ethics code
+                </div>
+                {cert.ethics_code}
+              </div>
+            </div>
+          </div>
+          <div style={{ gridColumn: "span 4", display: "flex", justifyContent: "center", paddingTop: 8 }}>
+            <CertSeal size={160} />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Sticky tabs ── */}
+      <div
+        style={{
+          borderTop: "0.5px solid var(--rule)",
+          borderBottom: "0.5px solid var(--rule)",
+          position: "sticky",
+          top: 62,
+          background: "var(--paper)",
+          zIndex: 10,
+        }}
+      >
+        <div className="wrap" style={{ display: "flex", overflowX: "auto" }}>
+          {TABS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              style={{
+                padding: "16px 22px",
+                background: "transparent",
+                border: "none",
+                borderBottom: activeTab === key ? "1.5px solid var(--accent)" : "1.5px solid transparent",
+                color: activeTab === key ? "var(--ink)" : "var(--ink-3)",
+                fontSize: 13.5,
+                fontFamily: "var(--sans)",
+                cursor: "pointer",
+                marginBottom: "-0.5px",
+                letterSpacing: "0.005em",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Tab body ── */}
+      <section className="wrap" style={{ padding: "48px 0 80px" }}>
+        {activeTab === "abstract"   && <AbstractTabPlaceholder cert={cert} />}
+        {activeTab === "sequence"   && <SequenceTabPlaceholder cert={cert} />}
+        {activeTab === "biosafety"  && <BiosafetyTabExisting cert={cert} />}
+        {activeTab === "provenance" && (
+          <ProvenanceTab
+            sequenceId={id}
+            client={client}
+            showModal={showDistributeModal}
+            onOpenModal={() => setShowDistributeModal(true)}
+            onCloseModal={() => setShowDistributeModal(false)}
+          />
+        )}
+        {activeTab === "refs"        && <RefsTabPlaceholder />}
+        {activeTab === "compliance"  && <ComplianceTab id={id} client={client} />}
+        {activeTab === "synthesizer" && (
+          <SynthesizerTab
+            id={id}
+            client={client}
+            onRevoked={() => setActiveTab("biosafety")}
+          />
+        )}
+      </section>
+
     </div>
   );
 }
