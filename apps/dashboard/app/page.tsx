@@ -76,16 +76,22 @@ export default function HomePage() {
               <span style={{ width: 24, height: "0.5px", background: "var(--ink-3)" }} />
               ArtGene Consortium · Volume I · 2026
             </div>
-            <h1 className="display" style={{ fontSize: "clamp(48px, 7vw, 88px)", margin: "0 0 28px" }}>
+            <h1 className="display" style={{ fontSize: "clamp(24px, 5vw, 60px)", margin: "0 0 28px" }}>
               A public archive<br />
               for sequences that<br />
-              <em style={{ fontStyle: "italic", color: "var(--accent)" }}>no organism</em> ever wrote.
+              <em style={{ fontStyle: "italic", color: "var(--accent)" }}>nature</em> never wrote.
             </h1>
             <p className="lede" style={{ maxWidth: 620, margin: "0 0 36px" }}>
               Generative models now produce proteins, genes and regulatory elements faster than the
-              scientific community can catalogue them. ArtGene Archive is the first dedicated registry
+              scientific community can catalogue. ArtGene Archive is the first dedicated registry
               for AI-designed biological sequences — providing watermarking, biosafety certification,
-              and an auditable chain of custody from model to bench to publication.
+              and an auditable chain of custody from model to bench to publication, 
+              while sepearting naturally occuring sequences from the ones created by 
+              humans in partnership with AI. 
+              
+              Art(ificial)-gene archive only store sequences that pass multiple biosecurity screening gates.
+          
+              
             </p>
             <div className="flex gap-12" style={{ alignItems: "center", flexWrap: "wrap" }}>
               <Link href="/register" className="btn btn-primary">
