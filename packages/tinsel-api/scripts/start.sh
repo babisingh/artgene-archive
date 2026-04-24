@@ -19,6 +19,10 @@ if [ "${SENTINEL_ENV:-development}" = "development" ]; then
     echo "--- Seeding development database ---"
     python /app/packages/tinsel-api/scripts/seed_dev.py || true
     echo ""
+else
+    echo "--- Seeding production database (idempotent) ---"
+    python /app/packages/tinsel-api/scripts/seed_prod.py || true
+    echo ""
 fi
 
 echo "--- Starting API server ---"
