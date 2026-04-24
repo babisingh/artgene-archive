@@ -375,7 +375,7 @@ export default function RegisterPage() {
                       color: "var(--ink)", resize: "vertical", outline: "none", lineHeight: 1.6,
                     }}
                     placeholder="A short description of the sequence, its intended function, how it was generated, and any wet-lab validation performed…"
-                  />
+                  ></textarea>
                 </div>
 
                 {/* Registration credentials — required by the API */}
