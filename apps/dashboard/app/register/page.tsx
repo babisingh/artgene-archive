@@ -420,10 +420,6 @@ export default function RegisterPage() {
                 {submitError && (
                   <p style={{ fontSize: 12, color: "var(--danger)", marginTop: 16 }} role="alert">{submitError}</p>
                 )}
-                {!apiKey && (
-                  <p style={{ fontSize: 12, color: "var(--warn)", marginTop: 12 }}>⚠ No API key configured. Contact your administrator.</p>
-                )}
-
                 <div className="flex between mt-24">
                   <button type="button" className="btn btn-ghost" onClick={() => setStep(1)}>← Back</button>
                   <button type="submit" className="btn btn-primary">Run biosafety analysis →</button>
@@ -538,8 +534,7 @@ export default function RegisterPage() {
               </div>
             )}
 
-          </form>
-        </div>
+          </div>
 
           {/* ── Sidebar ─────────────────────────────────────────── */}
           <aside style={{ gridColumn: "span 4" }}>
