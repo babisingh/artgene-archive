@@ -169,8 +169,8 @@ export default function RegistryPage() {
     });
   }
 
-  // Fall back to demo records when the live database is empty.
-  const isMock = !isLoading && !isError && totalItems === 0;
+  // Fall back to demo records when the live database is empty OR unreachable.
+  const isMock = !isLoading && (isError || totalItems === 0);
   const displayItems = isMock ? applyFilter(MOCK_CERTIFICATES) : applyFilter(data?.items ?? []);
   const displayTotal = isMock ? MOCK_CERTIFICATES.length : totalItems;
 
@@ -254,7 +254,7 @@ export default function RegistryPage() {
               textTransform: "uppercase",
             }}
           >
-            Demo data — AG-DEMO-* records are illustrative only. Deposit a real sequence to populate the live registry.
+            {isError ? "Live registry unreachable — showing demo data. AG-DEMO-* records are illustrative only." : "Demo data — AG-DEMO-* records are illustrative only. Deposit a real sequence to populate the live registry."}
           </div>
         </section>
       )}
@@ -354,26 +354,10 @@ export default function RegistryPage() {
         </div>
       </section>
 
-      {/* ── Error state ─────────────────────────────────────────────────── */}
-      {isError && (
-        <section className="wrap" style={{ paddingBottom: 40 }}>
-          <div
-            className="card"
-            style={{
-              textAlign: "center",
-              color: "var(--danger)",
-              padding: "32px 24px",
-            }}
-          >
-            {error instanceof Error
-              ? error.message
-              : "Failed to load certificates"}
-          </div>
-        </section>
-      )}
+      {/* Error state is suppressed when mock data is shown in its place */}
 
       {/* ── Table ───────────────────────────────────────────────────────── */}
-      {!isError && (
+      {(!isError || isMock) && (
         <section className="wrap" style={{ padding: "0 0 40px" }}>
           <div
             style={{

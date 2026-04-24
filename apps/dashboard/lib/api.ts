@@ -6,9 +6,11 @@
 // Browser: use the Next.js proxy route so the backend URL is resolved
 // server-side from the runtime API_URL env var (avoids build-time baking).
 // SSR/server: call the backend directly.
+// NOTE: BASE must NOT include "/v1" — the proxy route prepends "/api/v1/"
+// itself. Including it here would produce double-v1 paths like /api/v1/v1/...
 const BASE =
   typeof window !== "undefined"
-    ? "/api/proxy/v1"
+    ? "/api/proxy"
     : `${process.env.API_URL ?? "http://localhost:8000"}/api/v1`;
 
 // ---------------------------------------------------------------------------
