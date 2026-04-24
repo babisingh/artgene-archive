@@ -10,7 +10,7 @@
 
 This document is a structured brief for building the ArtGene **Demo Day showcase page** (`/showcase`). It is written as a series of self-contained prompts you can hand directly to Claude Design, one section at a time.
 
-The goal is a single long-form page that tells the ArtGene story end-to-end as a funder walkthrough. Every major feature that is **already working** is shown as a live interactive widget. Features that are **planned but not yet built** are shown in a clearly labelled "In Pipeline" section at the end.
+The goal is a single long-form page that tells the ArtGene story end-to-end as a user walkthrough. Every major feature that is **already working** is shown as a live interactive widget. Features that are **planned but not yet built** are shown in a clearly labelled "In Pipeline" section at the end.
 
 ---
 
