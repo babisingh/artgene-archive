@@ -3,12 +3,13 @@
  * All routes are under /api/v1. Authentication via X-API-Key header.
  */
 
-const API_URL =
+// Browser: use the Next.js proxy route so the backend URL is resolved
+// server-side from the runtime API_URL env var (avoids build-time baking).
+// SSR/server: call the backend directly.
+const BASE =
   typeof window !== "undefined"
-    ? (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000")
-    : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000");
-
-const BASE = `${API_URL}/api/v1`;
+    ? "/api/proxy/v1"
+    : `${process.env.API_URL ?? "http://localhost:8000"}/api/v1`;
 
 // ---------------------------------------------------------------------------
 // Response types — mirror Pydantic schemas from sentinel_api
