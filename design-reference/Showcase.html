@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ArtGene Archive — Demo Day</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --paper: #faffff;
+      --paper-3: #f0f6f5;
+      --ink: #1a1a1a;
+      --ink-2: #404848;
+      --ink-3: #8a9898;
+      --accent: #c05020;
+      --verify: #0d9168;
+      --warn: #b87a00;
+      --border: #d4e4e2;
+      --sans: 'DM Sans', system-ui, sans-serif;
+      --serif: 'Instrument Serif', Georgia, serif;
+      --mono: 'JetBrains Mono', 'Courier New', monospace;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--paper); color: var(--ink); font-family: var(--sans); }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 0 40px; }
+    a { color: inherit; }
+    /* Showcase layout */
+    .showcase-layout { display: flex; }
+    .showcase-sidebar {
+      position: sticky; top: 56px; height: calc(100vh - 56px);
+      width: 200px; flex-shrink: 0; padding: 40px 0 40px 36px;
+      display: flex; flex-direction: column; gap: 2px;
+      overflow-y: auto; border-right: 1px solid var(--border);
+      background: var(--paper);
+    }
+    .showcase-sidebar a {
+      font-family: var(--mono); font-size: 10px; font-weight: 500;
+      letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3);
+      text-decoration: none; padding: 6px 12px;
+      border-left: 2px solid transparent;
+      transition: color 150ms, border-color 150ms; white-space: nowrap;
+    }
+    .showcase-sidebar a:hover, .showcase-sidebar a.active {
+      color: var(--accent); border-left-color: var(--accent);
+    }
+    .showcase-content { flex: 1; min-width: 0; }
+    @media (max-width: 1024px) { .showcase-sidebar { display: none; } }
+    /* Cards */
+    .card {
+      background: var(--paper); border: 1px solid var(--border);
+      border-radius: 6px; padding: 20px 22px;
+      transition: border-color 200ms, box-shadow 200ms;
+    }
+    .card:hover { border-color: #b8ccca; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-family: var(--sans); font-size: 13.5px; font-weight: 500;
+      padding: 10px 20px; border-radius: 5px; cursor: pointer;
+      border: none; text-decoration: none; transition: all 140ms;
+    }
+    .btn-primary { background: var(--ink); color: var(--paper); }
+    .btn-primary:hover { background: #2a3030; }
+    .btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: #9ab0ae; background: var(--paper-3); }
+    .btn-accent { background: var(--accent); color: white; }
+    .btn-accent:hover { background: #a84018; }
+    .btn-sm { font-size: 12px; padding: 7px 14px; }
+    /* Gate tracker */
+    .gate-row {
+      display: flex; align-items: flex-start; gap: 16px;
+      padding: 16px 0; border-bottom: 1px solid var(--border);
+    }
+    .gate-row:last-child { border-bottom: none; }
+    /* Codon grid */
+    .codon-cell {
+      font-family: var(--mono); font-size: 9px; padding: 3px 4px;
+      border-radius: 2px; transition: background 300ms;
+      cursor: default; white-space: nowrap;
+    }
+    /* Registry table */
+    .reg-table { width: 100%; border-collapse: collapse; }
+    .reg-table th {
+      font-family: var(--mono); font-size: 9.5px; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--ink-3); padding: 10px 14px;
+      border-bottom: 1px solid var(--border); text-align: left; font-weight: 500;
+    }
+    .reg-table td {
+      font-family: var(--sans); font-size: 13px; padding: 12px 14px;
+      border-bottom: 1px solid #eaf2f1; vertical-align: middle;
+    }
+    .reg-table tr:last-child td { border-bottom: none; }
+    .reg-table tr:hover td { background: var(--paper-3); }
+    /* Feature grid */
+    .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    @media (max-width: 768px) { .feature-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 500px) { .feature-grid { grid-template-columns: 1fr; } }
+    /* Tweaks panel */
+    .tweaks-panel {
+      position: fixed; bottom: 24px; right: 24px; z-index: 200;
+      background: var(--paper); border: 1px solid var(--border);
+      border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+      width: 260px; padding: 20px;
+    }
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="showcase-components.jsx"></script>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+const { GovStrip, SiteHeader, SiteFooter, HelixSVG, Counter, Badge, SectionShell } = window;
+
+const API = 'https://dashboard-service-production-a432.up.railway.app';
+
+/* ── DATA ────────────────────────────────────────────── */
+const SECTIONS = [
+  { id: 'hero',       label: '§ 01 — Overview' },
+  { id: 'features',   label: '§ 02 — Features' },
+  { id: 'pipeline',   label: '§ 03 — Biosafety' },
+  { id: 'watermark',  label: '§ 04 — Watermark & Provenance' },
+  { id: 'fragments',  label: '§ 05 — Fragments' },
+  { id: 'compliance', label: '§ 06 — Compliance' },
+  { id: 'registry',   label: '§ 07 — Registry' },
+  { id: 'roadmap',    label: '§ 08 — Roadmap' },
+  { id: 'cta',        label: '§ 09 — Get involved' },
+];
+
+const DEMO_SEQS = [
+  { id: 'SEQ-001', name: 'GFP-variant-β', desc: 'Fluorescent reporter, E. coli optimised', len: 720, risk: 'low',
+    dna: 'ATGGTGAGCAAGGGCGAGGAACTGTTCACCGGGGTGGTGCCCATCCTGGTCGAGCTGGACGGCGAC',
+    fb: { cert: 'AG-2026-000842', gates: {
+      alpha: { s: 'pass', score: 84.7, detail: 'pLDDT 84.7 — stable fold; instability index 38.2' },
+      beta:  { s: 'pass', score: 100,  detail: 'No SecureDNA hits; IBBIS HMM score < 0.001' },
+      gamma: { s: 'pass', score: 72.3, detail: 'CAI 0.72 for E. coli; GC 51.4%; HGT risk: low' },
+      delta: { s: 'pass', score: 8.3,  detail: '8.3% cosine similarity to dangerous-protein set' },
+    }}},
+  { id: 'SEQ-002', name: 'SynTF-v2', desc: 'Synthetic transcription factor, human host', len: 540, risk: 'low',
+    dna: 'ATGCCGAAGAAGAAGCGCAAGGTGCCGGATCCGGAATTTGAGAAAGAATTTGCGCGCAAACGCAAAG',
+    fb: { cert: 'AG-2026-000901', gates: {
+      alpha: { s: 'pass', score: 78.1, detail: 'pLDDT 78.1 — moderate confidence; IDR region detected' },
+      beta:  { s: 'pass', score: 100,  detail: 'No matches; IBBIS score 0.002' },
+      gamma: { s: 'pass', score: 68.4, detail: 'CAI 0.68 for human; GC 49.1%; low HGT risk' },
+      delta: { s: 'pass', score: 11.2, detail: '11.2% cosine similarity — within safe threshold' },
+    }}},
+  { id: 'SEQ-003', name: 'MetabEng-Enz1', desc: 'Metabolic pathway enzyme, yeast chassis', len: 840, risk: 'low',
+    dna: 'ATGACAATTAAAGAAATGCCTCAGCCAAAAACGTTTGGGGAGCTTAATTTTTTAGTGCGAATTTGAAA',
+    fb: { cert: 'AG-2026-000956', gates: {
+      alpha: { s: 'pass', score: 81.4, detail: 'pLDDT 81.4; TIM-barrel fold predicted' },
+      beta:  { s: 'pass', score: 100,  detail: 'All clear; no pathogen family matches' },
+      gamma: { s: 'pass', score: 71.0, detail: 'CAI 0.71 for S. cerevisiae; GC 45.8%' },
+      delta: { s: 'pass', score: 6.7,  detail: '6.7% similarity — well below 25% threshold' },
+    }}},
+  { id: 'SEQ-004', name: 'MembAnchor-v3', desc: 'Membrane anchor peptide, CHO expression', len: 240, risk: 'low',
+    dna: 'ATGAAGTGGGTGACCTTCATCTCCCTGCTGGTGGCCTTCCTGGTGCTGGGCCAGCTGCAGGTGGCC',
+    fb: { cert: 'AG-2026-001002', gates: {
+      alpha: { s: 'pass', score: 90.3, detail: 'pLDDT 90.3 — high confidence TM helix' },
+      beta:  { s: 'pass', score: 100,  detail: 'No hits in either screening database' },
+      gamma: { s: 'pass', score: 65.9, detail: 'CAI 0.66 for CHO; optimal membrane insertion' },
+      delta: { s: 'pass', score: 4.1,  detail: '4.1% similarity — minimal hazard signal' },
+    }}},
+  { id: 'SEQ-005', name: 'CircRNA-Reg', desc: 'Circular RNA regulatory element', len: 620, risk: 'low',
+    dna: 'ATGGCTAGCATGACTGGTGGACAGCAAATGGGTCGGGATCTGTACGACGATGACGATAAGGATCCC',
+    fb: { cert: 'AG-2026-001089', gates: {
+      alpha: { s: 'pass', score: 72.6, detail: 'pLDDT 72.6; RNA scaffold structure predicted' },
+      beta:  { s: 'pass', score: 100,  detail: 'Regulatory sequence — no pathogen matches' },
+      gamma: { s: 'pass', score: 77.2, detail: 'CAI 0.77 for insect; GC 52.0%' },
+      delta: { s: 'pass', score: 9.9,  detail: '9.9% similarity — regulatory class, no flag' },
+    }}},
+  { id: 'SEQ-006', name: '⚠ HazardVec-Δ', desc: 'Test vector for gate β screening', len: 390, risk: 'high',
+    dna: 'ATGAGCGATAAAATTATTCACCTGACTGACGACAGTTTTGACACGGATGTACTCAAAGCGGACGGGG',
+    fb: { cert: null, gates: {
+      alpha: { s: 'pass', score: 79.2, detail: 'pLDDT 79.2 — toxin-like fold flagged' },
+      beta:  { s: 'fail', score: 0,    detail: 'SecureDNA: 3 SELECT AGENT hits; IBBIS: family F-48 (toxin)' },
+      gamma: { s: 'pending', score: 0, detail: 'Screening halted after gate β failure' },
+      delta: { s: 'pending', score: 0, detail: 'Screening halted after gate β failure' },
+    }}},
+];
+
+const FEATURES = [
+  { s:'live', t:'Four-gate biosafety pipeline', b:'Every sequence runs gates α, β, γ, δ automatically before a certificate is issued.', a:'#pipeline' },
+  { s:'live', t:'TINSEL codon watermark', b:'Spread-spectrum HMAC-SHA3-256 watermark embedded in synonymous codon positions.', a:'#watermark' },
+  { s:'live', t:'Post-quantum WOTS+ certificate', b:'Every certificate signed with a Winternitz One-Time Signature — quantum-resistant by design.', a:'#watermark' },
+  { s:'live', t:'Immutable audit ledger', b:'Blockchain-style SHA3-256 chained log. DB-level trigger prevents any row from being modified.', a:null },
+  { s:'live', t:'Unique AG-ID accession', b:'Each registered sequence receives a permanent, citable accession number (e.g. AG-2026-000001).', a:'#registry' },
+  { s:'live', t:'Provenance tracing', b:'Issue fingerprinted copies to recipients. Identify the source of a leaked sequence in milliseconds.', a:'#provenance' },
+  { s:'live', t:'Fragment assembly risk screen', b:'Screen multi-FASTA fragments individually and as assembled contigs — catches split-vector evasion.', a:'#fragments' },
+  { s:'live', t:'ESMFold structural screening (Gate α)', b:'Per-residue pLDDT scores and instability index from ESMAtlas — folds before certifying.', a:'#pipeline' },
+  { s:'live', t:'SecureDNA + IBBIS hazard (Gate β)', b:'DOPRF privacy-preserving pathogen screening and IBBIS HMM family classification.', a:'#pipeline' },
+  { s:'live', t:'Host codon optimisation (Gate γ)', b:'CAI, GC content, and HGT risk against six host organisms.', a:'#pipeline' },
+  { s:'live', t:'Functional embedding similarity (Gate δ)', b:'Amino acid composition fingerprint vs. dangerous-protein reference database.', a:'#pipeline' },
+  { s:'live', t:'US DURC + EU Dual-Use compliance', b:'Machine-readable attestation document generated per certificate for regulatory submission.', a:'#compliance' },
+  { s:'live', t:'ArtGene-SCD-1.0 synthesis clearance', b:'Signed synthesizer authorisation compatible with firmware-level screening.', a:'#compliance' },
+  { s:'live', t:'Multi-gene pathway bundles', b:'Group related sequences into a Merkle-rooted pathway bundle with a single pathway ID.', a:null },
+  { s:'live', t:'Public searchable registry', b:'All certified sequences publicly discoverable by AG-ID, institution, or sequence hash.', a:'#registry' },
+  { s:'pipeline', t:'LWE lattice commitment (real)', b:'Post-quantum zero-knowledge commitment currently stubbed — full implementation in Phase 4.', a:null },
+  { s:'pipeline', t:'Merkle inclusion proofs for pathways', b:'Per-sequence membership proofs within a pathway bundle. Phase 7.', a:null },
+  { s:'pipeline', t:'ESM-2 650M production embeddings', b:'Gate δ will switch from composition fingerprint to full ESM-2 mean-pooled cosine similarity.', a:null },
+  { s:'pipeline', t:'SDK: Python, R, Julia', b:'First-party client libraries for programmatic submission and verification.', a:null },
+  { s:'pipeline', t:'Rich sequence metadata', b:'Abstract, authors, ORCID, keywords, generating model, and molecular weight per record.', a:null },
+  { s:'pipeline', t:'Live ticker & real-time updates', b:'WebSocket feed of new deposits on the home page and registry.', a:null },
+];
+
+const GATE_META = {
+  alpha: { label: 'Gate α — Structural screening',   icon: '◈', desc: 'ESMFold pLDDT + instability index' },
+  beta:  { label: 'Gate β — Pathogen screening',     icon: '⬡', desc: 'SecureDNA DOPRF + IBBIS HMM' },
+  gamma: { label: 'Gate γ — Codon optimisation',     icon: '◇', desc: 'CAI, GC content, HGT risk (6 hosts)' },
+  delta: { label: 'Gate δ — Embedding similarity',   icon: '△', desc: 'Composition fingerprint vs. reference DB' },
+};
+
+const REG_FALLBACK = [
+  { id:'AG-2026-001089', name:'CircRNA-Reg',     inst:'Karolinska Institutet', date:'2026-04-22', status:'certified' },
+  { id:'AG-2026-001002', name:'MembAnchor-v3',   inst:'ETH Zürich',           date:'2026-04-21', status:'certified' },
+  { id:'AG-2026-000956', name:'MetabEng-Enz1',   inst:'MIT CSAIL',            date:'2026-04-20', status:'certified' },
+  { id:'AG-2026-000901', name:'SynTF-v2',        inst:'Broad Institute',      date:'2026-04-18', status:'certified' },
+  { id:'AG-2026-000842', name:'GFP-variant-β',   inst:'Ginkgo Bioworks',      date:'2026-04-15', status:'certified' },
+  { id:'AG-2026-000791', name:'PhotoSys-Mod',    inst:'UC Berkeley',          date:'2026-04-12', status:'certified' },
+];
+
+/* ── TWEAK DEFAULTS ──────────────────────────────────── */
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "audience": "technical",
+  "accent": "#c05020",
+  "showApiEndpoints": false
+}/*EDITMODE-END*/;
+
+/* ── HERO ────────────────────────────────────────────── */
+function HeroSection({ tech }) {
+  return (
+    <section id="hero" data-screen-label="§ 01 — Overview" style={{ padding: '80px 0 72px', background: 'var(--paper)' }}>
+      <div className="wrap">
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 24 }}>
+          ARTGENE CONSORTIUM · VOLUME I · 2026 &nbsp;—&nbsp; § 01 — Overview
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 64 }}>
+          {/* Left */}
+          <div style={{ flex: 1 }}>
+            <h1 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(36px,4.5vw,58px)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.03em', color: 'var(--ink)', margin: '0 0 24px' }}>
+              The first public registry for{' '}
+              <span style={{ color: 'var(--accent)' }}>AI-designed</span>{' '}
+              biological sequences.
+            </h1>
+            <p style={{ fontFamily: 'var(--sans)', fontSize: 15.5, color: 'var(--ink-2)', maxWidth: 560, lineHeight: 1.7, margin: '0 0 44px' }}>
+              Generative models now produce proteins and genes faster than the scientific community can catalogue them. ArtGene is the infrastructure layer: automated biosafety screening, codon watermarking, post-quantum certificates, and an immutable public ledger — for every sequence.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '28px 40px', marginBottom: 44, maxWidth: 400 }}>
+              <Counter value="1,247" label="Sequences registered" />
+              <Counter value="4"     label="Biosafety gates" />
+              <Counter value="12"    label="Partner institutions" />
+              <Counter value="100%"  label="Open access" />
+            </div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <a href="#pipeline" className="btn btn-primary">Run a live demo ↓</a>
+              <a href="#features"  className="btn btn-ghost">Explore features</a>
+            </div>
+          </div>
+          {/* Helix */}
+          <div style={{ flexShrink: 0, paddingTop: 8 }} className="hero-helix">
+            <HelixSVG width={300} height={380} />
+          </div>
+        </div>
+      </div>
+      <style>{`@media(max-width:860px){.hero-helix{display:none}}`}</style>
+    </section>
+  );
+}
+
+/* ── FEATURES ────────────────────────────────────────── */
+function FeaturesSection() {
+  const live = FEATURES.filter(f => f.s === 'live').length;
+  const pipeline = FEATURES.filter(f => f.s === 'pipeline').length;
+  return (
+    <SectionShell id="features" eyebrow="§ 02 — Features" title="What's built — and what's next."
+      lede={`${live} capabilities are live today. ${pipeline} more are in active development. Click any live feature to jump to its interactive demo below.`}
+      alt>
+      <div className="feature-grid">
+        {FEATURES.map((f, i) => (
+          <div key={i} className="card" style={{ position: 'relative', cursor: f.a ? 'pointer' : 'default' }}
+            onClick={() => f.a && (window.location.hash = f.a)}>
+            <div style={{ position: 'absolute', top: 14, right: 14 }}>
+              <Badge type={f.s === 'live' ? 'live' : 'pipeline'} label={f.s === 'live' ? '● LIVE' : '◌ IN PIPELINE'} />
+            </div>
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 600, color: 'var(--ink)', margin: '0 0 8px', paddingRight: 90, letterSpacing: '-0.01em', lineHeight: 1.35 }}>
+              {f.a ? <a href={f.a} style={{ textDecoration: 'none', color: 'inherit' }} onClick={e => e.stopPropagation()}>{f.t}</a> : f.t}
+            </div>
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.5 }}>{f.b}</div>
+          </div>
+        ))}
+      </div>
+    </SectionShell>
+  );
+}
+
+/* ── PIPELINE ────────────────────────────────────────── */
+function PipelineSection({ showEndpoints }) {
+  const [sel, setSel] = useState(0);
+  const [state, setState] = useState('idle'); // idle | running | done
+  const [gates, setGates] = useState({ alpha:'pending', beta:'pending', gamma:'pending', delta:'pending' });
+  const [details, setDetails] = useState({});
+
+  const run = async () => {
+    const seq = DEMO_SEQS[sel];
+    setState('running');
+    setGates({ alpha:'pending', beta:'pending', gamma:'pending', delta:'pending' });
+    setDetails({});
+
+    // Try real API, fall back to static
+    let result = null;
+    try {
+      const res = await Promise.race([
+        fetch(`${API}/api/proxy/analyse`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sequence: seq.dna }),
+        }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 7000)),
+      ]);
+      if (res.ok) result = await res.json();
+    } catch (_) {}
+
+    // Animate gates with fallback data
+    const fb = seq.fb;
+    const gateOrder = ['alpha', 'beta', 'gamma', 'delta'];
+    for (const g of gateOrder) {
+      setGates(prev => ({ ...prev, [g]: 'running' }));
+      await new Promise(r => setTimeout(r, 900 + Math.random() * 600));
+      const gData = result?.gates?.[g] || fb.gates[g];
+      const status = gData?.s || gData?.status || 'pass';
+      setGates(prev => ({ ...prev, [g]: status === 'fail' ? 'fail' : 'pass' }));
+      setDetails(prev => ({ ...prev, [g]: gData }));
+      if (status === 'fail') {
+        // Mark remaining as pending/halted
+        const rem = gateOrder.slice(gateOrder.indexOf(g) + 1);
+        for (const r of rem) {
+          setGates(prev => ({ ...prev, [r]: 'pending' }));
+          setDetails(prev => ({ ...prev, [r]: fb.gates[r] }));
+        }
+        setState('done'); return;
+      }
+    }
+    setState('done');
+  };
+
+  const reset = () => { setState('idle'); setGates({ alpha:'pending', beta:'pending', gamma:'pending', delta:'pending' }); setDetails({}); };
+  const allPass = state === 'done' && Object.values(gates).every(g => g === 'pass');
+  const seq = DEMO_SEQS[sel];
+
+  return (
+    <SectionShell id="pipeline" eyebrow="§ 03 — Biosafety Pipeline"
+      title="Four-gate automated biosafety review."
+      lede="Select a sequence from the test-vector library and run the full analysis. All four gates execute automatically. A certificate is issued only when every gate passes.">
+      {showEndpoints && (
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)', background: 'var(--paper-3)', padding: '8px 14px', borderRadius: 4, marginBottom: 28, border: '1px solid var(--border)' }}>
+          POST {API}/api/proxy/analyse
+        </div>
+      )}
+      {/* Sequence selector */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 28 }}>
+        {DEMO_SEQS.map((s, i) => (
+          <button key={i} onClick={() => { setSel(i); reset(); }} style={{
+            textAlign: 'left', padding: '12px 14px', borderRadius: 5, cursor: 'pointer',
+            border: `1.5px solid ${sel === i ? 'var(--accent)' : 'var(--border)'}`,
+            background: sel === i ? 'rgba(192,80,32,0.04)' : 'var(--paper)',
+            transition: 'all 140ms',
+          }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, color: sel === i ? 'var(--accent)' : 'var(--ink-3)', letterSpacing: '0.08em', marginBottom: 3 }}>{s.id}</div>
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>{s.name}</div>
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)' }}>{s.desc}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* Sequence preview */}
+      <div style={{ background: '#f4faf9', border: '1px solid var(--border)', borderRadius: 5, padding: '10px 14px', marginBottom: 24, fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-2)', letterSpacing: '0.05em', wordBreak: 'break-all', lineHeight: 1.6 }}>
+        <span style={{ color: 'var(--ink-3)', marginRight: 8 }}>5′</span>{seq.dna}<span style={{ color: 'var(--ink-3)', marginLeft: 2 }}>…3′</span>
+        <span style={{ float: 'right', fontSize: 10, color: 'var(--ink-3)' }}>{seq.len} bp</span>
+      </div>
+
+      <div style={{ display: 'flex', gap: 12, marginBottom: 32 }}>
+        {state === 'idle' && <button className="btn btn-accent" onClick={run}>Run analysis →</button>}
+        {state === 'running' && <button className="btn btn-ghost" disabled style={{ opacity: 0.6 }}>Analysing…</button>}
+        {state === 'done' && <><button className="btn btn-primary" onClick={run}>Run again</button><button className="btn btn-ghost" onClick={reset}>Reset</button></>}
+      </div>
+
+      {/* Gate tracker */}
+      <div style={{ border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
+        {Object.entries(GATE_META).map(([key, meta]) => {
+          const status = gates[key];
+          const detail = details[key];
+          return (
+            <div key={key} className="gate-row" style={{ padding: '18px 22px' }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: status === 'pass' ? 'rgba(13,145,104,0.1)' : status === 'fail' ? 'rgba(200,50,50,0.08)' : status === 'running' ? 'rgba(192,80,32,0.08)' : '#f0f5f5',
+                border: `1.5px solid ${status === 'pass' ? 'rgba(13,145,104,0.3)' : status === 'fail' ? 'rgba(200,50,50,0.25)' : status === 'running' ? 'rgba(192,80,32,0.3)' : 'var(--border)'}`,
+                fontSize: 14, transition: 'all 300ms',
+              }}>
+                {status === 'running' ? <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>○</span>
+                 : status === 'pass' ? '✓' : status === 'fail' ? '✕' : meta.icon}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                  <span style={{ fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>{meta.label}</span>
+                  {status !== 'pending' && status !== 'running' && (
+                    <Badge type={status} label={status.toUpperCase()} />
+                  )}
+                  {status === 'running' && <Badge type="pending" label="RUNNING…" />}
+                </div>
+                <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, color: 'var(--ink-3)' }}>
+                  {detail?.detail || meta.desc}
+                </div>
+                {detail?.score !== undefined && status === 'pass' && (
+                  <div style={{ marginTop: 8, height: 3, borderRadius: 2, background: 'var(--border)', overflow: 'hidden', maxWidth: 220 }}>
+                    <div style={{ height: '100%', width: `${Math.min(detail.score, 100)}%`, background: 'var(--verify)', borderRadius: 2, transition: 'width 800ms ease' }} />
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Certificate result */}
+      {allPass && (
+        <div style={{ marginTop: 24, padding: '24px 28px', border: '1.5px solid rgba(13,145,104,0.3)', borderRadius: 6, background: 'rgba(13,145,104,0.04)', display: 'flex', alignItems: 'center', gap: 20 }}>
+          <div style={{ fontSize: 32 }}>🔏</div>
+          <div>
+            <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 15, color: 'var(--ink)', marginBottom: 4 }}>Certificate issued: {seq.fb.cert}</div>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: 'var(--verify)', letterSpacing: '0.08em' }}>ALL FOUR GATES PASSED · WOTS+ SIGNATURE APPLIED · IMMUTABLE LEDGER ENTRY CREATED</div>
+          </div>
+        </div>
+      )}
+      {state === 'done' && !allPass && (
+        <div style={{ marginTop: 24, padding: '20px 24px', border: '1.5px solid rgba(200,50,50,0.25)', borderRadius: 6, background: 'rgba(200,50,50,0.04)' }}>
+          <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 14, color: '#b02020', marginBottom: 4 }}>Certificate not issued</div>
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-2)' }}>One or more biosafety gates failed. Sequence cannot be registered. Details sent to depositor for review.</div>
+        </div>
+      )}
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    </SectionShell>
+  );
+}
+
+/* ── WATERMARK + PROVENANCE (combined) ───────────────── */
+function WatermarkProvenanceSection() {
+  const [step, setStep] = useState(0);
+  const [hover, setHover] = useState(null);
+  const [active, setActive] = useState(null);
+  const CODONS = ['ATG','GCT','TTC','AAA','CGT','GGC','TAC','ACG','TGG','GAA','CCT','AGG','ATT','GCA','TCG','CTG','AAC','GGT','ACT','TAA','CAT','GTG','TCC','AGC','CGA','GAG','TTG','ATC','GCC','CAA','TGC','AGT'];
+  const WMARK = new Set([2,5,9,13,17,21,25,29]);
+  const recipients = [
+    { id:'R-001', name:'Lab A — MIT',      wmark:'Variant α-01', leaked:false },
+    { id:'R-002', name:'Lab B — Broad',    wmark:'Variant α-02', leaked:true  },
+    { id:'R-003', name:'Lab C — Stanford', wmark:'Variant α-03', leaked:false },
+    { id:'R-004', name:'Lab D — Oxford',   wmark:'Variant α-04', leaked:false },
+  ];
+  const STEPS = [
+    { label:'① Certify',    desc:'The sequence passes all four biosafety gates and receives a WOTS+-signed certificate. No watermark is applied yet — the sequence is stored as-is.' },
+    { label:'② Distribute', desc:'When the submitter issues copies to authorised recipients, each copy receives a unique TINSEL codon-watermark variant. Same protein, different fingerprint per recipient.' },
+    { label:'③ Trace',      desc:'If a copy appears outside the authorised network, ArtGene matches the watermark to the exact source recipient in milliseconds — cryptographically, not by investigation.' },
+  ];
+  return (
+    <SectionShell id="watermark" eyebrow="§ 04 — Watermark & Provenance" title="TINSEL: certify once, trace forever."
+      lede="Watermarking is not applied at deposit — it is applied at distribution. Every authorised copy carries a unique spread-spectrum fingerprint invisible at the protein level." alt>
+      {/* Step tabs */}
+      <div style={{ display:'flex', gap:8, marginBottom:28 }}>
+        {STEPS.map((s,i) => (
+          <button key={i} onClick={() => { setStep(i); setActive(null); }} style={{
+            fontFamily:'var(--mono)', fontSize:10, letterSpacing:'0.08em',
+            padding:'7px 14px', borderRadius:4, cursor:'pointer',
+            border:`1.5px solid ${step===i ? 'var(--accent)' : 'var(--border)'}`,
+            background: step===i ? 'rgba(192,80,32,0.06)' : 'var(--paper)',
+            color: step===i ? 'var(--accent)' : 'var(--ink-3)', transition:'all 140ms',
+          }}>{s.label}</button>
+        ))}
+      </div>
+      <p style={{ fontFamily:'var(--sans)', fontSize:13.5, color:'var(--ink-2)', marginBottom:32, maxWidth:600, lineHeight:1.65 }}>{STEPS[step].desc}</p>
+
+      {/* ① Certify */}
+      {step === 0 && (
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:40, alignItems:'start' }}>
+          <div>
+            <div style={{ fontFamily:'var(--mono)', fontSize:10, color:'var(--ink-3)', letterSpacing:'0.1em', marginBottom:12, textTransform:'uppercase' }}>Base sequence — pre-distribution, no watermark</div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:3, marginBottom:14 }}>
+              {CODONS.map((c,i) => (
+                <div key={i} className="codon-cell" onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}
+                  style={{ background: hover===i ? 'var(--paper-3)' : 'transparent', color:'var(--ink-2)', border:'1px solid var(--border)' }}>{c}</div>
+              ))}
+            </div>
+            <div style={{ padding:'12px 14px', background:'var(--paper)', border:'1px solid var(--border)', borderRadius:5, fontFamily:'var(--sans)', fontSize:12.5, color:'var(--ink-2)', lineHeight:1.6 }}>
+              At registration the sequence is stored as-is. Applying a watermark now would be identical for every future recipient — meaningless for tracing.
+            </div>
+          </div>
+          <div>
+            <div style={{ fontFamily:'var(--mono)', fontSize:10, color:'var(--ink-3)', letterSpacing:'0.1em', marginBottom:12, textTransform:'uppercase' }}>Certificate — AG-2026-000842</div>
+            <div style={{ border:'1px solid var(--border)', borderRadius:6, padding:'22px 20px', background:'var(--paper)' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:18 }}>
+                <div>
+                  <div style={{ fontFamily:'var(--mono)', fontSize:9, color:'var(--ink-3)', letterSpacing:'0.1em', marginBottom:5 }}>ARTGENE ARCHIVE</div>
+                  <div style={{ fontFamily:'var(--serif)', fontSize:19, fontStyle:'italic', color:'var(--ink)' }}>Certificate of Registration</div>
+                </div>
+                <div style={{ width:42, height:42, borderRadius:'50%', border:'2px solid var(--verify)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--verify)', fontSize:18 }}>✓</div>
+              </div>
+              {[['Accession','AG-2026-000842'],['Sequence','GFP-variant-β'],['Depositor','Ginkgo Bioworks'],['Issued','2026-04-15 14:32 UTC'],['Signature','WOTS+ / SHA3-256'],['Distribution copies','0 — not yet distributed']].map(([k,v]) => (
+                <div key={k} style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom:'1px solid #eaf2f1', fontFamily:'var(--sans)', fontSize:12.5 }}>
+                  <span style={{ color:'var(--ink-3)' }}>{k}</span>
+                  <span style={{ color:'var(--ink)', fontWeight:500 }}>{v}</span>
+                </div>
+              ))}
+              <div style={{ marginTop:12, fontFamily:'var(--mono)', fontSize:9, color:'var(--ink-3)', wordBreak:'break-all' }}>SIG: a3f7c2e1b9d4…8f2a1c0e3b7d</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ② Distribute */}
+      {step === 1 && (
+        <div>
+          <div style={{ fontFamily:'var(--mono)', fontSize:10, color:'var(--ink-3)', letterSpacing:'0.1em', marginBottom:16, textTransform:'uppercase' }}>Unique TINSEL variant issued per recipient</div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:12, marginBottom:24 }}>
+            {recipients.map((r,i) => (
+              <div key={i} style={{ border:'1px solid var(--border)', borderRadius:5, padding:'14px 16px', background:'var(--paper)' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                  <div>
+                    <div style={{ fontFamily:'var(--mono)', fontSize:9.5, color:'var(--ink-3)', letterSpacing:'0.08em', marginBottom:3 }}>{r.id}</div>
+                    <div style={{ fontFamily:'var(--sans)', fontSize:13, fontWeight:600, color:'var(--ink)' }}>{r.name}</div>
+                  </div>
+                  <Badge type="live" label={r.wmark} />
+                </div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:2 }}>
+                  {CODONS.slice(0,16).map((c,j) => {
+                    const isW = WMARK.has((j + i * 3) % CODONS.length);
+                    return <div key={j} className="codon-cell" style={{ background: isW ? 'rgba(192,80,32,0.09)' : 'transparent', color: isW ? 'var(--accent)' : 'var(--ink-3)', border:`1px solid ${isW ? 'rgba(192,80,32,0.25)' : 'var(--border)'}`, fontSize:8 }}>{c}</div>;
+                  })}
+                  <span style={{ fontFamily:'var(--mono)', fontSize:8, color:'var(--ink-3)', alignSelf:'center', marginLeft:2 }}>…</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ padding:'12px 16px', background:'rgba(192,80,32,0.04)', border:'1px solid rgba(192,80,32,0.15)', borderRadius:5, fontFamily:'var(--sans)', fontSize:13, color:'var(--ink-2)', lineHeight:1.6 }}>
+            Each copy translates to an identical protein. The differences exist only in synonymous codon positions — invisible to the cell, detectable only with the TINSEL secret key.
+          </div>
+        </div>
+      )}
+
+      {/* ③ Trace */}
+      {step === 2 && (
+        <div>
+          <div style={{ fontFamily:'var(--mono)', fontSize:10, color:'var(--ink-3)', letterSpacing:'0.1em', marginBottom:16, textTransform:'uppercase' }}>Provenance trace — click a recipient to inspect</div>
+          <div style={{ display:'flex', alignItems:'center', overflowX:'auto', paddingBottom:8, marginBottom:16, gap:0 }}>
+            <div style={{ textAlign:'center', flexShrink:0, minWidth:120 }}>
+              <div style={{ width:50, height:50, borderRadius:'50%', background:'rgba(192,80,32,0.08)', border:'1.5px solid var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 8px', fontSize:20 }}>🧬</div>
+              <div style={{ fontFamily:'var(--mono)', fontSize:9, color:'var(--ink-3)', letterSpacing:'0.08em' }}>ORIGINAL</div>
+              <div style={{ fontFamily:'var(--sans)', fontSize:11.5, fontWeight:600, color:'var(--ink)' }}>AG-2026-000842</div>
+            </div>
+            {recipients.map((r,i) => (
+              <div key={i} style={{ display:'flex', alignItems:'center', flexShrink:0 }}>
+                <div style={{ width:24, height:1.5, background: r.leaked ? 'var(--accent)' : 'var(--border)' }} />
+                <div onClick={() => setActive(active===i ? null : i)} style={{
+                  textAlign:'center', cursor:'pointer', width:116, padding:'10px 8px', borderRadius:6,
+                  border:`1.5px solid ${r.leaked ? 'var(--accent)' : active===i ? '#b8ccca' : 'var(--border)'}`,
+                  background: r.leaked ? 'rgba(192,80,32,0.04)' : active===i ? 'var(--paper-3)' : 'var(--paper)',
+                  transition:'all 150ms',
+                }}>
+                  <div style={{ fontFamily:'var(--mono)', fontSize:9, color: r.leaked ? 'var(--accent)' : 'var(--ink-3)', letterSpacing:'0.08em', marginBottom:3 }}>{r.id}</div>
+                  <div style={{ fontFamily:'var(--sans)', fontSize:11.5, color:'var(--ink)', lineHeight:1.3, marginBottom: r.leaked ? 6 : 0 }}>{r.name}</div>
+                  {r.leaked && <Badge type="fail" label="LEAKED" />}
+                </div>
+              </div>
+            ))}
+          </div>
+          {active !== null ? (
+            <div style={{ padding:'16px 20px', border:`1px solid ${recipients[active].leaked ? 'rgba(192,80,32,0.3)' : 'var(--border)'}`, borderRadius:5, background: recipients[active].leaked ? 'rgba(192,80,32,0.04)' : 'var(--paper-3)', fontFamily:'var(--sans)', fontSize:13, lineHeight:1.6 }}>
+              {recipients[active].leaked
+                ? <><strong style={{ color:'var(--accent)' }}>Source identified.</strong> Leaked sequence matches <strong>{recipients[active].wmark}</strong> issued to {recipients[active].name}. Watermark correlation: 99.97%. Certificate revocation initiated.</>
+                : <><strong>Copy {recipients[active].id}</strong> — {recipients[active].wmark} — issued to {recipients[active].name}. No leak detected for this fingerprint variant.</>}
+            </div>
+          ) : (
+            <div style={{ fontFamily:'var(--sans)', fontSize:13, color:'var(--ink-3)' }}>↑ Click a recipient to inspect. R-002 (Lab B — Broad) carries a confirmed leak.</div>
+          )}
+        </div>
+      )}
+    </SectionShell>
+  );
+}
+
+/* ── FRAGMENTS ───────────────────────────────────────── */
+function FragmentsSection({ showEndpoints }) {
+  const EXAMPLES = [
+    { id:'F1', seq:'ATGGTGAGCAAGGGCGAGGAACTG…', len:240 },
+    { id:'F2', seq:'TTCACCGGGGTGGTGCCCATCCTG…', len:240 },
+    { id:'F3', seq:'GTCGAGCTGGACGGCGACGTAAAC…', len:240 },
+  ];
+  const [ran, setRan] = useState(false);
+  return (
+    <SectionShell id="fragments" eyebrow="§ 06 — Fragment Assembly" title="Split-vector evasion? Caught."
+      lede="A bad actor may attempt to split a hazardous sequence across multiple FASTA fragments to evade individual screening. ArtGene screens each fragment alone, then screens the reassembled contig." alt>
+      {showEndpoints && (
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)', background: 'var(--paper)', padding: '8px 14px', borderRadius: 4, marginBottom: 20, border: '1px solid var(--border)' }}>
+          POST {API}/api/proxy/analyse/fragments
+        </div>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+        {EXAMPLES.map(f => (
+          <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: '1px solid var(--border)', borderRadius: 5, background: 'var(--paper)' }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', letterSpacing: '0.08em', width: 24 }}>{f.id}</span>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-2)', flex: 1 }}>{f.seq}</span>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)' }}>{f.len} bp</span>
+            {ran && <Badge type="pass" label="PASS" />}
+          </div>
+        ))}
+      </div>
+      {!ran
+        ? <button className="btn btn-accent" onClick={() => setRan(true)}>Screen fragments →</button>
+        : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              {EXAMPLES.map(f => (
+                <div key={f.id} style={{ padding: '10px 16px', border: '1px solid rgba(13,145,104,0.3)', borderRadius: 5, background: 'rgba(13,145,104,0.04)' }}>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, color: 'var(--ink-3)', marginBottom: 4 }}>{f.id} — INDIVIDUAL</div>
+                  <Badge type="pass" label="CLEAR" />
+                </div>
+              ))}
+              <div style={{ padding: '10px 16px', border: '1px solid rgba(13,145,104,0.3)', borderRadius: 5, background: 'rgba(13,145,104,0.04)' }}>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, color: 'var(--ink-3)', marginBottom: 4 }}>F1+F2+F3 — ASSEMBLED</div>
+                <Badge type="pass" label="CLEAR" />
+              </div>
+            </div>
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-3)', marginTop: 4 }}>All fragments and assembled contig cleared all biosafety gates.</div>
+          </div>
+        )
+      }
+    </SectionShell>
+  );
+}
+
+/* ── COMPLIANCE ──────────────────────────────────────── */
+function ComplianceSection() {
+  return (
+    <SectionShell id="compliance" eyebrow="§ 07 — Compliance & Synthesis Auth" title="Ready for regulatory submission."
+      lede="Every certificate generates two machine-readable compliance documents automatically: a US DURC / EU Dual-Use attestation manifest and an ArtGene Synthesis Clearance Document.">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        {[
+          { code: 'DURC-MANIFEST', title: 'US DURC + EU Dual-Use', sub: 'Dual-use research of concern attestation', fields: [['Subject to DURC policy','No'],['EU Cat. 2B350 overlap','No'],['Gain-of-function risk','None detected'],['Recommended oversight','Biosafety Level 1'],['Generated','2026-04-15']] },
+          { code: 'AG-SCD-1.0', title: 'Synthesis Clearance Document', sub: 'ArtGene-SCD-1.0 — synthesizer authorisation', fields: [['Authorisation status','CLEARED'],['AG-ID','AG-2026-000842'],['Valid for synthesis','Yes'],['Compatible firmware','SCD-1.0+'],['Issued','2026-04-15']] },
+        ].map(doc => (
+          <div key={doc.code} className="card">
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, color: 'var(--ink-3)', letterSpacing: '0.1em', marginBottom: 8 }}>{doc.code}</div>
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>{doc.title}</div>
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, color: 'var(--ink-3)', marginBottom: 16 }}>{doc.sub}</div>
+            {doc.fields.map(([k, v]) => (
+              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #eaf2f1', fontFamily: 'var(--sans)', fontSize: 12.5 }}>
+                <span style={{ color: 'var(--ink-3)' }}>{k}</span>
+                <span style={{ color: 'var(--ink)', fontWeight: 500 }}>{v}</span>
+              </div>
+            ))}
+            <div style={{ marginTop: 16 }}>
+              <button className="btn btn-ghost btn-sm">Download JSON</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </SectionShell>
+  );
+}
+
+/* ── REGISTRY ────────────────────────────────────────── */
+function RegistrySection({ showEndpoints }) {
+  const [records, setRecords] = useState(REG_FALLBACK);
+  const [loading, setLoading] = useState(false);
+  const [live, setLive] = useState(false);
+  useEffect(() => {
+    setLoading(true);
+    fetch(`${API}/api/proxy/certificates/`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.results?.length) { setRecords(d.results.slice(0, 6)); setLive(true); } })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+  return (
+    <SectionShell id="registry" eyebrow="§ 08 — Registry" title="Public. Searchable. Immutable." alt
+      lede="Every certified sequence is permanently discoverable. The registry is open-access — no account required to search, cite, or verify.">
+      {showEndpoints && (
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)', background: 'var(--paper)', padding: '8px 14px', borderRadius: 4, marginBottom: 20, border: '1px solid var(--border)' }}>
+          GET {API}/api/proxy/certificates/
+        </div>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        <Badge type={live ? 'live' : 'pending'} label={live ? '● LIVE DATA' : '◌ DEMO DATA'} />
+        <span style={{ fontFamily: 'var(--sans)', fontSize: 12, color: 'var(--ink-3)' }}>{records.length} records shown</span>
+      </div>
+      <div style={{ border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
+        <table className="reg-table">
+          <thead>
+            <tr style={{ background: 'var(--paper-3)' }}>
+              {['AG-ID','Sequence','Institution','Date','Status'].map(h => <th key={h}>{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {records.map((r, i) => (
+              <tr key={i}>
+                <td><span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--accent)' }}>{r.id || r.accession_id}</span></td>
+                <td style={{ fontWeight: 500 }}>{r.name || r.sequence_name || '—'}</td>
+                <td style={{ color: 'var(--ink-2)' }}>{r.inst || r.institution || '—'}</td>
+                <td style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)' }}>{r.date || r.created_at?.slice(0,10) || '—'}</td>
+                <td><Badge type="pass" label="CERTIFIED" /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </SectionShell>
+  );
+}
+
+/* ── ROADMAP ─────────────────────────────────────────── */
+function RoadmapSection() {
+  const phases = [
+    { n:1, label:'Foundation', status:'done',   items:['Registry API','TINSEL watermark','Four-gate pipeline','WOTS+ certificates','Audit ledger'] },
+    { n:2, label:'Compliance', status:'done',   items:['DURC manifest','SCD-1.0 document','Fragment assembly screen','Provenance tracing','Pathway bundles'] },
+    { n:3, label:'Scale',      status:'active', items:['Partner onboarding (12)','SecureDNA production','IBBIS v2 integration','Performance benchmarks'] },
+    { n:4, label:'Crypto',     status:'next',   items:['LWE lattice commitment','ZK proof system','Full WOTS+ verification','Merkle pathway proofs'] },
+    { n:5, label:'SDK',        status:'next',   items:['Python SDK','R package','Julia bindings','REST SDK v2'] },
+    { n:6, label:'Production', status:'next',   items:['ESM-2 650M embeddings','Rich metadata','WebSocket live feed','Mobile-first UI'] },
+  ];
+  return (
+    <SectionShell id="roadmap" eyebrow="§ 09 — Roadmap" title="Six phases to full production."
+      lede="Phases 1 and 2 are complete. Phase 3 is active — partner onboarding and production hardening.">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
+        {phases.map(p => (
+          <div key={p.n} className="card" style={{ borderColor: p.status === 'active' ? 'var(--accent)' : undefined }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: p.status === 'done' ? 'var(--verify)' : p.status === 'active' ? 'var(--accent)' : 'var(--ink-3)', fontWeight: 500 }}>
+                PHASE {p.n}
+              </span>
+              <Badge type={p.status === 'done' ? 'pass' : p.status === 'active' ? 'live' : 'pipeline'}
+                label={p.status === 'done' ? 'DONE' : p.status === 'active' ? 'ACTIVE' : 'PLANNED'} />
+            </div>
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 12 }}>{p.label}</div>
+            {p.items.map((item, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontFamily: 'var(--sans)', fontSize: 12.5, color: p.status === 'next' ? 'var(--ink-3)' : 'var(--ink-2)' }}>
+                <span style={{ color: p.status === 'done' ? 'var(--verify)' : p.status === 'active' ? 'var(--accent)' : 'var(--border)', fontSize: 10 }}>
+                  {p.status === 'done' ? '✓' : p.status === 'active' ? '›' : '·'}
+                </span>
+                {item}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </SectionShell>
+  );
+}
+
+/* ── CTA ─────────────────────────────────────────────── */
+function CTASection() {
+  return (
+    <section id="cta" data-screen-label="§ 09 — Get involved" style={{ padding: '96px 0', background: 'var(--ink)' }}>
+      <div className="wrap" style={{ textAlign: 'center' }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 24 }}>§ 09 — Get involved</div>
+        <h2 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(28px,4vw,48px)', fontWeight: 700, color: 'white', margin: '0 0 20px', letterSpacing: '-0.03em', lineHeight: 1.15 }}>
+          Every AI-designed sequence<br />deserves a chain of custody.
+        </h2>
+        <p style={{ fontFamily: 'var(--sans)', fontSize: 15, color: 'rgba(255,255,255,0.55)', maxWidth: 520, margin: '0 auto 52px', lineHeight: 1.7 }}>
+          Whether you're a lab depositing sequences, an institution seeking partnership, or a developer building on our API — there's a path for you.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20, maxWidth: 700, margin: '0 auto 48px' }}>
+          {[
+            { role:'Depositors', desc:'Submit AI-designed sequences for certification and public archiving.', cta:'Deposit a sequence →' },
+            { role:'Institutions', desc:'Join 12 partner institutions contributing to the consortium charter.', cta:'Become a partner →' },
+            { role:'Developers', desc:'Build on the ArtGene API. Auth-free demo endpoints available now.', cta:'Read the API docs →' },
+          ].map(c => (
+            <div key={c.role} style={{ padding: '24px 20px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, textAlign: 'left' }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em', marginBottom: 10 }}>{c.role.toUpperCase()}</div>
+              <div style={{ fontFamily: 'var(--sans)', fontSize: 13.5, color: 'rgba(255,255,255,0.7)', lineHeight: 1.55, marginBottom: 16 }}>{c.desc}</div>
+              <a href="#" style={{ fontFamily: 'var(--sans)', fontSize: 12.5, color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}>{c.cta}</a>
+            </div>
+          ))}
+        </div>
+        <a href="#pipeline" className="btn" style={{ background: 'var(--accent)', color: 'white', fontSize: 14, padding: '12px 28px' }}>Run the live demo ↓</a>
+
+        {/* Open call */}
+        <div style={{ marginTop: 72, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 52, maxWidth: 640, margin: '72px auto 0' }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 20 }}>An open call</div>
+          <p style={{ fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 'clamp(18px,2.2vw,24px)', color: 'rgba(255,255,255,0.82)', lineHeight: 1.6, marginBottom: 28 }}>
+            "The infrastructure for AI-designed biology should be built in public, by the people who understand what's at stake."
+          </p>
+          <p style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'rgba(255,255,255,0.45)', lineHeight: 1.75, marginBottom: 32 }}>
+            ArtGene is a consortium effort — not a product. If you work at the intersection of synthetic biology, biosecurity, or machine learning, your expertise shapes what this registry becomes. Researchers bring domain knowledge we can't encode alone. Developers push the protocol further than any single team can. Policy makers ensure the governance layer keeps pace with the science.
+          </p>
+          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+            {[
+              { label: 'Join the mailing list', secondary: false },
+              { label: 'Read the consortium charter', secondary: true },
+            ].map(b => (
+              <a key={b.label} href="#" className="btn" style={{
+                background: b.secondary ? 'transparent' : 'rgba(255,255,255,0.08)',
+                color: b.secondary ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.85)',
+                border: `1px solid ${b.secondary ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.15)'}`,
+                fontSize: 13,
+              }}>{b.label}</a>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── TWEAKS ──────────────────────────────────────────── */
+function TweaksPanel({ tweaks, setTweaks, visible, setVisible }) {
+  if (!visible) return null;
+  return (
+    <div className="tweaks-panel">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.1em', color: 'var(--ink-3)', textTransform: 'uppercase' }}>Tweaks</span>
+        <button onClick={() => { setVisible(false); window.parent.postMessage({type:'__edit_mode_dismissed'},'*'); }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 16 }}>×</button>
+      </div>
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 500, color: 'var(--ink)', marginBottom: 8 }}>Audience</div>
+        {['funder', 'technical'].map(v => (
+          <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 12.5, color: tweaks.audience === v ? 'var(--ink)' : 'var(--ink-3)' }}>
+            <input type="radio" name="audience" checked={tweaks.audience === v} onChange={() => {
+              const next = { ...tweaks, audience: v };
+              setTweaks(next);
+              window.parent.postMessage({ type: '__edit_mode_set_keys', edits: next }, '*');
+            }} style={{ accentColor: 'var(--accent)' }} />
+            {v === 'funder' ? 'Funder / partner' : 'Technical detail'}
+          </label>
+        ))}
+      </div>
+      <div>
+        <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 500, color: 'var(--ink)', marginBottom: 8 }}>Accent colour</div>
+        {['#c05020','#1a6fa8','#1a8c60'].map(c => (
+          <label key={c} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginRight: 10, cursor: 'pointer' }}>
+            <input type="radio" name="accent" checked={tweaks.accent === c} onChange={() => {
+              const next = { ...tweaks, accent: c };
+              setTweaks(next);
+              document.documentElement.style.setProperty('--accent', c);
+              window.parent.postMessage({ type: '__edit_mode_set_keys', edits: next }, '*');
+            }} style={{ accentColor: c }} />
+            <span style={{ width: 16, height: 16, borderRadius: '50%', background: c, display: 'inline-block', border: '1px solid rgba(0,0,0,0.1)' }} />
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── APP ─────────────────────────────────────────────── */
+function App() {
+  const [active, setActive] = useState('hero');
+  const [tweaks, setTweaks] = useState(TWEAK_DEFAULTS);
+  const [tweaksVisible, setTweaksVisible] = useState(false);
+  const contentRef = useRef();
+
+  // Apply initial tweaks
+  useEffect(() => {
+    document.documentElement.style.setProperty('--accent', tweaks.accent);
+  }, []);
+
+  // Tweaks panel protocol
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.data?.type === '__activate_edit_mode') setTweaksVisible(true);
+      if (e.data?.type === '__deactivate_edit_mode') setTweaksVisible(false);
+    };
+    window.addEventListener('message', handler);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  // Intersection observer for sidebar
+  useEffect(() => {
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) setActive(e.target.id); });
+    }, { threshold: 0.35 });
+    SECTIONS.forEach(s => {
+      const el = document.getElementById(s.id);
+      if (el) obs.observe(el);
+    });
+    return () => obs.disconnect();
+  }, []);
+
+  const tech = tweaks.audience === 'technical';
+
+  return (
+    <>
+      <GovStrip />
+      <SiteHeader />
+      <main>
+        <div className="showcase-layout">
+          <aside className="showcase-sidebar">
+            {SECTIONS.map(s => (
+              <a key={s.id} href={`#${s.id}`} className={active === s.id ? 'active' : ''}>{s.label}</a>
+            ))}
+          </aside>
+          <div className="showcase-content" ref={contentRef}>
+            <HeroSection />
+            <FeaturesSection />
+            <PipelineSection showEndpoints={tech} />
+            <WatermarkProvenanceSection />
+            <FragmentsSection showEndpoints={tech} />
+            <ComplianceSection />
+            <RegistrySection showEndpoints={tech} />
+            <RoadmapSection />
+            <CTASection />
+          </div>
+        </div>
+      </main>
+      <SiteFooter />
+      <TweaksPanel tweaks={tweaks} setTweaks={setTweaks} visible={tweaksVisible} setVisible={setTweaksVisible} />
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
