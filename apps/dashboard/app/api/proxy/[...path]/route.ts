@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// API_URL is a server-side runtime env var — set it in Railway to point at the
-// tinsel-api service (e.g. https://tinsel-api.railway.internal or the public URL).
+// Both vars are server-side runtime env vars — set them in Railway.
+// API_URL  → tinsel-api service URL (e.g. https://tinsel-api.up.railway.app)
+// API_KEY  → shared API key injected into every proxied request
 const API_URL = process.env.API_URL ?? "http://localhost:8000";
+const SERVER_API_KEY = process.env.API_KEY ?? "";
 
 async function proxy(
   req: NextRequest,
@@ -14,7 +16,9 @@ async function proxy(
   targetUrl.search = req.nextUrl.search;
 
   const headers: Record<string, string> = {};
-  const apiKey = req.headers.get("x-api-key");
+  // Prefer a key explicitly provided by the browser; fall back to the
+  // server-side API_KEY so the app works without per-user keys.
+  const apiKey = req.headers.get("x-api-key") || SERVER_API_KEY;
   if (apiKey) headers["x-api-key"] = apiKey;
   const ct = req.headers.get("content-type");
   if (ct) headers["content-type"] = ct;

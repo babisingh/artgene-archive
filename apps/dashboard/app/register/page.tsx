@@ -153,7 +153,7 @@ function GateRow({
 // ---------------------------------------------------------------------------
 
 export default function RegisterPage() {
-  const { client, apiKey } = useApiKey();
+  const { client } = useApiKey();
   const qc = useQueryClient();
 
   // wizard step: 1 = FASTA, 2 = Metadata, 3 = Biosafety review, 4 = Certificate
@@ -182,10 +182,6 @@ export default function RegisterPage() {
 
   // Triggered when user submits from step 2
   async function onSubmit(data: RegisterForm) {
-    if (!apiKey) {
-      setSubmitError("No API key configured. Contact your administrator.");
-      return;
-    }
     setSubmitError(null);
     setResponse(null);
     setReport(null);
@@ -542,7 +538,8 @@ export default function RegisterPage() {
               </div>
             )}
 
-          </div>{/* end main column */}
+          </form>
+        </div>
 
           {/* ── Sidebar ─────────────────────────────────────────── */}
           <aside style={{ gridColumn: "span 4" }}>
