@@ -1,4 +1,4 @@
-import type { CertificateSummary } from "./api";
+import type { Certificate, CertificateSummary } from "./api";
 
 /**
  * Sample records for demonstration purposes — shown when the live registry
@@ -96,3 +96,15 @@ export const MOCK_CERTIFICATES: CertificateSummary[] = [
     timestamp: "2026-04-19T15:30:00Z",
   },
 ];
+
+export const MOCK_CERTIFICATE_DETAILS: Certificate[] = MOCK_CERTIFICATES.map((s) => ({
+  ...s,
+  org_id: s.owner_id,
+  ethics_code: "ETH-DEMO-2026",
+  sequence_type: "protein",
+  certificate_hash: `demo-${s.registry_id.toLowerCase().replace(/-/g, "")}`,
+  watermark_metadata: null,
+  consequence_report: null,
+  pq_algorithm: "wots_plus_sha3_256_w256_l35",
+  pq_is_stub: true,
+}));
