@@ -7,12 +7,13 @@ import { useApiKey } from "../../lib/providers";
 import { BrandGlyph } from "./BrandGlyph";
 import { GovStrip } from "./GovStrip";
 
-const navItems: { href: string; label: string }[] = [
+const navItems: { href: string; label: string; accent?: boolean }[] = [
   { href: "/", label: "Overview" },
   { href: "/registry", label: "Registry" },
   { href: "/register", label: "Deposit" },
   { href: "/about", label: "Charter" },
   { href: "/getting-started", label: "Docs" },
+  { href: "/showcase", label: "Demo", accent: true },
 ];
 
 export function SiteHeader() {
@@ -38,11 +39,17 @@ export function SiteHeader() {
             ArtGene <em>Archive</em>
           </Link>
           <nav className="nav" aria-label="Main navigation">
-            {navItems.map(({ href, label }) => (
+            {navItems.map(({ href, label, accent }) => (
               <Link
                 key={href}
                 href={href}
-                className={pathname === href ? "active" : ""}
+                className={
+                  accent
+                    ? "btn btn-accent btn-sm"
+                    : pathname === href
+                      ? "active"
+                      : ""
+                }
               >
                 {label}
               </Link>
