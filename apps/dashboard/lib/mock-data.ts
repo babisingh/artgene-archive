@@ -1,0 +1,98 @@
+import type { CertificateSummary } from "./api";
+
+/**
+ * Sample records for demonstration purposes — shown when the live registry
+ * is empty. IDs use the AG-DEMO-* prefix so they are unambiguously not real.
+ */
+export const MOCK_CERTIFICATES: CertificateSummary[] = [
+  {
+    registry_id: "AG-DEMO-000010",
+    status: "CERTIFIED",
+    tier: "FULL",
+    chi_squared: 0.94,
+    owner_id: "ETH Zürich · Platt Lab",
+    host_organism: "ECOLI",
+    timestamp: "2026-04-22T14:33:00Z",
+  },
+  {
+    registry_id: "AG-DEMO-000009",
+    status: "CERTIFIED",
+    tier: "FULL",
+    chi_squared: 1.12,
+    owner_id: "Broad Institute",
+    host_organism: "HUMAN",
+    timestamp: "2026-04-22T10:15:00Z",
+  },
+  {
+    registry_id: "AG-DEMO-000008",
+    status: "CERTIFIED_WITH_WARNINGS",
+    tier: "STANDARD",
+    chi_squared: 2.87,
+    owner_id: "Institut Pasteur",
+    host_organism: "HUMAN",
+    timestamp: "2026-04-22T08:45:00Z",
+  },
+  {
+    registry_id: "AG-DEMO-000007",
+    status: "PENDING",
+    tier: "FULL",
+    chi_squared: null,
+    owner_id: "GlaxoSmithKline Vaccines",
+    host_organism: "CHO",
+    timestamp: "2026-04-21T16:20:00Z",
+  },
+  {
+    registry_id: "AG-DEMO-000006",
+    status: "CERTIFIED",
+    tier: "STANDARD",
+    chi_squared: 0.73,
+    owner_id: "Kyoto University",
+    host_organism: "ECOLI",
+    timestamp: "2026-04-21T14:30:00Z",
+  },
+  {
+    registry_id: "AG-DEMO-000005",
+    status: "CERTIFIED",
+    tier: "FULL",
+    chi_squared: 0.88,
+    owner_id: "Wyss Institute · Harvard",
+    host_organism: "YEAST",
+    timestamp: "2026-04-21T11:00:00Z",
+  },
+  {
+    registry_id: "AG-DEMO-000004",
+    status: "CERTIFIED",
+    tier: "MINIMAL",
+    chi_squared: 1.05,
+    owner_id: "UCSF · Lim Lab",
+    host_organism: "HUMAN",
+    timestamp: "2026-04-20T19:45:00Z",
+  },
+  {
+    registry_id: "AG-DEMO-000003",
+    status: "CERTIFIED",
+    tier: "FULL",
+    chi_squared: 0.61,
+    owner_id: "MIT · Voigt Lab",
+    host_organism: "ECOLI",
+    timestamp: "2026-04-20T09:00:00Z",
+  },
+  {
+    registry_id: "AG-DEMO-000002",
+    status: "REVOKED",
+    tier: "STANDARD",
+    chi_squared: 8.43,
+    owner_id: "[Redacted — under review]",
+    host_organism: "HUMAN",
+    timestamp: "2026-04-19T22:10:00Z",
+  },
+  {
+    registry_id: "AG-DEMO-000001",
+    status: "CERTIFIED",
+    tier: "FULL",
+    chi_squared: 0.79,
+    owner_id: "Arc Institute",
+    host_organism: "ECOLI",
+    timestamp: "2026-04-19T15:30:00Z",
+  },
+];

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useApiKey } from "../../lib/providers";
 import type { CertificateSummary, CertificateStatus } from "../../lib/api";
+import { MOCK_CERTIFICATES } from "../../lib/mock-data";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -138,7 +139,7 @@ const FILTER_LABELS: [StatusFilter, string][] = [
 ];
 
 export default function RegistryPage() {
-  const { client, apiKey } = useApiKey();
+  const { client } = useApiKey();
   const [page, setPage] = useState(1);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<StatusFilter>("all");
@@ -149,23 +150,29 @@ export default function RegistryPage() {
     queryKey: ["registry", page],
     queryFn: () => client.listCertificates(PAGE_SIZE, offset),
     placeholderData: (prev) => prev,
-    enabled: !!apiKey,
   });
 
   const totalItems = data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
 
-  const items = (data?.items ?? []).filter((cert) => {
-    if (!matchesStatusFilter(cert.status, filter)) return false;
-    if (query) {
-      const q = query.toLowerCase();
-      return (
-        cert.registry_id.toLowerCase().includes(q) ||
-        cert.owner_id.toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
+  function applyFilter(certs: CertificateSummary[]) {
+    return certs.filter((cert) => {
+      if (!matchesStatusFilter(cert.status, filter)) return false;
+      if (query) {
+        const q = query.toLowerCase();
+        return (
+          cert.registry_id.toLowerCase().includes(q) ||
+          cert.owner_id.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }
+
+  // Fall back to demo records when the live database is empty.
+  const isMock = !isLoading && !isError && totalItems === 0;
+  const displayItems = isMock ? applyFilter(MOCK_CERTIFICATES) : applyFilter(data?.items ?? []);
+  const displayTotal = isMock ? MOCK_CERTIFICATES.length : totalItems;
 
   return (
     <div className="route">
@@ -231,28 +238,23 @@ export default function RegistryPage() {
         </div>
       </section>
 
-      {/* ── No API key notice ────────────────────────────────────────────── */}
-      {!apiKey && (
-        <section className="wrap" style={{ paddingBottom: 24 }}>
+      {/* ── Demo data banner ────────────────────────────────────────────── */}
+      {isMock && (
+        <section className="wrap" style={{ paddingBottom: 16 }}>
           <div
             style={{
-              padding: "12px 16px",
-              background: "var(--accent-soft)",
-              border:
-                "0.5px solid color-mix(in oklab, var(--accent) 30%, transparent)",
-              borderRadius: "var(--radius-lg)",
-              fontSize: 13,
-              color: "var(--ink-2)",
+              padding: "9px 16px",
+              background: "color-mix(in oklab, var(--accent) 6%, transparent)",
+              border: "0.5px solid color-mix(in oklab, var(--accent) 22%, transparent)",
+              borderRadius: 6,
+              fontSize: 11.5,
+              color: "var(--ink-3)",
+              fontFamily: "var(--mono)",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
             }}
           >
-            An API key is required to browse the registry.{" "}
-            <Link
-              href="/register"
-              style={{ color: "var(--accent)", textDecoration: "underline" }}
-            >
-              Register a sequence
-            </Link>{" "}
-            or set your key to continue.
+            Demo data — AG-DEMO-* records are illustrative only. Deposit a real sequence to populate the live registry.
           </div>
         </section>
       )}
@@ -347,7 +349,7 @@ export default function RegistryPage() {
           >
             {isLoading
               ? "Loading…"
-              : `${String(items.length).padStart(2, "0")} / ${totalItems.toLocaleString()} results`}
+              : `${String(displayItems.length).padStart(2, "0")} / ${displayTotal.toLocaleString()} results`}
           </div>
         </div>
       </section>
@@ -400,7 +402,7 @@ export default function RegistryPage() {
                   Array.from({ length: PAGE_SIZE }).map((_, i) => (
                     <SkeletonRow key={i} />
                   ))
-                ) : items.length === 0 ? (
+                ) : displayItems.length === 0 ? (
                   <tr>
                     <td
                       colSpan={7}
@@ -414,11 +416,11 @@ export default function RegistryPage() {
                         textTransform: "uppercase",
                       }}
                     >
-                      {apiKey ? "No records match." : "API key required."}
+                      No records match.
                     </td>
                   </tr>
                 ) : (
-                  items.map((cert) => (
+                  displayItems.map((cert) => (
                     <CertRow key={cert.registry_id} cert={cert} />
                   ))
                 )}

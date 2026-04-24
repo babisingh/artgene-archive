@@ -39,7 +39,7 @@ function sleep(ms: number): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export default function RegisterPage() {
-  const { client, apiKey } = useApiKey();
+  const { client } = useApiKey();
   const qc = useQueryClient();
 
   const [phase, setPhase] = useState<RunPhase>("idle");
@@ -67,10 +67,6 @@ export default function RegisterPage() {
   const fastaValue = watch("fasta");
 
   async function onSubmit(data: RegisterForm) {
-    if (!apiKey) {
-      setSubmitError("Set your API key in the top navigation before registering.");
-      return;
-    }
     setSubmitError(null);
     setResponse(null);
     setReport(null);
@@ -237,11 +233,6 @@ export default function RegisterPage() {
               <p className="text-sm text-red-500" role="alert">{submitError}</p>
             )}
 
-            {!apiKey && (
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                ⚠ No API key set. Click "Set API Key" in the navigation bar.
-              </p>
-            )}
           </form>
         </div>
 
