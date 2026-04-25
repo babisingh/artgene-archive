@@ -45,16 +45,25 @@ async def _connectivity() -> tuple[str, str]:
 
 @router.get("/health")
 async def health() -> dict:
-    """Public liveness probe — minimal response, no internal details."""
+    """Public liveness probe — minimal response, no internal details.
+
+    Returns HTTP 503 (not 200) when the database is unreachable so that
+    Railway's health check marks the deployment as degraded rather than healthy.
+    """
+    from fastapi import Response
+    from fastapi.responses import JSONResponse
+
     db_status, vault_status = await _connectivity()
+    ok = db_status == "connected" and vault_status == "connected"
     # NOTE: env is intentionally omitted — it would reveal whether mock
     # biosafety gates are active and which vault implementation is running.
-    return {
-        "status": "ok" if db_status == "connected" and vault_status == "connected" else "degraded",
+    payload = {
+        "status": "ok" if ok else "degraded",
         "version": "1.0.0",
         "db": db_status,
         "vault": vault_status,
     }
+    return JSONResponse(content=payload, status_code=200 if ok else 503)
 
 
 @router.get("/health/detail")
