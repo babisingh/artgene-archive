@@ -9,9 +9,9 @@ export function GovStrip() {
           An independent scientific registry
         </span>
         <span className="sep">·</span>
-        <span>Operated under the ArtGene Consortium Charter v1.2</span>
+        <span>For Art(tificial) biological sequences</span>
         <span className="sep">·</span>
-        <span>Endorsed by WHO BioSec Working Group (observer)</span>
+        <span>Operated under the ArtGene Consortium v1.0</span>
         <span style={{ marginLeft: "auto" }}>EN · FR · ES · ZH · JA</span>
       </div>
     </div>
