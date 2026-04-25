@@ -98,6 +98,11 @@ function GateRow({
     if (allDone) setProgress(1);
   }, [allDone]);
 
+  // Reset to 0 when an error cancels the run (running stops before allDone)
+  useEffect(() => {
+    if (!running && !allDone) setProgress(0);
+  }, [running, allDone]);
+
   const isFail = status === "fail";
   const isWarn = status === "warn";
   const isSkip = status === "skip";
