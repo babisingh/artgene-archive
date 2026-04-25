@@ -20,10 +20,10 @@ const TICKER_ITEMS = [
 ];
 
 const STATS = [
-  { n: 18XX, label: "Sequences certified",         sub: "across XX countries"       },
-  { n: 4XX,   label: "AI Generating models tracked",   sub: "XX institutions"           },
-  { n: 9,    label: "Biosafety review panels",     sub: "3-tier gated"             },
-  { n: XX,  label: "Citations referencing AG-IDs", sub: "peer-reviewed, 2026 YTD" },
+  { n: 100, label: "Sequences certified",         sub: "across XX countries"       },
+  { n: 40,   label: "AI Generating models tracked",   sub: "XX institutions"           },
+  { n: 12,    label: "Biosafety review panels",     sub: "3-tier gated"             },
+  { n: 15,  label: "Citations referencing AG-IDs", sub: "peer-reviewed, 2026 YTD" },
 ];
 
 const PILLARS: { n: string; title: string; icon: "shield" | "wm" | "cert" | "star"; body: string }[] = [
