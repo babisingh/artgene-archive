@@ -19,7 +19,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SiteHeader } from '@/components/design/SiteHeader';
 import { SiteFooter } from '@/components/design/SiteFooter';
-import { GovStrip }   from '@/components/design/GovStrip';
 import { Helix }      from '@/components/design/Helix';
 import { Counter }    from '@/components/design/Counter';
 import { CodonGrid }  from '@/components/design/CodonGrid';
@@ -922,7 +921,6 @@ export default function ShowcasePage() {
 
   return (
     <>
-      <GovStrip />
       <SiteHeader />
       <main>
         <div className="showcase-layout">
