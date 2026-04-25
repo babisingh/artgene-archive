@@ -147,7 +147,7 @@ $ artgene auth login`}</CodeBlock>
                 title: "Prepare your sequence",
                 body: (
                   <>
-                    ArtGene accepts protein-coding sequences in standard{" "}
+                    ArtGene Archive accepts protein-coding sequences in standard{" "}
                     <strong>FASTA format</strong>. The sequence must be at least 10 characters.
                     Longer sequences (300+ amino acids) provide more synonymous codon positions
                     for fingerprinting.
