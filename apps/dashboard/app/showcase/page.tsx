@@ -32,7 +32,7 @@ const SECTIONS = [
   { id: 'hero',       label: '§ 01 — Overview'             },
   { id: 'features',   label: '§ 02 — Features'             },
   { id: 'pipeline',   label: '§ 03 — Biosafety'            },
-  { id: 'watermark',  label: '§ 04 — Watermark & Provenance'},
+  { id: 'watermark',  label: '§ 04 — Provenance & Watermark'},
   { id: 'fragments',  label: '§ 05 — Fragments'            },
   { id: 'compliance', label: '§ 06 — Compliance'           },
   { id: 'registry',   label: '§ 07 — Registry'             },
@@ -145,17 +145,16 @@ const REG_FALLBACK = [
 
 // ─── Feature cards ───────────────────────────────────────────────
 const FEATURES = [
-  { s:'live',     t:'Four-gate biosafety pipeline',           b:'Every sequence runs gates α, β, γ, δ automatically before a certificate is issued.',                        a:'#pipeline'  },
+  { s:'live',     t:'Provenance tracing',                     b:'Issue fingerprinted copies to recipients. Identify the source of a leaked sequence in milliseconds.',       a:'#watermark' },
   { s:'live',     t:'TINSEL codon watermark',                 b:'Spread-spectrum HMAC-SHA3-256 watermark embedded in synonymous codon positions.',                           a:'#watermark' },
-  { s:'live',     t:'Post-quantum WOTS+ certificate',         b:'Every certificate signed with a Winternitz One-Time Signature — quantum-resistant by design.',              a:'#watermark' },
   { s:'live',     t:'Immutable audit ledger',                 b:'Blockchain-style SHA3-256 chained log. DB-level trigger prevents any row from being modified.',             a:null         },
   { s:'live',     t:'Unique AG-ID accession',                 b:'Each registered sequence receives a permanent, citable accession number (e.g. AG-2026-000001).',            a:'#registry'  },
-  { s:'live',     t:'Provenance tracing',                     b:'Issue fingerprinted copies to recipients. Identify the source of a leaked sequence in milliseconds.',       a:'#watermark' },
   { s:'live',     t:'Fragment assembly risk screen',          b:'Screen multi-FASTA fragments individually and as assembled contigs — catches split-vector evasion.',        a:'#fragments' },
+  { s:'live',     t:'Four-gate biosafety pipeline',           b:'Every sequence runs gates α, β, γ, δ automatically before a certificate is issued.',                        a:'#pipeline'  },
   { s:'live',     t:'ESMFold structural screening (Gate α)',  b:'Per-residue pLDDT scores and instability index from ESMAtlas — folds before certifying.',                  a:'#pipeline'  },
-  { s:'live',     t:'SecureDNA + IBBIS hazard (Gate β)',      b:'DOPRF privacy-preserving pathogen screening and IBBIS HMM family classification.',                         a:'#pipeline'  },
+  { s:'pipeline',     t:'SecureDNA + IBBIS hazard (Gate β)',      b:'DOPRF privacy-preserving pathogen screening and IBBIS HMM family classification.',                         a:'#pipeline'  },
   { s:'live',     t:'Host codon optimisation (Gate γ)',       b:'CAI, GC content, and HGT risk against six host organisms.',                                                 a:'#pipeline'  },
-  { s:'live',     t:'Functional embedding similarity (Gate δ)',b:'Amino acid composition fingerprint vs. dangerous-protein reference database.',                             a:'#pipeline'  },
+  { s:'pipeline',     t:'Functional embedding similarity (Gate δ)',b:'Amino acid composition fingerprint vs. dangerous-protein reference database.',                             a:'#pipeline'  },
   { s:'live',     t:'US DURC + EU Dual-Use compliance',       b:'Machine-readable attestation document generated per certificate for regulatory submission.',                a:'#compliance'},
   { s:'live',     t:'ArtGene-SCD-1.0 synthesis clearance',   b:'Signed synthesizer authorisation compatible with firmware-level screening.',                                a:'#compliance'},
   { s:'live',     t:'Multi-gene pathway bundles',             b:'Group related sequences into a Merkle-rooted pathway bundle with a single pathway ID.',                    a:null         },
@@ -165,7 +164,7 @@ const FEATURES = [
   { s:'pipeline', t:'ESM-2 650M production embeddings',       b:'Gate δ will switch from composition fingerprint to full ESM-2 mean-pooled cosine similarity.',             a:null         },
   { s:'pipeline', t:'SDK: Python, R, Julia',                  b:'First-party client libraries for programmatic submission and verification.',                                a:null         },
   { s:'pipeline', t:'Rich sequence metadata',                 b:'Abstract, authors, ORCID, keywords, generating model, and molecular weight per record.',                   a:null         },
-  { s:'pipeline', t:'Live ticker & real-time updates',        b:'WebSocket feed of new deposits on the home page and registry.',                                             a:null         },
+  { s:'pipeline', t:'KYC and Benchtop synthesizers ready',        b:'Specifications & security approved machine-readable certificates created for Benchtop synthesizers.',                                             a:null         },
 ] as const;
 
 // ─── Gate metadata ───────────────────────────────────────────────
@@ -189,8 +188,8 @@ function timeout(ms: number): Promise<never> {
 // ─── §09 CTA component ───────────────────────────────────────────
 const CTA_ROLES = [
   { role: 'Depositors',   desc: 'Submit AI-designed sequences for certification and public archiving.',              cta: 'Deposit a sequence →' },
-  { role: 'Institutions', desc: 'Join 12 partner institutions contributing to the consortium charter.',              cta: 'Become a partner →'   },
-  { role: 'Developers',   desc: 'Build on the ArtGene API. Auth-free demo endpoints available now.',                cta: 'Read the API docs →'  },
+  { role: 'Institutions & Researchers', desc: 'Join and contribute to the consortium charter.',              cta: 'Become a partner →'   },
+  { role: 'Developers',   desc: 'Help building the ArtGene-archive secure and future ready',                cta: 'Sign up →'  },
 ];
 
 function CTASection() {
@@ -201,11 +200,11 @@ function CTASection() {
           § 09 — Get involved
         </div>
         <h2 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(28px,4vw,48px)', fontWeight: 700, color: 'white', margin: '0 0 20px', letterSpacing: '-0.03em', lineHeight: 1.15 }}>
-          Every AI-designed sequence<br />deserves a chain of custody.
+          Every AI-designed sequence<br />must have a chain of custody.
         </h2>
         <p style={{ fontFamily: 'var(--sans)', fontSize: 15, color: 'rgba(255,255,255,0.55)', maxWidth: 520, margin: '0 auto 52px', lineHeight: 1.7 }}>
-          Whether you&apos;re a lab depositing sequences, an institution seeking partnership, or a developer
-          building on our API — there&apos;s a path for you.
+          Whether you&apos;re a lab depositing sequences, an independent bio explorer , or a developer
+          with ideas to make this better - there&apos;s a path for you.
         </p>
 
         {/* Role cards */}
@@ -234,18 +233,15 @@ function CTASection() {
             &ldquo;The infrastructure for AI-designed biology should be built in public, by the people who understand what&apos;s at stake.&rdquo;
           </p>
           <p style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'rgba(255,255,255,0.45)', lineHeight: 1.75, marginBottom: 32 }}>
-            ArtGene is a consortium effort — not a product. If you work at the intersection of synthetic
+            ArtGene-archive needs a consortium level effort. If you work at the intersection of synthetic
             biology, biosecurity, or machine learning, your expertise shapes what this registry becomes.
             Researchers bring domain knowledge we can&apos;t encode alone. Developers push the protocol
             further than any single team can. Policy makers ensure the governance layer keeps pace with
-            the science.
+            the science. Together we make sure, bio-research becomes equitable & accessible to all.
           </p>
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href="#" className="btn" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.15)', fontSize: 13 }}>
-              Join the mailing list
-            </a>
-            <a href="#" className="btn" style={{ background: 'transparent', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.1)', fontSize: 13 }}>
-              Read the consortium charter
+            <a href="mailto:b@genethropic.com" className="btn" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.15)', fontSize: 13 }}>
+              Get Invloved
             </a>
           </div>
         </div>
@@ -258,10 +254,10 @@ function CTASection() {
 const PHASES = [
   { n:1, label:'Foundation', status:'done',   items:['Registry API','TINSEL watermark','Four-gate pipeline','WOTS+ certificates','Audit ledger'] },
   { n:2, label:'Compliance', status:'done',   items:['DURC manifest','SCD-1.0 document','Fragment assembly screen','Provenance tracing','Pathway bundles'] },
-  { n:3, label:'Scale',      status:'active', items:['Partner onboarding (12)','SecureDNA production','IBBIS v2 integration','Performance benchmarks'] },
+  { n:3, label:'Scale',      status:'active', items:['Experts onboarding','SecureDNA production','IBBIS v2 integration','Performance benchmarks','Publications','Fundraising'] },
   { n:4, label:'Crypto',     status:'next',   items:['LWE lattice commitment','ZK proof system','Full WOTS+ verification','Merkle pathway proofs'] },
   { n:5, label:'SDK',        status:'next',   items:['Python SDK','R package','Julia bindings','REST SDK v2'] },
-  { n:6, label:'Production', status:'next',   items:['ESM-2 650M embeddings','Rich metadata','WebSocket live feed','Mobile-first UI'] },
+  { n:6, label:'Production', status:'next',   items:['ESM-2 650M embeddings','Rich metadata','WebSocket live feed','Benchtop Synthesizer ready'] },
 ] as const;
 
 function RoadmapSection() {
