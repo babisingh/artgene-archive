@@ -88,9 +88,7 @@ export default function HomePage() {
               and an auditable chain of custody from model to bench to publication, 
               while sepearting naturally occuring sequences from the ones created by 
               humans in collaboration with AI. 
-              <br>
               Art(ificial)-gene Archive only store sequences that pass multiple biosecurity screening gates (See demo).
-              </br>
               
             </p>
             <div className="flex gap-12" style={{ alignItems: "center", flexWrap: "wrap" }}>
