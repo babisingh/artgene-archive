@@ -16,13 +16,10 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import { SiteHeader } from '@/components/design/SiteHeader';
-import { SiteFooter } from '@/components/design/SiteFooter';
-import { GovStrip }   from '@/components/design/GovStrip';
-import { Helix }      from '@/components/design/Helix';
-import { Counter }    from '@/components/design/Counter';
-import { CodonGrid }  from '@/components/design/CodonGrid';
+import React, { useState, useEffect } from 'react';
+import { Helix }     from '@/components/design/Helix';
+import { Counter }   from '@/components/design/Counter';
+import { CodonGrid } from '@/components/design/CodonGrid';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL
   ?? 'https://dashboard-service-production-a432.up.railway.app';
@@ -456,18 +453,22 @@ function FragmentsSection() {
 
   const run = async () => {
     setRunning(true);
+    const minDelay = new Promise(r => setTimeout(r, 1500));
     // ⚠ BACKEND GAP #2: POST /api/proxy/analyse/fragments not yet built.
-    // Attempt call, always fall through to static all-pass result.
-    try {
-      await Promise.race([
-        fetch(`${API_BASE}/api/proxy/analyse/fragments`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fragments: FRAG_EXAMPLES.map(f => f.seq) }),
-        }),
-        timeout(7000),
-      ]);
-    } catch (_) { /* expected — endpoint not yet live */ }
+    // Attempt call alongside minDelay; always fall through to static all-pass result.
+    const apiCall = (async () => {
+      try {
+        await Promise.race([
+          fetch(`${API_BASE}/api/proxy/analyse/fragments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fragments: FRAG_EXAMPLES.map(f => f.seq) }),
+          }),
+          timeout(7000),
+        ]);
+      } catch (_) { /* expected — endpoint not yet live */ }
+    })();
+    await Promise.all([minDelay, apiCall]);
     setRunning(false);
     setRan(true);
   };
@@ -583,7 +584,7 @@ function WatermarkSection() {
               <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', letterSpacing: '0.1em', marginBottom: 12, textTransform: 'uppercase' }}>
                 Base sequence — pre-distribution, no watermark
               </div>
-              <div style={{ width: '100%', maxWidth: 320, marginBottom: 14 }}>
+              <div style={{ width: '100%', maxWidth: 320, height: 100, marginBottom: 14 }}>
                 <CodonGrid rows={4} cols={8} highlights={null} />
               </div>
               <div style={{ padding: '12px 14px', background: 'var(--paper)', border: '1px solid var(--rule)', borderRadius: 5, fontFamily: 'var(--sans)', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6 }}>
@@ -917,11 +918,7 @@ export default function ShowcasePage() {
   }, []);
 
   return (
-    <>
-      <GovStrip />
-      <SiteHeader />
-      <main>
-        <div className="showcase-layout">
+    <div className="showcase-layout">
 
           {/* ── Sticky sidebar (desktop only) ──────────────── */}
           <aside className="showcase-sidebar">
@@ -1052,10 +1049,7 @@ export default function ShowcasePage() {
             <CTASection />
 
           </div>{/* end .showcase-content */}
-        </div>{/* end .showcase-layout */}
-      </main>
-      <SiteFooter />
-    </>
+    </div>
   );
 }
 
