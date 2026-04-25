@@ -20,10 +20,10 @@ const TICKER_ITEMS = [
 ];
 
 const STATS = [
-  { n: 18427, label: "Sequences certified",         sub: "across 47 countries"       },
-  { n: 312,   label: "Generating models tracked",   sub: "68 institutions"           },
-  { n: 94,    label: "Biosafety review panels",     sub: "3-tier gated"             },
-  { n: 1240,  label: "Citations referencing AG-IDs", sub: "peer-reviewed, 2026 YTD" },
+  { n: 18XX, label: "Sequences certified",         sub: "across XX countries"       },
+  { n: 4XX,   label: "AI Generating models tracked",   sub: "XX institutions"           },
+  { n: 9,    label: "Biosafety review panels",     sub: "3-tier gated"             },
+  { n: XX,  label: "Citations referencing AG-IDs", sub: "peer-reviewed, 2026 YTD" },
 ];
 
 const PILLARS: { n: string; title: string; icon: "shield" | "wm" | "cert" | "star"; body: string }[] = [
@@ -33,7 +33,7 @@ const PILLARS: { n: string; title: string; icon: "shield" | "wm" | "cert" | "sta
   },
   {
     n: "02", title: "Codon watermark", icon: "wm",
-    body: "Synonymous codon substitution encodes a 128-bit institutional signature into the coding sequence. The watermark survives translation and is recoverable from re-sequenced DNA — provenance that travels with the molecule.",
+    body: "Synonymous codon substitution encodes a 128-bit institutional signature into the coding sequence. The watermark survives translation and is recoverable from re-sequenced DNA - provenance that travels with the molecule.",
   },
   {
     n: "03", title: "Tamper-evident certificate", icon: "cert",
@@ -54,8 +54,8 @@ const PROCESS_STEPS = [
 ];
 
 const PARTNERS = [
-  "WELLCOME TRUST", "NIH", "EMBL-EBI", "DDBJ", "WHO BIOSEC", "ARC INSTITUTE",
-  "CZI", "BROAD", "PASTEUR", "CRICK", "RIKEN", "UCSF",
+  "WELLCOME TRUST-mock", "NIH-mock", "EMBL-EBI-mock", "DDBJ-mock", "SecureBio-mock", "Center-C",
+  "CZI-mock", "BROAD--mock", "PASTEUR-mock", "Anthropic-mock", "RIKEN-mock", "EU-mock",
 ];
 
 // ---------------------------------------------------------------------------
@@ -87,10 +87,10 @@ export default function HomePage() {
               for AI-designed biological sequences — providing watermarking, biosafety certification,
               and an auditable chain of custody from model to bench to publication, 
               while sepearting naturally occuring sequences from the ones created by 
-              humans in partnership with AI. 
-              
-              Art(ificial)-gene archive only store sequences that pass multiple biosecurity screening gates.
-          
+              humans in collaboration with AI. 
+              <br>
+              Art(ificial)-gene Archive only store sequences that pass multiple biosecurity screening gates (See demo).
+              </br>
               
             </p>
             <div className="flex gap-12" style={{ alignItems: "center", flexWrap: "wrap" }}>
@@ -157,16 +157,16 @@ export default function HomePage() {
 
           <div style={{ gridColumn: "span 4" }}>
             <div className="eyebrow mb-16">§ 01 — Thesis</div>
-            <h2 className="display" style={{ fontSize: 40, margin: 0 }}>
-              What GenBank was to the<br />sequencing machine, we are<br />to the <em>generative model</em>.
+            <h2 className="display" style={{ fontSize: 30, margin: 0 }}>
+              What GenBank was to the sequencing machine <br />, ArtGene Archive is to the <em>generative model</em>.
             </h2>
           </div>
 
-          <div style={{ gridColumn: "6 / 13", fontSize: 16.5, lineHeight: 1.7, color: "var(--ink-2)" }}>
+          <div style={{ gridColumn: "6 / 13", fontSize: 14.5, lineHeight: 1.7, color: "var(--ink-2)" }}>
             <p style={{ marginTop: 0 }}>
               In 1982 a small group at the National Institutes of Health recognised that automated
               sequencers had begun to produce DNA data faster than journals or institutions could
-              track. The response — a public, federated, machine-readable catalogue — became the
+              track. The response - a public, federated, machine-readable catalogue became the
               scaffolding of modern biology.
             </p>
             <p>
@@ -178,14 +178,14 @@ export default function HomePage() {
             </p>
             <p>
               <strong>ArtGene Archive is that infrastructure.</strong> We provide a dedicated deposit
-              path, automated three-gate biosafety screening, cryptographic watermarking via codon
+              path, automated three-gate biosafety screening (more under development), cryptographic watermarking via codon
               steganography, tamper-evident certification, and formal recognition for contributors.
-              Deposits are free. Records are public. The registry is governed by an international
-              consortium, not a vendor.
+              Deposits are free. Records are public. The registry will be governed by an international
+              consortium.
             </p>
             <p className="mono" style={{ fontSize: 13, color: "var(--ink-3)", marginTop: 28, paddingLeft: 18, borderLeft: "2px solid var(--accent)" }}>
               The absence of this infrastructure is a biosecurity risk today. Its presence could
-              accelerate safe, citizen-driven biological innovation at the scale the moment demands.
+              accelerate safe, citizen-driven biological innovations at the scale the moment demands.
             </p>
           </div>
 
@@ -195,8 +195,8 @@ export default function HomePage() {
       <hr className="hr" />
 
       {/* ── FOUR PILLARS ──────────────────────────────────────────────────── */}
-      <section className="wrap" style={{ padding: "72px 0" }}>
-        <div className="flex between center mb-40">
+      <section className="wrap" style={{ padding: "50px 0" }}>
+        <div className="flex between center mb-20">
           <div>
             <div className="eyebrow mb-8">§ 02 — What the archive does</div>
             <h2 className="display" style={{ fontSize: 44, margin: 0 }}>Four pillars.</h2>
@@ -276,7 +276,7 @@ export default function HomePage() {
       <section className="wrap" style={{ padding: "88px 0" }}>
         <div className="eyebrow mb-16">§ 04 — Deposit pathway</div>
         <h2 className="display" style={{ fontSize: 44, margin: "0 0 48px" }}>
-          From upload to certificate<br />in <em>under ninety seconds.</em>
+          From upload to bio-screening to certificate<br />in <em>all in one seamless pipeline.</em>
         </h2>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 24, position: "relative" }}>
@@ -353,7 +353,7 @@ export default function HomePage() {
           ))}
         </div>
         <div className="mono" style={{ textAlign: "center", marginTop: 24, fontSize: 10.5, color: "var(--ink-4)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-          Observer status · charter signatories · funding partners
+          Collaborators · Charter signatories · Funding partners
         </div>
       </section>
 
