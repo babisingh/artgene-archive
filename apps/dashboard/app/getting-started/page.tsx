@@ -98,12 +98,9 @@ export default function GettingStartedPage() {
               Deposit from the command line.
             </h1>
             <p className="lede" style={{ margin: "0 0 32px" }}>
-              (Feature under development).
-              <br>
-              The ArtGene CLI handles authentication, FASTA validation, biosafety screening,
+              (Feature under development). The ArtGene CLI handles authentication, FASTA validation, biosafety screening,
               and certificate retrieval in a single command. Read records without an API key;
               deposits require a free institutional key.
-              </br>
             </p>
 
             <div className="card mb-24">
