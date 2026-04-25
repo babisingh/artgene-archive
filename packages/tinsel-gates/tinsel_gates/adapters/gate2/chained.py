@@ -73,9 +73,17 @@ class ChainedGate2Adapter(Gate2Adapter):
         sdna_task = asyncio.create_task(run_secureDNA_screen(dna, mock=self._mock_external))
         ibbis_task = asyncio.create_task(run_ibbis_screen(protein, mock=self._mock_external))
 
-        comp_result, sdna_result, ibbis_result = await asyncio.gather(
-            composition_task, sdna_task, ibbis_task
+        raw_results = await asyncio.gather(
+            composition_task, sdna_task, ibbis_task, return_exceptions=True
         )
+        for i, r in enumerate(raw_results):
+            if isinstance(r, BaseException):
+                layer_name = ("composition", "secureDNA", "IBBIS")[i]
+                logger.exception("Gate 2 %s layer raised an error: %s", layer_name, r)
+                raise RuntimeError(
+                    f"Gate 2 {layer_name} layer failed with an internal error"
+                ) from r
+        comp_result, sdna_result, ibbis_result = raw_results
 
         # ── Merge statuses ─────────────────────────────────────────────────
         sdna_status: GateStatus = sdna_result["status"]

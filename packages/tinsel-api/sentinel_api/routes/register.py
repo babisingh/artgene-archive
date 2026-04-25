@@ -264,7 +264,25 @@ async def register_sequence(
     # Checks new sequence against the k-mer index of all archived sequences.
     # Raises HTTP 422 (FRAGMENT_ASSEMBLY_RISK) without revealing which
     # archived sequence caused the match.
-    await _check_fragment_assembly_risk(db, protein, settings.sentinel_env)
+    try:
+        await _check_fragment_assembly_risk(db, protein, settings.sentinel_env)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        import logging as _log
+        _log.getLogger(__name__).exception(
+            "Fragment assembly check raised an unexpected error: %s", exc
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "FRAGMENT_CHECK_ERROR",
+                "message": (
+                    "The biosafety pipeline encountered an internal error. "
+                    "Please try again. If the problem persists, contact support."
+                ),
+            },
+        ) from exc
 
     # ── Step 2: Consequence pipeline ──────────────────────────────────────
     import logging as _logging
