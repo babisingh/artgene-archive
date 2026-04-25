@@ -596,11 +596,21 @@ async function apiFetch<T>(
           `Validation error — one or more fields were rejected by the server. ` +
           `Check your input and try again. (${detail ?? "unprocessable entity"})`
         );
-      case 500:
+      case 500: {
+        // Extract the error code from the structured detail so the UI can show
+        // e.g. "[PIPELINE_ERROR]" — useful when checking Railway logs.
+        let codeHint = "";
+        try {
+          const parsed: unknown = JSON.parse(detail ?? "{}");
+          if (parsed && typeof parsed === "object" && "code" in parsed && typeof (parsed as Record<string, unknown>).code === "string") {
+            codeHint = ` [${(parsed as Record<string, unknown>).code}]`;
+          }
+        } catch { /* ignore — detail may not be JSON */ }
         throw new Error(
-          "The server encountered an internal error. Please try again. " +
+          `The server encountered an internal error${codeHint}. Please try again. ` +
           "If the problem persists, contact support."
         );
+      }
       default:
         throw new Error(
           detail ?? `Request failed with status ${res.status}.`
