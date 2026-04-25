@@ -195,7 +195,7 @@ export default function HomePage() {
       <hr className="hr" />
 
       {/* ── FOUR PILLARS ──────────────────────────────────────────────────── */}
-      <section className="wrap" style={{ padding: "50px 0" }}>
+      <section className="wrap" style={{ padding: "30px 0" }}>
         <div className="flex between center mb-20">
           <div>
             <div className="eyebrow mb-8">§ 02 — What the archive does</div>
