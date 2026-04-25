@@ -20,8 +20,8 @@ const TICKER_ITEMS = [
 ];
 
 const STATS = [
-  { n: 100, label: "Sequences certified",         sub: "across XX countries"       },
-  { n: 40,   label: "AI Generating models tracked",   sub: "XX institutions"           },
+  { n: 100, label: "Sequences certified",         sub: "across 10 countries"       },
+  { n: 40,   label: "AI Generating models tracked",   sub: "7 institutions"           },
   { n: 12,    label: "Biosafety review panels",     sub: "3-tier gated"             },
   { n: 15,  label: "Citations referencing AG-IDs", sub: "peer-reviewed, 2026 YTD" },
 ];
