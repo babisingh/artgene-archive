@@ -951,7 +951,7 @@ export default function ShowcasePage() {
                       Generative models now produce proteins and genes faster than the scientific
                       community can catalogue them. ArtGene is the infrastructure layer: automated
                       biosafety screening, codon watermarking, post-quantum certificates, and an
-                      immutable public ledger — for every sequence.
+                      immutable public ledger; for every sequence.
                     </p>
                     {/* Counter grid */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '28px 40px', marginBottom: 44, maxWidth: 400 }}>
@@ -973,7 +973,7 @@ export default function ShowcasePage() {
                     </div>
                     {/* CTAs */}
                     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                      <a href="#pipeline" className="btn btn-primary">Run a live demo ↓</a>
+                      <a href="mailto:b@genethropic.com" className="btn btn-primary">Drop a mail</a>
                       <a href="#features" className="btn btn-ghost">Explore features</a>
                     </div>
                   </div>
