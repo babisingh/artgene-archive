@@ -339,80 +339,97 @@ async def register_sequence(
             },
         )
 
-    # ── Step 3: Vault keys for post-quantum signing ───────────────────────
-    vault = get_vault_client()
-    spreading_key = await vault.get_spreading_key(settings.spreading_key_id)
+    # ── Steps 3–7: Vault + signing + DB write ────────────────────────────
+    # Wrapped in a single try/except so any failure here produces a structured
+    # 500 with a specific error code visible in Railway logs and the UI.
+    try:
+        vault = get_vault_client()
+        spreading_key = await vault.get_spreading_key(settings.spreading_key_id)
 
-    now = datetime.now(UTC)
-    seq_num = await _next_seq_num(db)
-    year = now.year
-    registry_id = f"AG-{year}-{seq_num:06d}"
+        now = datetime.now(UTC)
+        seq_num = await _next_seq_num(db)
+        year = now.year
+        registry_id = f"AG-{year}-{seq_num:06d}"
 
-    # seq_hash already computed above as pre_hash
-    seq_hash = pre_hash
+        # seq_hash already computed above as pre_hash
+        seq_hash = pre_hash
 
-    # ── Step 4: Post-quantum WOTS+ signing ───────────────────────────────
-    lwe_com = LWECommitmentData.stub()  # LWE: Phase 4
+        lwe_com = LWECommitmentData.stub()  # LWE: Phase 4
 
-    # ── Step 5: Certificate hash ──────────────────────────────────────────
-    cert_fields = {
-        "registry_id": registry_id,
-        "owner_id": body.owner_id,
-        "org_id": str(org.id),
-        "ethics_code": body.ethics_code,
-        "sequence_hash": seq_hash,
-        "timestamp": now.isoformat(),
-    }
-    cert_hash = HybridCertificate.compute_hash(cert_fields)
+        cert_fields = {
+            "registry_id": registry_id,
+            "owner_id": body.owner_id,
+            "org_id": str(org.id),
+            "ethics_code": body.ethics_code,
+            "sequence_hash": seq_hash,
+            "timestamp": now.isoformat(),
+        }
+        cert_hash = HybridCertificate.compute_hash(cert_fields)
 
-    # PQSigner derives a per-certificate keypair from (spreading_key, registry_id).
-    pq_signer = PQSigner(master_seed=spreading_key)
-    pk_dict, sig_dict = pq_signer.sign_certificate(registry_id, cert_hash)
-    wots_pub = WOTSPublicKey(**pk_dict)
-    wots_sig = WOTSSignature(**sig_dict)
+        # PQSigner derives a per-certificate keypair from (spreading_key, registry_id).
+        pq_signer = PQSigner(master_seed=spreading_key)
+        pk_dict, sig_dict = pq_signer.sign_certificate(registry_id, cert_hash)
+        wots_pub = WOTSPublicKey(**pk_dict)
+        wots_sig = WOTSSignature(**sig_dict)
 
-    # ── Steps 6 + 7: Write certificate + audit log atomically ────────────
-    # Store the original_protein in watermark_metadata for fragment assembly
-    # cross-checks (see _check_fragment_assembly_risk above).
-    cert = Certificate(
-        id=registry_id,
-        org_id=org.id,
-        sequence_hash=seq_hash,
-        owner_id=body.owner_id,
-        ethics_code=body.ethics_code,
-        sequence_type=seq_type.value,
-        host_organism=body.host_organism.value,
-        timestamp=now,
-        watermark_metadata={"original_protein": protein},
-        wots_public_key=wots_pub.model_dump(),
-        wots_signature=wots_sig.model_dump(),
-        lwe_commitment=lwe_com.model_dump(),
-        consequence_report=report_dict,
-        certificate_hash=cert_hash,
-        status=(CertificateStatus.CERTIFIED_WITH_WARNINGS if _warn_only else CertificateStatus.CERTIFIED).value,
-        tier="STANDARD",
-        visibility=body.visibility,
-    )
-    db.add(cert)
+        # Store the original_protein in watermark_metadata for fragment assembly
+        # cross-checks (see _check_fragment_assembly_risk above).
+        cert = Certificate(
+            id=registry_id,
+            org_id=org.id,
+            sequence_hash=seq_hash,
+            owner_id=body.owner_id,
+            ethics_code=body.ethics_code,
+            sequence_type=seq_type.value,
+            host_organism=body.host_organism.value,
+            timestamp=now,
+            watermark_metadata={"original_protein": protein},
+            wots_public_key=wots_pub.model_dump(),
+            wots_signature=wots_sig.model_dump(),
+            lwe_commitment=lwe_com.model_dump(),
+            consequence_report=report_dict,
+            certificate_hash=cert_hash,
+            status=(CertificateStatus.CERTIFIED_WITH_WARNINGS if _warn_only else CertificateStatus.CERTIFIED).value,
+            tier="STANDARD",
+            visibility=body.visibility,
+        )
+        db.add(cert)
 
-    prev_hash = await _prev_entry_hash(db)
-    entry_hash = _entry_hash(seq_num, prev_hash, cert_hash)
+        prev_hash = await _prev_entry_hash(db)
+        entry_hash = _entry_hash(seq_num, prev_hash, cert_hash)
 
-    log_entry = RegistryAuditLog(
-        id=uuid.uuid4(),
-        seq_num=seq_num,
-        prev_hash_hex=prev_hash,
-        certificate_hash=cert_hash,
-        entry_hash_hex=entry_hash,
-        registry_id=registry_id,
-        timestamp=now,
-    )
-    db.add(log_entry)
+        log_entry = RegistryAuditLog(
+            id=uuid.uuid4(),
+            seq_num=seq_num,
+            prev_hash_hex=prev_hash,
+            certificate_hash=cert_hash,
+            entry_hash_hex=entry_hash,
+            registry_id=registry_id,
+            timestamp=now,
+        )
+        db.add(log_entry)
 
-    # Index k-mers for future assembly risk cross-checks (same transaction).
-    _add_kmer_index_rows(db, registry_id, org.id, protein)
+        _add_kmer_index_rows(db, registry_id, org.id, protein)
 
-    await db.commit()
+        await db.commit()
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _reg_log.exception(
+            "Certificate issuance failed at vault/signing/commit step: %s: %s",
+            type(exc).__name__, exc,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "CERTIFICATE_WRITE_ERROR",
+                "message": (
+                    "The server failed to issue the certificate after biosafety gates passed. "
+                    "Please try again. If the problem persists, contact support."
+                ),
+            },
+        ) from exc
 
     final_status = CertificateStatus.CERTIFIED_WITH_WARNINGS if _warn_only else CertificateStatus.CERTIFIED
     return RegistrationResponse(
