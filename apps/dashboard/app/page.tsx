@@ -156,7 +156,7 @@ export default function HomePage() {
           <div style={{ gridColumn: "span 4" }}>
             <div className="eyebrow mb-16">§ 01 — Thesis</div>
             <h2 className="display" style={{ fontSize: 30, margin: 0 }}>
-              What GenBank was to the sequencing machine <br />, ArtGene Archive is to the <em>generative model</em>.
+              What GenBank was to the sequencing machine, <br /> ArtGene Archive is to the <em>generative model</em>.
             </h2>
           </div>
 
@@ -168,6 +168,7 @@ export default function HomePage() {
               scaffolding of modern biology.
             </p>
             <p>
+              <br />
               Forty-four years later we stand at a structurally identical moment. A frontier model
               can now propose a functional enzyme in milliseconds. A graduate student with a laptop
               and a credit card can order it as DNA before lunch. The community has no shared
@@ -175,6 +176,7 @@ export default function HomePage() {
               safety checks were applied, or whether they were ever observed in nature.
             </p>
             <p>
+              <br />
               <strong>ArtGene Archive is that infrastructure.</strong> We provide a dedicated deposit
               path, automated three-gate biosafety screening (more under development), cryptographic watermarking via codon
               steganography, tamper-evident certification, and formal recognition for contributors.
