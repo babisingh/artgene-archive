@@ -50,6 +50,7 @@ export function SiteHeader() {
                       ? "active"
                       : ""
                 }
+                style={accent ? { background: 'oklch(0.74 0.10 45)', borderColor: 'oklch(0.74 0.10 45)' } : undefined}
               >
                 {label}
               </Link>
