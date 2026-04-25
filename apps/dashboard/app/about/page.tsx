@@ -29,9 +29,9 @@ const ARTICLES = [
 ];
 
 const SIGNATORIES =
-  "Wellcome Trust · EMBL-EBI · National Institutes of Health · DDBJ (Japan) · " +
-  "Broad Institute · Arc Institute · Chan Zuckerberg Initiative · Institut Pasteur · " +
-  "The Francis Crick Institute · RIKEN · UCSF · Wyss Institute · Kyoto University · ETH Zürich";
+  "Institute X · " +
+  "Institute I· Biosafety Org · Agency X · Funding partner F· " +
+  "Govt. Hub A · Govt. Body B · W Institute · Kyo University · ET Zürich";
 
 export default function AboutPage() {
   return (
@@ -46,10 +46,11 @@ export default function AboutPage() {
         A public-interest<br />registry for the<br /><em>machine-designed</em> biome.
       </h1>
       <p className="lede" style={{ margin: "24px 0 40px", maxWidth: 680 }}>
-        ArtGene Archive is operated by the ArtGene Consortium — a non-profit federation of
-        sequencing institutions, national biosafety authorities, and independent researchers.
+        ArtGene Archive is a non-profit federation composed of
+        sequencing institutions, biosafety authorities, and independent researchers.
         We do not sell access. We do not gate the scholarly record. Our commitments are
-        published here in full.
+        published here in full. We promote fair, transparent, responsible, equitable and accessible scientific research, 
+        open for all.
       </p>
 
       {/* ── Articles ────────────────────────────────────────────── */}
