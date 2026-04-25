@@ -187,8 +187,15 @@ async def run_consequence_pipeline(
         tasks.append((4, asyncio.create_task(g4.run(dna, protein))))
 
     if tasks:
-        results = await asyncio.gather(*(t for _, t in tasks))
-        for (gate_num, _), result in zip(tasks, results):
+        raw = await asyncio.gather(*(t for _, t in tasks), return_exceptions=True)
+        for (gate_num, _), result in zip(tasks, raw):
+            if isinstance(result, BaseException):
+                logger.exception(
+                    "Gate %d raised an unhandled exception: %s", gate_num, result
+                )
+                raise RuntimeError(
+                    f"Gate {gate_num} failed with an internal error"
+                ) from result
             if gate_num == 2:
                 gate2_result = result
             elif gate_num == 3:

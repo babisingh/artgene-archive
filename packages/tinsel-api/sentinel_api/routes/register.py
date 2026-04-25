@@ -267,12 +267,27 @@ async def register_sequence(
     await _check_fragment_assembly_risk(db, protein, settings.sentinel_env)
 
     # ── Step 2: Consequence pipeline ──────────────────────────────────────
-    report = await run_consequence_pipeline(
-        protein=protein,
-        dna=sequence if seq_type.value == "dna" else "",
-        env=settings.sentinel_env,
-        host_organism=body.host_organism.value,
-    )
+    import logging as _logging
+    _reg_log = _logging.getLogger(__name__)
+    try:
+        report = await run_consequence_pipeline(
+            protein=protein,
+            dna=sequence if seq_type.value == "dna" else "",
+            env=settings.sentinel_env,
+            host_organism=body.host_organism.value,
+        )
+    except Exception as exc:
+        _reg_log.exception("Consequence pipeline raised an unexpected error: %s", exc)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "PIPELINE_ERROR",
+                "message": (
+                    "The biosafety pipeline encountered an internal error. "
+                    "Please try again. If the problem persists, contact support."
+                ),
+            },
+        ) from exc
     report_dict = report.model_dump()
 
     from tinsel.models import GateStatus

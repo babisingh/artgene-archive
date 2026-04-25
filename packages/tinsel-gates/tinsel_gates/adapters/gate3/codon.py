@@ -361,6 +361,18 @@ class CodonGate3Adapter(Gate3Adapter):
         host = getattr(self, "_host_organism", "ECOLI").upper().strip()
         host_key = _HOST_MAP.get(host, "ECOLI")
 
+        if not dna:
+            return Gate3Result(
+                status=GateStatus.PASS,
+                pathogen_hits=0,
+                hgt_score=None,
+                escape_probability=None,
+                message="No DNA sequence provided — codon and HGT analysis skipped (protein-only submission)",
+                gc_content=None,
+                codon_adaptation_index=None,
+                hgt_risk_factors=None,
+            )
+
         gc = _gc_content(dna)
         cai = _compute_cai(dna, host_key)
         hgt, risk_factors = _hgt_score(gc, cai, host_key)
