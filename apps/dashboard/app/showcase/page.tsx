@@ -994,8 +994,8 @@ export default function ShowcasePage() {
                 </h2>
                 <p style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--ink-2)', margin: '0 0 32px', maxWidth: 560, lineHeight: 1.6 }}>
                   {FEATURES.filter(f => f.s === 'live').length} capabilities are live today.{' '}
-                  {FEATURES.filter(f => f.s === 'pipeline').length} more are in active development. <br>
-                  <strong> Click </strong> any live feature to jump to its interactive demo below. </br>
+                  {FEATURES.filter(f => f.s === 'pipeline').length} more are in active development. 
+                  <strong> Click </strong> any live feature to jump to its interactive demo below.
                 </p>
                 <div className="feature-grid">
                   {FEATURES.map((f, i) => (
