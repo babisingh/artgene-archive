@@ -29,7 +29,7 @@ const SECTIONS = [
   { id: 'hero',       label: '§ 01 — Overview'             },
   { id: 'features',   label: '§ 02 — Features'             },
   { id: 'pipeline',   label: '§ 03 — Biosafety'            },
-  { id: 'watermark',  label: '§ 04 — Watermark &<br> Provenance'},
+  { id: 'watermark',  label: '§ 04 — Watermark-Provenance'},
   { id: 'fragments',  label: '§ 05 — Fragments'            },
   { id: 'compliance', label: '§ 06 — Compliance'           },
   { id: 'registry',   label: '§ 07 — Registry'             },
@@ -182,7 +182,7 @@ function timeout(ms: number): Promise<never> {
 // ─── §09 CTA component ───────────────────────────────────────────
 const CTA_ROLES = [
   { role: 'Depositors',   desc: 'Submit AI-designed sequences for certification and public archiving.',              cta: 'Deposit a sequence →' },
-  { role: 'Institutions & Researchers', desc: 'Join and contribute to the consortium charter.',              cta: 'Become a partner →'   },
+  { role: 'Institutions & Researchers', desc: 'Join and contribute to the consortium charter, bridge knowledge-gaps.',              cta: 'Become a partner →'   },
   { role: 'Developers',   desc: 'Help building the ArtGene-archive secure and future ready',                cta: 'Sign up →'  },
 ];
 
@@ -990,12 +990,12 @@ export default function ShowcasePage() {
               <div className="wrap">
                 <p className="eyebrow" style={{ marginBottom: 12 }}>§ 02 — Features</p>
                 <h2 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(24px,3vw,36px)', fontWeight: 700, letterSpacing: '-0.025em', color: 'var(--ink)', margin: '0 0 12px' }}>
-                  What&rsquo;s built — and what&rsquo;s next.
+                  What&rsquo;s built and what&rsquo;s next.
                 </h2>
                 <p style={{ fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--ink-2)', margin: '0 0 32px', maxWidth: 560, lineHeight: 1.6 }}>
                   {FEATURES.filter(f => f.s === 'live').length} capabilities are live today.{' '}
-                  {FEATURES.filter(f => f.s === 'pipeline').length} more are in active development.
-                  Click any live feature to jump to its interactive demo below.
+                  {FEATURES.filter(f => f.s === 'pipeline').length} more are in active development. <br>
+                  <strong> Click </strong> any live feature to jump to its interactive demo below. </br>
                 </p>
                 <div className="feature-grid">
                   {FEATURES.map((f, i) => (
