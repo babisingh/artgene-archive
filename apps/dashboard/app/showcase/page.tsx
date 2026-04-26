@@ -956,10 +956,10 @@ export default function ShowcasePage() {
                     {/* Counter grid */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '28px 40px', marginBottom: 44, maxWidth: 400 }}>
                       {[
-                        { to: 1247, suffix: '',   label: 'Sequences registered' },
+                        { to: 100, suffix: '',   label: 'Sequences registered' },
                         { to: 4,    suffix: '',   label: 'Biosafety gates' },
-                        { to: 12,   suffix: '',   label: 'Partner institutions' },
-                        { to: 100,  suffix: '%',  label: 'Open access' },
+                        { to: 3,   suffix: '',   label: 'Partner institutions' },
+                        { to: 70,  suffix: '%',  label: 'Open access' },
                       ].map(({ to, suffix, label }) => (
                         <div key={label}>
                           <div style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(28px,3vw,40px)', fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--ink)', lineHeight: 1 }}>
