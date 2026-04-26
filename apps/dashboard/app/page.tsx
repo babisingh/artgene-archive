@@ -337,7 +337,7 @@ export default function HomePage() {
       <section className="wrap" style={{ padding: "88px 0" }}>
         <div className="eyebrow mb-16" style={{ textAlign: "center" }}>§ 06 — Governance &amp; partners</div>
         <h2 className="display" style={{ fontSize: 36, textAlign: "center", margin: "0 auto 48px", maxWidth: 720 }}>
-          ArtGene is operated as public-interest infrastructure — not a product.
+          ArtGene Archive is operated as public-interest infrastructure. Let's build it together.
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", borderTop: "0.5px solid var(--rule)", borderBottom: "0.5px solid var(--rule)" }}>
           {PARTNERS.map((name, i) => (
