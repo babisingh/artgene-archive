@@ -48,8 +48,8 @@ export function SiteFooter() {
           </ul>
           <h5 style={{ marginTop: 24 }}>Mirrors</h5>
           <ul>
-            <li>EU · mirror.ebi.ac.uk/artgene</li>
-            <li>JP · mirror.ddbj.nig.ac.jp/artgene</li>
+            <li>EU · mirror.XX/artgene</li>
+            <li>JP · mirror.YY/artgene</li>
           </ul>
         </div>
       </div>
