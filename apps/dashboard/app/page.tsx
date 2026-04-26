@@ -276,7 +276,7 @@ export default function HomePage() {
       <section className="wrap" style={{ padding: "88px 0" }}>
         <div className="eyebrow mb-16">§ 04 — Deposit pathway</div>
         <h2 className="display" style={{ fontSize: 44, margin: "0 0 48px" }}>
-          From upload to bio-screening to certificate<br />in <em>all in one seamless pipeline.</em>
+          From upload to bio-screening to certificate<br /><em>in one seamless pipeline.</em>
         </h2>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 24, position: "relative" }}>
