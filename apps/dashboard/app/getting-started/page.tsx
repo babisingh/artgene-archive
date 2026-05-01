@@ -58,8 +58,8 @@ export default function GettingStartedPage() {
     <div className="wrap" style={{ padding: "64px 0 96px" }}>
       <div className="grid-12" style={{ gap: 48, alignItems: "start" }}>
 
-        {/* ── Sticky sidebar nav ──────────────────────────────── */}
-        <aside style={{ gridColumn: "span 3", position: "sticky", top: 110 }}>
+        {/* ── Sticky sidebar nav (hidden on mobile via .docs-sidebar) ── */}
+        <aside className="docs-sidebar" style={{ gridColumn: "span 3", position: "sticky", top: 110 }}>
           <div
             className="mono mb-16"
             style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}
@@ -86,7 +86,7 @@ export default function GettingStartedPage() {
         </aside>
 
         {/* ── Main content ────────────────────────────────────── */}
-        <main style={{ gridColumn: "span 9", minWidth: 0 }}>
+        <main style={{ gridColumn: "span 9", minWidth: 0, maxWidth: "100%" }}>
 
           {/* ── Quick start ─────────────────────────────────── */}
           <section id="quick-start" style={{ marginBottom: 64 }}>

@@ -868,3 +868,56 @@
     margin-left: 0 !important;
   }
 }
+
+/* ── Deposit wizard stepper (4 → 2 col) ─────────────────────── */
+.stepper-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 0.5px solid var(--rule);
+  border-bottom: 0.5px solid var(--rule);
+  margin-bottom: 40px;
+}
+@media (max-width: 600px) {
+  .stepper-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .stepper-grid > *:nth-child(odd) {
+    border-right: 0.5px solid var(--rule);
+  }
+  .stepper-grid > *:nth-child(-n+2) {
+    border-bottom: 0.5px solid var(--rule);
+  }
+}
+
+/* ── 2-column form grid → 1-col on mobile ───────────────────── */
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 600px) {
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Docs / getting-started sidebar — hide on mobile ────────── */
+.docs-sidebar {
+  /* sticky + layout set inline; this class only adds responsive hide */
+}
+@media (max-width: 768px) {
+  .docs-sidebar {
+    display: none;
+  }
+}
+
+/* ── Sequences index page container ─────────────────────────── */
+.sequences-page {
+  padding: 48px 0 80px;
+}
+
+/* ── Registry table: horizontal scroll on mobile ────────────── */
+.tbl-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
