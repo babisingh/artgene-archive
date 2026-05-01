@@ -585,3 +585,339 @@
 @media (max-width: 420px)  { .seq-selector { grid-template-columns: 1fr !important; } }
 
 @keyframes gate-spin { to { transform: rotate(360deg); } }
+
+/* ================================================================
+   RESPONSIVE — mobile & tablet breakpoints
+   ================================================================ */
+
+/* ── Container padding ───────────────────────────────────────── */
+@media (max-width: 768px) {
+  .wrap,
+  .wrap-narrow {
+    padding: 0 20px;
+  }
+  .site-header-inner {
+    padding: 12px 20px;
+    gap: 12px;
+  }
+  .gov-strip-inner {
+    padding: 5px 20px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  /* hide the language selector on very small gov-strip */
+  .gov-strip-inner > span:last-child {
+    margin-left: 0;
+  }
+}
+
+/* ── grid-12 → single column on mobile ──────────────────────── */
+@media (max-width: 768px) {
+  .grid-12 {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  /* override all inline gridColumn spans / positions */
+  .grid-12 > * {
+    grid-column: 1 !important;
+  }
+  /* hide the helix column on mobile (it's decorative) */
+  .grid-12 .hero-visual {
+    display: none;
+  }
+}
+
+/* ── Mobile nav toggle button ────────────────────────────────── */
+.nav-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.nav-toggle-bar {
+  display: block;
+  width: 22px;
+  height: 1.5px;
+  background: var(--ink);
+  border-radius: 2px;
+  transition: transform 0.2s, opacity 0.2s;
+}
+.nav-toggle[aria-expanded="true"] .nav-toggle-bar:nth-child(1) {
+  transform: translateY(6.5px) rotate(45deg);
+}
+.nav-toggle[aria-expanded="true"] .nav-toggle-bar:nth-child(2) {
+  opacity: 0;
+}
+.nav-toggle[aria-expanded="true"] .nav-toggle-bar:nth-child(3) {
+  transform: translateY(-6.5px) rotate(-45deg);
+}
+
+/* ── Mobile nav drawer ───────────────────────────────────────── */
+.nav-drawer {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--paper);
+  z-index: 49;
+  padding: 72px 24px 40px;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+}
+.nav-drawer.open {
+  display: flex;
+}
+.nav-drawer a {
+  padding: 14px 16px;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--ink-2);
+  border-radius: var(--radius-lg);
+  transition: background 0.15s, color 0.15s;
+  text-decoration: none;
+}
+.nav-drawer a:hover,
+.nav-drawer a.active {
+  color: var(--ink);
+  background: var(--paper-3);
+}
+.nav-drawer-meta {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 0.5px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .nav      { display: none; }
+  .nav-meta { display: none; }
+  .nav-toggle { display: flex; }
+}
+
+/* ── Homepage section grids ──────────────────────────────────── */
+
+/* Stats strip — 4 → 2 → 1 col */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 0.5px solid var(--rule);
+}
+@media (max-width: 860px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .stats-grid > *:nth-child(even) {
+    border-right: none !important;
+  }
+}
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .stats-grid > * {
+    border-right: none !important;
+  }
+}
+
+/* Mission section — side by side → stacked */
+.mission-grid {
+  display: grid;
+  grid-template-columns: 4fr 7fr;
+  gap: 48px;
+  align-items: start;
+}
+@media (max-width: 768px) {
+  .mission-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+/* Four pillars — 4 → 2 → 1 col */
+.pillars-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 0.5px solid var(--rule);
+  border-bottom: 0.5px solid var(--rule);
+}
+@media (max-width: 860px) {
+  .pillars-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .pillars-grid > *:nth-child(even) {
+    border-right: none !important;
+  }
+  .pillars-grid > * {
+    border-bottom: 0.5px solid var(--rule);
+  }
+  .pillars-grid > *:nth-last-child(-n+2):nth-child(odd):last-child,
+  .pillars-grid > *:last-child {
+    border-bottom: none;
+  }
+}
+@media (max-width: 480px) {
+  .pillars-grid {
+    grid-template-columns: 1fr;
+  }
+  .pillars-grid > * {
+    border-right: none !important;
+    border-bottom: 0.5px solid var(--rule);
+  }
+  .pillars-grid > *:last-child {
+    border-bottom: none;
+  }
+}
+
+/* Biosafety process — 5 → 2 → 1 col */
+.process-steps {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 24px;
+  position: relative;
+}
+@media (max-width: 860px) {
+  .process-steps {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .process-connector {
+    display: none !important;
+  }
+}
+@media (max-width: 480px) {
+  .process-steps {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Partners grid — 6 → 3 → 2 col */
+.partners-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  border-top: 0.5px solid var(--rule);
+  border-bottom: 0.5px solid var(--rule);
+}
+@media (max-width: 900px) {
+  .partners-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .partners-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── Footer ──────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .site-footer {
+    margin-top: 64px;
+    padding: 48px 0 24px;
+  }
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    padding: 0 20px;
+  }
+  .footer-bottom {
+    flex-direction: column;
+    gap: 6px;
+    text-align: center;
+    padding: 16px 20px 0;
+    margin-top: 32px;
+  }
+}
+@media (max-width: 480px) {
+  .footer-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Section vertical padding on mobile ─────────────────────── */
+@media (max-width: 768px) {
+  .section-pad-lg { padding-top: 56px !important; padding-bottom: 56px !important; }
+  .section-pad-md { padding-top: 40px !important; padding-bottom: 40px !important; }
+  /* four-pillars header row */
+  .pillars-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 8px;
+  }
+}
+
+/* ── Misc mobile polish ──────────────────────────────────────── */
+@media (max-width: 480px) {
+  /* hero CTA row — stack vertically */
+  .hero-cta {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+  .hero-cta .hero-cta-link {
+    margin-left: 0 !important;
+  }
+}
+
+/* ── Deposit wizard stepper (4 → 2 col) ─────────────────────── */
+.stepper-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 0.5px solid var(--rule);
+  border-bottom: 0.5px solid var(--rule);
+  margin-bottom: 40px;
+}
+@media (max-width: 600px) {
+  .stepper-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .stepper-grid > *:nth-child(odd) {
+    border-right: 0.5px solid var(--rule);
+  }
+  .stepper-grid > *:nth-child(-n+2) {
+    border-bottom: 0.5px solid var(--rule);
+  }
+}
+
+/* ── 2-column form grid → 1-col on mobile ───────────────────── */
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 600px) {
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Docs / getting-started sidebar — hide on mobile ────────── */
+.docs-sidebar {
+  /* sticky + layout set inline; this class only adds responsive hide */
+}
+@media (max-width: 768px) {
+  .docs-sidebar {
+    display: none;
+  }
+}
+
+/* ── Sequences index page container ─────────────────────────── */
+.sequences-page {
+  padding: 48px 0 80px;
+}
+
+/* ── Registry table: horizontal scroll on mobile ────────────── */
+.tbl-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}

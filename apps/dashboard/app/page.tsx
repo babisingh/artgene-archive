@@ -85,13 +85,13 @@ export default function HomePage() {
               Generative models now produce proteins, genes and regulatory elements faster than the
               scientific community can catalogue. ArtGene Archive is the first dedicated registry
               for AI-designed biological sequences — providing watermarking, biosafety certification,
-              and an auditable chain of custody from model to bench to publication, 
-              while sepearting naturally occuring sequences from the ones created by 
-              humans in collaboration with AI. 
+              and an auditable chain of custody from model to bench to publication,
+              while sepearting naturally occuring sequences from the ones created by
+              humans in collaboration with AI.
               Art(ificial)-gene Archive only store sequences that pass multiple biosecurity screening gates (See demo).
-              
+
             </p>
-            <div className="flex gap-12" style={{ alignItems: "center", flexWrap: "wrap" }}>
+            <div className="flex gap-12 hero-cta" style={{ alignItems: "center", flexWrap: "wrap" }}>
               <Link href="/register" className="btn btn-primary">
                 Deposit a sequence
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
@@ -103,7 +103,7 @@ export default function HomePage() {
               </Link>
               <a
                 href="#"
-                className="mono"
+                className="mono hero-cta-link"
                 style={{ fontSize: 11.5, color: "var(--ink-3)", letterSpacing: "0.08em", textTransform: "uppercase", marginLeft: 16 }}
               >
                 ↳ Read the founding paper (PDF, 2.1 MB)
@@ -111,8 +111,8 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Right — helix */}
-          <div style={{ gridColumn: "span 5", position: "relative" }}>
+          {/* Right — helix (hidden on mobile via .hero-visual CSS class) */}
+          <div className="hero-visual" style={{ gridColumn: "span 5", position: "relative" }}>
             <div className="helix-wrap">
               <Helix />
             </div>
@@ -130,7 +130,8 @@ export default function HomePage() {
 
       {/* ── STATS STRIP ───────────────────────────────────────────────────── */}
       <section className="wrap" style={{ padding: "64px 0 40px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", borderTop: "0.5px solid var(--rule)" }}>
+        {/* stats-grid CSS class handles display:grid and responsive columns */}
+        <div className="stats-grid">
           {STATS.map((s, i) => (
             <div key={i} style={{
               padding: "32px 28px 28px",
@@ -151,16 +152,17 @@ export default function HomePage() {
 
       {/* ── MISSION / EDITORIAL ───────────────────────────────────────────── */}
       <section className="wrap" style={{ padding: "72px 0" }}>
-        <div className="grid-12" style={{ alignItems: "start", gap: 48 }}>
+        {/* mission-grid CSS class handles responsive two-column → single-column */}
+        <div className="mission-grid">
 
-          <div style={{ gridColumn: "span 4" }}>
+          <div>
             <div className="eyebrow mb-16">§ 01 — Thesis</div>
             <h2 className="display" style={{ fontSize: 30, margin: 0 }}>
               What GenBank was to the sequencing machine, <br /> ArtGene Archive is to the <em>generative model</em>.
             </h2>
           </div>
 
-          <div style={{ gridColumn: "6 / 13", fontSize: 14.5, lineHeight: 1.7, color: "var(--ink-2)" }}>
+          <div style={{ fontSize: 14.5, lineHeight: 1.7, color: "var(--ink-2)" }}>
             <p style={{ marginTop: 0 }}>
               In 1982 a small group at the National Institutes of Health recognised that automated
               sequencers had begun to produce DNA data faster than journals or institutions could
@@ -196,7 +198,7 @@ export default function HomePage() {
 
       {/* ── FOUR PILLARS ──────────────────────────────────────────────────── */}
       <section className="wrap" style={{ padding: "30px 0" }}>
-        <div className="flex between center mb-20">
+        <div className="flex between center mb-20 pillars-header">
           <div>
             <div className="eyebrow mb-8">§ 02 — What the archive does</div>
             <h2 className="display" style={{ fontSize: 44, margin: 0 }}>Four pillars.</h2>
@@ -206,7 +208,8 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", borderTop: "0.5px solid var(--rule)", borderBottom: "0.5px solid var(--rule)" }}>
+        {/* pillars-grid CSS class handles display:grid and responsive columns */}
+        <div className="pillars-grid">
           {PILLARS.map((p, i) => (
             <div key={p.n} style={{ padding: "36px 32px 40px", borderRight: i < 3 ? "0.5px solid var(--rule)" : "none" }}>
               <div style={{ height: 56, display: "flex", alignItems: "center", marginBottom: 18 }}>
@@ -279,9 +282,10 @@ export default function HomePage() {
           From upload to bio-screening to certificate<br /><em>in one seamless pipeline.</em>
         </h2>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 24, position: "relative" }}>
-          {/* Connecting rule behind the step circles */}
-          <div style={{ position: "absolute", top: 24, left: "10%", right: "10%", height: "0.5px", background: "var(--rule)" }} aria-hidden="true" />
+        {/* process-steps CSS class handles display:grid and responsive columns */}
+        <div className="process-steps">
+          {/* Connecting rule — hidden on mobile via .process-connector CSS class */}
+          <div className="process-connector" style={{ position: "absolute", top: 24, left: "10%", right: "10%", height: "0.5px", background: "var(--rule)" }} aria-hidden="true" />
 
           {PROCESS_STEPS.map((s) => (
             <div key={s.n} style={{ position: "relative" }}>
@@ -320,7 +324,7 @@ export default function HomePage() {
               Any record can be verified offline with our open-source CLI. No vendor lock-in.
               No gatekeeping. No ambiguity about who deposited what, when, and under what biosafety conditions.
             </p>
-            <div style={{ background: "rgba(250,250,246,0.06)", border: "0.5px solid rgba(250,250,246,0.2)", borderRadius: 6, padding: "20px 24px", fontFamily: "var(--mono)", fontSize: 11.5, lineHeight: 1.8, color: "rgba(250,250,246,0.8)", letterSpacing: "0.02em" }}>
+            <div style={{ background: "rgba(250,250,246,0.06)", border: "0.5px solid rgba(250,250,246,0.2)", borderRadius: 6, padding: "20px 24px", fontFamily: "var(--mono)", fontSize: 11.5, lineHeight: 1.8, color: "rgba(250,250,246,0.8)", letterSpacing: "0.02em", overflowX: "auto" }}>
               <div style={{ color: "var(--accent)" }}>// Verify any record</div>
               <div>$ artgene verify AG-2026-018427</div>
               <div style={{ color: "rgba(250,250,246,0.5)" }}>{"  ↳ hash: a9f0c3e8...b41d — OK"}</div>
@@ -339,7 +343,8 @@ export default function HomePage() {
         <h2 className="display" style={{ fontSize: 36, textAlign: "center", margin: "0 auto 48px", maxWidth: 720 }}>
           ArtGene Archive is operated as public-interest infrastructure. Let's build it together.
         </h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", borderTop: "0.5px solid var(--rule)", borderBottom: "0.5px solid var(--rule)" }}>
+        {/* partners-grid CSS class handles display:grid and responsive columns */}
+        <div className="partners-grid">
           {PARTNERS.map((name, i) => (
             <div key={i} style={{
               padding: "28px 20px", height: 96,
@@ -367,7 +372,7 @@ export default function HomePage() {
             The registry is free to use, open by default, and takes less than a minute for a standard
             deposit. No institutional account is required to read; one API key is required to deposit.
           </p>
-          <div className="flex gap-12" style={{ justifyContent: "center" }}>
+          <div className="flex gap-12" style={{ justifyContent: "center", flexWrap: "wrap" }}>
             <Link href="/register" className="btn btn-primary">Begin deposit →</Link>
             <Link href="/getting-started" className="btn btn-ghost">Read the documentation</Link>
           </div>

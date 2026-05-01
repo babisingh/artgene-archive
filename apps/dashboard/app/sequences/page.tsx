@@ -293,9 +293,9 @@ export default function SequencesPage() {
   });
 
   return (
-    <div>
+    <div className="route wrap sequences-page">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6" style={{ flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
             Sequence Registry

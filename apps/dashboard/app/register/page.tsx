@@ -251,11 +251,7 @@ export default function RegisterPage() {
       </section>
 
       {/* ── Stepper ─────────────────────────────────────────────── */}
-      <div style={{
-        display: "grid", gridTemplateColumns: "repeat(4, 1fr)",
-        borderTop: "0.5px solid var(--rule)", borderBottom: "0.5px solid var(--rule)",
-        marginBottom: 40,
-      }}>
+      <div className="stepper-grid">
         {STEPPER.map(([n, label], i) => {
           const idx    = i + 1;
           const active = step === idx;
@@ -329,7 +325,7 @@ export default function RegisterPage() {
                 </h3>
 
                 {/* Design fields (UI-only — not submitted to API) */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                <div className="form-grid-2">
                   {([
                     ["sequence_name",    "Sequence name",    "e.g. CA-ΔT7"],
                     ["molecule_type",    "Molecule type",    "Protein / DNA / RNA"],
@@ -388,7 +384,7 @@ export default function RegisterPage() {
                   <div className="mono mb-16" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                     Registration credentials
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                  <div className="form-grid-2">
                     <div>
                       <label htmlFor="owner_id" className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>
                         Owner ID *

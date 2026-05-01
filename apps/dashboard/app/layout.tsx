@@ -10,6 +10,11 @@ export const metadata: Metadata = {
   description: "Cryptographic provenance and biosafety certification for synthetic gene sequences.",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">

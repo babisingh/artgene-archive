@@ -310,7 +310,8 @@ export default function RegistryPage() {
                 background: "transparent",
                 outline: "none",
                 fontSize: 13.5,
-                width: 300,
+                flex: 1,
+                minWidth: 120,
                 fontFamily: "var(--sans)",
                 color: "var(--ink)",
               }}
@@ -364,7 +365,7 @@ export default function RegistryPage() {
               background: "var(--paper-2)",
               border: "0.5px solid var(--rule)",
               borderRadius: 6,
-              overflow: "hidden",
+              overflowX: "auto",
               opacity: isFetching ? 0.65 : 1,
               transition: "opacity 0.2s",
             }}
