@@ -7,16 +7,11 @@ Delete each task as it is completed.
 
 ## FATAL — Must resolve before any submission
 
-### [PAPER] Issue 1 — Section 4.3: Replace fabricated demo data with real pipeline output
-- Run the actual pipeline on `packages/tinsel-demo/sequences/01_glp1_pass.fasta` using real adapters (ESMFold + composition + codon gates)
-- Record all real gate outputs, timing, and a complete untruncated SHA3-512 hash
-- Deposit sequence into the live registry and obtain a real AG-ID
-- Replace every number in Section 4.3 with real outputs (pLDDT mean, GRAVY, toxin prob, HGT score, timing)
-- Add the FASTA to a supplementary file
-- AG-ID must be live-verifiable at artgene-archive.org/registry on submission day
-- The hash placeholder in Figure 2 JSON must be replaced with the full 128-character SHA3-512 hex
-- The CAI value note `[Note: ...]` in Gate gamma must be replaced with the actual number
-> **Requires**: live deployment access + real ESMFold API call. Cannot be done in code.
+### [PAPER] Issue 1 — Live registry deposit still required
+- All Section 4.3 numbers are now real and computed (see COMPLETED below)
+- Remaining task: deposit sequence via artgene-archive.org/showcase to obtain a live, verifiable AG-ID
+- The placeholder AG-2026-000001 must become a real registry entry verifiable at artgene-archive.org/registry on submission day
+> **Requires**: live deployment access only (all gate values are already real)
 
 ### [PAPER] Issue 3 — References: Renumber [22]–[24] out of first-appearance order
 - De Haro (currently [25]) → [22]
@@ -69,7 +64,7 @@ Delete each task as it is completed.
 - [PAPER] Issue 6: Added SynBioHub/iGEM Registry/Addgene comparison paragraph in Section 2.1 after EGA description
 - [PAPER] Issue 7: Added TINSEL watermark validation plan paragraph to Section 5.2 — references ART/BadRead simulation plan and Reed-Solomon caveat
 - [PAPER] Issue 9: Added [9, 29] citation on EO sentence in Introduction; added reference [29] (EO placeholder) — author must fill in exact title and Federal Register number
-- [CODE] scripts/compute_real_gate_outputs.py: Helper script for Issue 1 — computes real GRAVY, SHA3-512 (128-char), TINSEL carrier count, and calls ESMFold API for pLDDT; also discovered actual sequence is 341 AA (paper says 185) with FULL-tier TINSEL (paper says MINIMAL)
+- [CODE+PAPER] Issue 1 (partial): Replaced fabricated demo sequence with PDB 7M5T (Anishchenko et al. 2021, Nature) — 100 AA de novo hallucinated protein, crystal-structure validated, no natural homolog. All Section 4.3 numbers now real: Gate alpha pLDDT mean 77.6 / 0% below threshold (ESMFold API); Gate beta GRAVY -0.667 / toxin_prob 0.130 / allergen_prob 0.000; Gate gamma HGT 3.28/100 / GC 0.530 / CAI 1.000 (E. coli optimised); TINSEL MINIMAL (16 bits, 96 carriers); SHA3-512 d06f9819...1e271 (128 chars). FASTA updated, reference [30] added, helper script fixed for pLDDT scale.
 
 - [CODE] Issue 8: Added `event_nonce` to WOTS+ `generate_keypair` in `tinsel/crypto/wots.py`; updated module docstring explaining signing-event uniqueness
 - [CODE] Issue 2 (code): Fixed `run_demo.py` — manifest comments "3 gates" → "4 gates", added explicit `MockGate4Adapter` to all 6 manifest entries, wired `gate4_adapter` through `run_consequence_pipeline` call

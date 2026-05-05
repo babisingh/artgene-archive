@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compute real gate outputs for the GLP-1 demo sequence.
+"""Compute real gate outputs for the demo sequence (7M5T, Anishchenko et al. 2021).
 
 Usage
 -----
@@ -17,7 +17,7 @@ import sys
 import urllib.request
 import urllib.error
 
-# ── GLP-1 sequence ───────────────────────────────────────────────────────────
+# ── Demo sequence ────────────────────────────────────────────────────────────
 FASTA_PATH = "packages/tinsel-demo/sequences/01_glp1_pass.fasta"
 
 
@@ -80,10 +80,12 @@ def count_carrier_codons(seq: str) -> int:
 
 
 def tinsel_tier(n: int) -> tuple[str, int]:
-    if n < 16:   return "NONE", 0
-    if n < 64:   return "DEMO", 16
-    if n < 128:  return "MINIMAL", 32
-    if n < 256:  return "STANDARD", 64
+    """Match WatermarkTier thresholds from tinsel/registry.py."""
+    if n < 24:    return "REJECTED", 0
+    if n < 96:    return "DEMO", 8
+    if n < 320:   return "MINIMAL", 16
+    if n < 896:   return "REDUCED", 32
+    if n < 1792:  return "STANDARD", 64
     return "FULL", 128
 
 
@@ -119,8 +121,10 @@ def call_esmfold(sequence: str) -> dict | None:
         if not plddt_values:
             print("WARNING: No pLDDT values parsed from ESMFold PDB output", file=sys.stderr)
             return None
-        mean_plddt = round(sum(plddt_values) / len(plddt_values), 1)
-        pct_below_50 = round(100 * sum(1 for v in plddt_values if v < 50) / len(plddt_values), 1)
+        # ESMFold API returns pLDDT on 0-1 scale in B-factor column; multiply by 100
+        scaled = [v * 100 for v in plddt_values]
+        mean_plddt = round(sum(scaled) / len(scaled), 1)
+        pct_below_50 = round(100 * sum(1 for v in scaled if v < 50) / len(scaled), 1)
         return {"plddt_mean": mean_plddt, "pct_below_50": pct_below_50}
     except urllib.error.URLError as e:
         print(f"ESMFold API error: {e}", file=sys.stderr)
