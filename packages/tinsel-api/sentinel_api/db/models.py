@@ -4,7 +4,7 @@ Tables
 ------
 organisations          — registered organisations with hashed API credentials
 certificates           — issued certificates (one per sequence+owner pair)
-registry_audit_log     — tamper-evident append-only log (blockchain-style)
+registry_audit_log     — tamper-evident hash-chained append-only log
 pathways               — multi-gene Merkle pathway bundles
 api_keys               — per-organisation API key records
 fragment_kmer_index    — SHA3-256 hashes of 20-mer subsequences (assembly risk detection)
@@ -138,7 +138,7 @@ class Certificate(Base):
 
 
 # ---------------------------------------------------------------------------
-# registry_audit_log  (append-only blockchain-style log)
+# registry_audit_log  (hash-chained append-only log)
 # ---------------------------------------------------------------------------
 
 class RegistryAuditLog(AppendOnlyMixin, Base):

@@ -1,39 +1,44 @@
-"""Gate 2 adapter — composition-based heuristic off-target screening (v1.0).
+"""Gate 2 (beta) adapter — composition-based heuristic off-target screening (v1.0).
 
-NOTE ON SCREENING METHOD
-------------------------
-This adapter implements HEURISTIC screening only.  It does NOT call BLAST
-or any external pathogen/toxin database.  It runs entirely offline using:
+SCREENING METHOD: composition_heuristic_v1
+------------------------------------------
+This adapter implements HEURISTIC screening only.  It does NOT call ToxinPred2,
+APD3, AllerTop, AllerHunter, or any external tool.  It runs entirely offline
+using amino acid composition features derived from the submitted sequence:
 
 1. GRAVY (Grand Average of hYdropathicity) — Kyte & Doolittle (1982)
    Measures overall hydrophobicity.  Highly positive = hydrophobic core.
 
-2. Toxin probability heuristic:
+2. Toxin probability heuristic (custom, v1):
    - K+R content (cationic charge density) → antimicrobial peptide risk
    - Aromatic + cationic pattern → membrane-disrupting toxin risk
    - Combined into a [0, 1] probability via a sigmoid
+   - FAIL threshold: toxin_probability >= 0.30
 
-3. Allergen probability heuristic:
-   - GRAVY score (hydrophobic proteins are more often allergens)
+3. Allergen probability heuristic (custom, v1):
+   - GRAVY score (hydrophobic proteins are over-represented in allergen DBs)
    - Proportion of hydrophobic residues (I, L, V, A, F, W, Y, M)
-   - Combined into a [0, 1] probability via a weighted sum
+   - Combined into a [0, 1] probability via a weighted sigmoid sum
+   - FAIL threshold: allergen_probability >= 0.40
+   - WARN threshold: allergen_probability >= 0.30
 
 4. Toxin k-mer screen:
    - Query sequence is screened against 15 manually curated 9-mer motifs
      associated with known antimicrobial / membrane-disrupting peptides.
-   - This is NOT a BLAST search against NCBI, UniProt, or any live database.
-   - Full BLAST integration against pathogen/toxin databases is planned
-     for Phase 3.
+   - Matching is exact or 1-mismatch (not BLAST; no E-value).
+   - This is NOT a search against NCBI, UniProt, or any live pathogen database.
+   - Full BLAST integration against curated toxin/pathogen databases is planned
+     for Phase 3 of development.
 
 All Gate2Result objects produced by this adapter include:
     screening_method = "composition_heuristic_v1"
 
-Thresholds:
-    kmer_hits > 0               → FAIL
-    toxin_probability >= 0.30   → FAIL
+Decision thresholds (all derived from heuristic composition features):
+    kmer_hits > 0                → FAIL  (exact/near-exact toxin 9-mer match)
+    toxin_probability >= 0.30    → FAIL
     allergen_probability >= 0.40 → FAIL
     allergen_probability >= 0.30 → WARN
-    otherwise                   → PASS
+    otherwise                    → PASS
 """
 
 from __future__ import annotations
