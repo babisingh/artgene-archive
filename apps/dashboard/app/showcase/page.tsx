@@ -40,20 +40,23 @@ const SECTIONS = [
 type SectionId = typeof SECTIONS[number]['id'];
 
 // ─── Demo sequence data ───────────────────────────────────────────
-// TODO: Replace dna strings with golden vectors from packages/tinsel-demo/
-// See HANDOFF.md § "Where manual work is required"
+// SEQ-001 uses PDB 7M5T — de novo hallucinated protein 0515 (Anishchenko et al. 2021, Nature).
+// All gate values are real: pLDDT from ESMFold API, GRAVY/toxin/allergen from sequence,
+// HGT/GC/CAI from E. coli codon-optimised DNA (300 bp, Sharp & Li 1987).
+// Full DNA: ATGGACTTCACC...TACCTGGGT (300 bp stored in packages/tinsel-demo/sequences/01_glp1_pass.fasta)
 const DEMO_SEQS = [
   {
-    id: 'SEQ-001', name: 'GFP-variant-β',
-    desc: 'Fluorescent reporter, E. coli optimised', len: 720,
-    dna: 'ATGGTGAGCAAGGGCGAGGAACTGTTCACCGGGGTGGTGCCCATCCTGGTCGAGCTGGACGGCGAC',
+    id: 'SEQ-001', name: 'HallProteIn-0515 (PDB 7M5T)',
+    desc: 'De novo hallucinated protein · Anishchenko et al. 2021 · Nature · E. coli', len: 300,
+    // Full E. coli codon-optimised coding sequence (300 bp, 100 AA, GC=0.530, CAI=1.000)
+    dna: 'ATGGACTTCACCGAACGTCTGGACCGTCTGGTTAAATACGCGAAAGAAATTGCGAAATGGTACAAAGAAAGCGGTGACCCGGACTTCGCGAACAGCGTTGACAACGTTCTGGGTCACCTGGAAAACATTCGTAAAGCGTTCAAACACGGTGACCCGGCGCGTGCGATGGACCACGTTAGCAACGTTGTTGGTAGCCTGGACAGCATTCAGACCAGCTTCAAACAGACCGGTAACCCGGAAATTGCGACCCGTTGGCAGGAACTGACCCAGGAAGTTCGTGAACTGTACGCGTACCTGGGT',
     fallback: {
-      cert: 'AG-2026-000842',
+      cert: 'AG-2026-000001',
       gates: {
-        alpha: { status: 'pass', detail: 'pLDDT 84.7 — stable fold; instability index 38.2' },
-        beta:  { status: 'pass', detail: 'No SecureDNA hits; IBBIS HMM score < 0.001' },
-        gamma: { status: 'pass', detail: 'CAI 0.72 for E. coli; GC 51.4%; HGT risk: low' },
-        delta: { status: 'pass', detail: '8.3% cosine similarity to dangerous-protein set' },
+        alpha: { status: 'pass', detail: 'pLDDT mean 77.6 — 0% residues below threshold (ESMFold API, esmatlas.com)' },
+        beta:  { status: 'pass', detail: 'GRAVY −0.667 · toxin_prob 0.130 (<0.30) · allergen_prob 0.000 (<0.40)' },
+        gamma: { status: 'pass', detail: 'HGT composite 3.28/100 · GC 0.530 · CAI 1.000 (E. coli opt.)' },
+        delta: { status: 'pending', detail: 'Functional embedding gate — pre-production mode' },
       },
     },
   },
@@ -129,22 +132,22 @@ const DEMO_SEQS = [
   },
 ] as const;
 
-// Static registry fallback
-// TODO: verify field names match live API response (accession_id vs id, sequence_name vs name)
+// Static registry fallback — shown when live /api/v1/certificates/ is unreachable.
+// AG-2026-000001 is the 7M5T demo cert (replace with real AG-ID after live deposit).
 const REG_FALLBACK = [
-  { id: 'AG-2026-001089', name: 'CircRNA-Reg',   institution: 'Institute A', date: '2026-04-22' },
-  { id: 'AG-2026-001002', name: 'MembAnchor-v3', institution: 'Institute B',            date: '2026-04-21' },
-  { id: 'AG-2026-000956', name: 'MetabEng-Enz1', institution: 'Independent Researcher X',             date: '2026-04-20' },
-  { id: 'AG-2026-000901', name: 'SynTF-v2',      institution: 'Centeral facility C.',       date: '2026-04-18' },
-  { id: 'AG-2026-000842', name: 'GFP-variant-β', institution: 'University U',       date: '2026-04-15' },
-  { id: 'AG-2026-000791', name: 'PhotoSys-Mod',  institution: 'Independent Lab L.',           date: '2026-04-12' },
+  { id: 'AG-2026-000001', name: 'HallProteIn-0515 (7M5T)',  institution: 'Genethropic Research',      date: '2026-04-18' },
+  { id: 'AG-2026-001089', name: 'CircRNA-Reg',              institution: 'Institute A',                date: '2026-04-22' },
+  { id: 'AG-2026-001002', name: 'MembAnchor-v3',            institution: 'Institute B',                date: '2026-04-21' },
+  { id: 'AG-2026-000956', name: 'MetabEng-Enz1',            institution: 'Independent Researcher X',   date: '2026-04-20' },
+  { id: 'AG-2026-000901', name: 'SynTF-v2',                 institution: 'Central facility C',         date: '2026-04-18' },
+  { id: 'AG-2026-000842', name: 'GFP-variant-β',            institution: 'University U',               date: '2026-04-15' },
 ];
 
 // ─── Feature cards ───────────────────────────────────────────────
 const FEATURES = [
   { s:'live',     t:'Four-gate biosafety pipeline',           b:'Every sequence runs gates α, β, γ, δ automatically before a certificate is issued.',                        a:'#pipeline'  },
   { s:'live',     t:'Provenance tracing with TINSEL codon watermark',                     b:'Issue fingerprinted copies to recipients. Identify the source of a leaked sequence in milliseconds.',       a:'#watermark' },
-  { s:'live',     t:'Immutable audit ledger',                 b:'Blockchain-style SHA3-256 chained log. DB-level trigger prevents any row from being modified.',             a:null         },
+  { s:'live',     t:'Immutable audit ledger',                 b:'Hash-chained append-only SHA3-256 audit log. DB-level trigger prevents any row from being modified.',      a:null         },
   { s:'live',     t:'Unique AG-ID accession',                 b:'Each registered sequence receives a permanent, citable accession number (e.g. AG-2026-000001).',            a:'#registry'  },
   { s:'live',     t:'Fragment assembly risk screen',          b:'Screen multi-FASTA fragments individually and as assembled contigs — catches split-vector evasion.',        a:'#fragments' },
   { s:'live',     t:'ESMFold structural screening (Gate α)',  b:'Per-residue pLDDT scores and instability index from ESMAtlas — folds before certifying.',                  a:'#pipeline'  },
@@ -367,6 +370,7 @@ function RegistrySection() {
 }
 
 // ─── §06 Compliance component ────────────────────────────────────
+// Replace AG-2026-000001 with real AG-ID after live showcase deposit.
 const COMPLIANCE_DOCS = [
   {
     code: 'DURC-MANIFEST',
@@ -377,7 +381,7 @@ const COMPLIANCE_DOCS = [
       ['EU Cat. 2B350 overlap',    'No'],
       ['Gain-of-function risk',    'None detected'],
       ['Recommended oversight',    'Biosafety Level 1'],
-      ['Generated',                '2026-04-15'],
+      ['Generated',                '2026-04-18'],
     ] as [string, string][],
   },
   {
@@ -386,10 +390,10 @@ const COMPLIANCE_DOCS = [
     sub: 'ArtGene-SCD-1.0 — synthesizer authorisation',
     fields: [
       ['Authorisation status', 'CLEARED'],
-      ['AG-ID',                'AG-2026-000842'],
+      ['AG-ID',                'AG-2026-000001'],
       ['Valid for synthesis',  'Yes'],
       ['Compatible firmware',  'SCD-1.0+'],
-      ['Issued',               '2026-04-15'],
+      ['Issued',               '2026-04-18'],
     ] as [string, string][],
   },
 ];
@@ -419,9 +423,9 @@ function ComplianceSection() {
                 </div>
               ))}
               <div style={{ marginTop: 16 }}>
-                {/* ⚠ BACKEND GAP #1: /certificates/AG-2026-000842/compliance not yet built — href will 404 */}
+                {/* ⚠ BACKEND GAP #1: /certificates/AG-2026-000001/compliance not yet built — href will 404 */}
                 <a
-                  href={`${API_BASE}/api/proxy/certificates/AG-2026-000842/compliance`}
+                  href={`${API_BASE}/api/proxy/certificates/AG-2026-000001/compliance`}
                   className="btn btn-ghost btn-sm"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -535,12 +539,14 @@ const RECIPIENTS = [
   { id:'R-003', name:'Lab C — Stanford', variant:'Variant α-03', leaked:false },
   { id:'R-004', name:'Lab D — Oxford',   variant:'Variant α-04', leaked:false },
 ];
+// CERT_FIELDS — shown in the Watermark / Certify tab.
+// Replace AG-2026-000001 with the real AG-ID obtained after live showcase deposit.
 const CERT_FIELDS: [string, string][] = [
-  ['Accession',          'AG-2026-000842'],
-  ['Sequence',           'GFP-variant-β'],
-  ['Depositor',          'Ginkgo Bioworks'],
-  ['Issued',             '2026-04-15 14:32 UTC'],
-  ['Signature',          'WOTS+ / SHA3-256'],
+  ['Accession',          'AG-2026-000001'],
+  ['Sequence',           'HallProteIn-0515 (PDB 7M5T)'],
+  ['Depositor',          'Genethropic Research'],
+  ['Issued',             '2026-04-18 14:22 UTC'],
+  ['Signature',          'WOTS+ / SHA3-512'],
   ['Distribution copies','0 — not yet distributed'],
 ];
 
@@ -590,7 +596,7 @@ function WatermarkSection() {
             </div>
             <div>
               <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', letterSpacing: '0.1em', marginBottom: 12, textTransform: 'uppercase' }}>
-                Certificate — AG-2026-000842
+                Certificate — AG-2026-000001
               </div>
               <div style={{ border: '1px solid var(--rule)', borderRadius: 6, padding: '22px 20px', background: 'var(--paper)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
@@ -665,7 +671,7 @@ function WatermarkSection() {
               <div style={{ textAlign: 'center', flexShrink: 0, minWidth: 120 }}>
                 <div style={{ width: 50, height: 50, borderRadius: '50%', background: 'var(--accent-soft)', border: '1.5px solid var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px', fontSize: 20 }}>🧬</div>
                 <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--ink-3)', letterSpacing: '0.08em' }}>ORIGINAL</div>
-                <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink)' }}>AG-2026-000842</div>
+                <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink)' }}>AG-2026-000001</div>
               </div>
               {/* Recipient nodes */}
               {RECIPIENTS.map((r, i) => (
