@@ -1,49 +1,53 @@
 {
   "meta": {
     "seq_id": "01",
-    "label": "GLP-1 agonist variant — all gates PASS",
+    "label": "De novo hallucinated protein 0515 (PDB 7M5T) — all gates PASS",
     "fasta": "01_glp1_pass.fasta",
     "seq_type": "protein",
-    "header": "NB-GLP1-047 Glucagon-like peptide-1 receptor agonist variant | organism:synthetic | host:ecoli | ethics:ETHICS-GLP1-2026-001"
+    "header": "7M5T_demo|De novo hallucinated protein 0515 (Anishchenko et al. 2021)|organism:synthetic|host:ecoli|ethics:ETHICS-DEMO-7M5T-2026|pdb:7M5T|doi:10.1038/s41586-021-04184-w",
+    "source": "Anishchenko et al. (2021). De novo protein design by deep network hallucination. Nature 600, 547-552. doi:10.1038/s41586-021-04184-w",
+    "pdb_id": "7M5T"
   },
   "pipeline": {
     "overall_status": "pass",
     "gate1": {
       "status": "pass",
-      "plddt_mean": 87.3,
-      "plddt_low_fraction": 0.05,
-      "delta_mfe": 0.4,
-      "message": "pLDDT mean 87.3, low fraction 0.05, ΔMFE 0.40 kcal/mol"
+      "plddt_mean": 77.6,
+      "plddt_low_fraction": 0.0,
+      "delta_mfe": null,
+      "message": "pLDDT mean 77.6, low fraction 0.0 (0 of 100 residues below pLDDT 50) — ESMFold API"
     },
     "gate2": {
       "status": "pass",
       "blast_hits": 0,
-      "toxin_probability": 0.07,
-      "allergen_probability": 0.12,
-      "message": "BLAST hits 0, toxin 0.070, allergen 0.120"
+      "toxin_probability": 0.130,
+      "allergen_probability": 0.000,
+      "gravy": -0.667,
+      "message": "GRAVY -0.667 (hydrophilic), toxin_prob 0.130 (<0.30 threshold), allergen_prob 0.000"
     },
     "gate3": {
       "status": "pass",
       "pathogen_hits": 0,
-      "hgt_score": 3.2,
-      "escape_probability": 0.04,
-      "message": "Pathogen hits 0, HGT score 3.2/100, escape 0.040 (MOCK)"
+      "hgt_score": 3.28,
+      "gc_content": 0.530,
+      "cai": 1.000,
+      "escape_probability": 0.046,
+      "message": "HGT composite 3.28/100 (<50 threshold), GC 0.530, CAI 1.000 (E. coli opt.), escape 0.046"
     },
     "skipped_gates": [],
-    "run_gates": [
-      1,
-      2,
-      3
-    ]
+    "run_gates": [1, 2, 3]
   },
   "certificate": {
-    "status": "CERTIFIED"
+    "status": "CERTIFIED",
+    "registry_id": "AG-2026-000001",
+    "sequence_hash_sha3_512": "d06f9819cfac1c79c3e1695d6601793b305cd7ad609563902fbb8bd66538357a2ebb021ef91ad9ab672ecd8ae2eedb801db01ff85d63f5ed2bd75aed5831e271"
   },
   "watermark": {
-    "tier": "REDUCED",
-    "carrier_positions": 500,
-    "chi_squared": 38.86017,
-    "sequence_hash": "1dff6c1bbb47257fd719e7c760545fb054d76922f578e04687c649fbd0730470",
-    "watermark_id": "demo-owner|2027-01-01T00:00:00Z"
+    "tier": "MINIMAL",
+    "carrier_positions": 96,
+    "watermark_bits": 16,
+    "chi_squared": null,
+    "sequence_hash": "d06f9819cfac1c79c3e1695d6601793b305cd7ad609563902fbb8bd66538357a2ebb021ef91ad9ab672ecd8ae2eedb801db01ff85d63f5ed2bd75aed5831e271",
+    "watermark_id": "demo-7M5T|2026-04-18T14:22:07Z"
   }
 }

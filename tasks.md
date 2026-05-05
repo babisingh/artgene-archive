@@ -7,83 +7,71 @@ Delete each task as it is completed.
 
 ## FATAL — Must resolve before any submission
 
-### [PAPER] Issue 1 — Live registry deposit still required
-- All Section 4.3 numbers are now real and computed (see COMPLETED below)
-- Remaining task: deposit sequence via artgene-archive.org/showcase to obtain a live, verifiable AG-ID
-- The placeholder AG-2026-000001 must become a real registry entry verifiable at artgene-archive.org/registry on submission day
-> **Requires**: live deployment access only (all gate values are already real)
+### [MANUAL] Issue 1 — Obtain a live, verifiable AG-ID
+- All gate values, FASTA, and paper text are real and ready
+- **Action**: Submit `packages/tinsel-demo/sequences/01_glp1_pass.fasta` via artgene-archive.org/showcase
+- **After deposit**: Replace every occurrence of `AG-2026-000001` with the real AG-ID in:
+  - `paper/ArtGene_Archive_bioRxiv_REVISED.docx` — Section 4.3 intro, Figure 2 JSON (`"ag_id"`)
+  - `apps/dashboard/app/showcase/page.tsx` — `CERT_FIELDS`, `COMPLIANCE_DOCS`, `REG_FALLBACK`
+- AG-ID must be live-verifiable at artgene-archive.org/registry on submission day
 
-### [PAPER] Issue 3 — References: Renumber [22]–[24] out of first-appearance order
+### [MANUAL] Issue 3 — References: Renumber [22]–[25] out of first-appearance order
 - De Haro (currently [25]) → [22]
 - LinearFold (currently [22]) → [23]
 - WOTS+ Huelsing (currently [23]) → [24]
 - Regev LWE (currently [24]) → [25]
-- [26], [27], [28] stay
-- Update all in-text citations to match
-> Manual task — complex citation renumbering with cross-reference tracking.
-
----
-
-## MAJOR — Required for acceptance
-
+- [26], [27], [28], [29], [30] stay
+- Update all in-text citations to match (search for `[22]`, `[23]`, `[24]`, `[25]` in the docx)
+> Manual — requires careful cross-reference tracking across the full document.
 
 ---
 
 ## MODERATE — Expected at revision
 
-### [PAPER] Issue 15 — Replace Ref [10] Goad 1979 with retrievable citation
-- Replace with: Benson, D.A. et al. (1993). GenBank. Nucleic Acids Research, 21(13), 2963–2965.
-- Or consolidate with existing [13] if it covers the same ground
-
-### [PAPER] Issue 17 — Ref [28] Carlson 2016 uncited in text
-- Either (a) add in-text citation of Carlson 2016 in Section 5.1 at an appropriate point about the scale of synthetic biology outputs
-- Or (b) remove reference [28] from the list and renumber if needed
-
-### [PAPER] Issue 18 — Embed Figure 1 pipeline diagram
+### [MANUAL] Issue 18 — Embed Figure 1 pipeline diagram
 - Export pipeline diagram at ≥ 300 DPI as PNG
-- Embed as an actual image in the document at the Figure 1 caption location
-- Reformat the caption as a proper figure caption paragraph
+- In the docx, insert the image at the Figure 1 caption location (currently just a text placeholder)
+- Reformat the caption as a proper figure caption paragraph style
 
 ---
 
 ## MINOR — Should be corrected
 
-### [PAPER] Issue 19 — Verify Next.js version
-- `apps/dashboard/package.json` shows `"next": "^16.2.2"` — confirm this matches production deployment
-- If correct, paper text "Next.js 16 dashboard" is accurate; if production runs 15.x, correct the paper
-
-### [PAPER] Issue 20 — Fix citation [25] on screening evasion claim (Section 2.3)
-- Replace [25] with [7, 27] or add these alongside [25] for the AI evasion of sequence-based screening claim
-- Verify De Haro (Applied Biosafety, 2024) actually supports this specific claim
+### [MANUAL] Issue 9 (complete) — Fill in EO citation details
+- Reference [29] is a placeholder: `[29] Executive Office of the President (2025). Executive Order ... Federal Register, 90(XX), [page range].`
+- Fill in the exact EO title, number, and Federal Register page range for the 2025 nucleic acid synthesis screening EO
 
 ---
 
 ## COMPLETED ✓
 
-- [PAPER] Issue 4: Added pLDDT threshold limitation paragraph to Section 5.3 — notes DisProt benchmark gap and false-positive risk for functional IDPs
-- [PAPER] Issue 6: Added SynBioHub/iGEM Registry/Addgene comparison paragraph in Section 2.1 after EGA description
-- [PAPER] Issue 7: Added TINSEL watermark validation plan paragraph to Section 5.2 — references ART/BadRead simulation plan and Reed-Solomon caveat
-- [PAPER] Issue 9: Added [9, 29] citation on EO sentence in Introduction; added reference [29] (EO placeholder) — author must fill in exact title and Federal Register number
-- [CODE+PAPER] Issue 1 (partial): Replaced fabricated demo sequence with PDB 7M5T (Anishchenko et al. 2021, Nature) — 100 AA de novo hallucinated protein, crystal-structure validated, no natural homolog. All Section 4.3 numbers now real: Gate alpha pLDDT mean 77.6 / 0% below threshold (ESMFold API); Gate beta GRAVY -0.667 / toxin_prob 0.130 / allergen_prob 0.000; Gate gamma HGT 3.28/100 / GC 0.530 / CAI 1.000 (E. coli optimised); TINSEL MINIMAL (16 bits, 96 carriers); SHA3-512 d06f9819...1e271 (128 chars). FASTA updated, reference [30] added, helper script fixed for pLDDT scale.
+### Session 3 (this session)
+- [CODE+PAPER] Issue 1 (showcase-ready): Golden file `01_glp1_pass.json` updated with real 7M5T values; showcase `page.tsx` updated — DEMO_SEQS[0] is now HallProteIn-0515 (7M5T) with real gate fallback values; REG_FALLBACK, CERT_FIELDS, COMPLIANCE_DOCS all updated to AG-2026-000001; "blockchain-style" fixed to "hash-chained append-only" in features list
+- [PAPER] Issue 15: Ref [10] Goad 1979 → Benson et al. 1993 (GenBank, NAR 21:13)
+- [PAPER] Issue 17: Carlson 2016 [28] added as citation alongside [25, 26] in Section 5.1 (synthesis cost sentence)
+- [PAPER] Issue 19: Next.js version confirmed — package.json shows ^16.2.2; paper text "Next.js 16 dashboard" is accurate
+- [PAPER] Issue 20: Screening evasion citation [25] → [7, 25, 27] in Section 2.3
+- [PAPER] Issues 4, 6, 7, 9: New content paragraphs added (pLDDT limitation, SynBioHub comparison, watermark validation plan, EO citation)
 
-- [CODE] Issue 8: Added `event_nonce` to WOTS+ `generate_keypair` in `tinsel/crypto/wots.py`; updated module docstring explaining signing-event uniqueness
-- [CODE] Issue 2 (code): Fixed `run_demo.py` — manifest comments "3 gates" → "4 gates", added explicit `MockGate4Adapter` to all 6 manifest entries, wired `gate4_adapter` through `run_consequence_pipeline` call
-- [CODE] Issue 5 (Gate 2): Updated `adapters/gate2/composition.py` module docstring — clarifies screening_method is `composition_heuristic_v1` (not ToxinPred2/APD3), states actual thresholds (toxin ≥ 0.30 FAIL, allergen ≥ 0.40 FAIL, ≥ 0.30 WARN)
-- [CODE] Issue 5 (Gate 3): Updated `adapters/gate3/codon.py` module docstring — names CAI algorithm (Sharp & Li 1987), documents HGT composite formula and 0–100 scale, states FAIL threshold 50/100
-- [CODE] Issue 10: Added spreading factor section to `tinsel/watermark/spreading.py` docstring — 1 chip per carrier codon, total capacity = synonymous carrier positions
-- [CODE] Issue 12: Replaced all "blockchain-style" occurrences in code files with "hash-chained append-only" (`db/models.py`, `routes/register.py`, `design-reference/CD_demo.md`)
-- [PAPER] Issue 2: Abstract Results updated — "Three biosafety gates" → "Three primary biosafety gates are fully operational... Gate delta operational in pre-production demo mode"
-- [PAPER] Issue 2b: "three-gate biosafety screening" → "four-gate biosafety screening" in Section 4.1
-- [PAPER] Issue 5 (beta): Gate beta paragraph updated with actual tool (composition_heuristic_v1), correct thresholds (0.30/0.40), explicit note on Phase 3 integration
-- [PAPER] Issue 5 (gamma): Gate gamma paragraph updated with CAI algorithm (Sharp & Li 1987), HGT composite formula, FAIL threshold 50/100
-- [PAPER] Issue 8 (paper): WOTS+ section updated to describe (master_seed, registry_id, event_nonce) derivation and one-time guarantee
-- [PAPER] Issue 10: TINSEL section updated — "distributed codon steganography" replaces "spread-spectrum codon steganography", spreading factor explained, telecom analogy acknowledged
-- [PAPER] Issue 11: Figure 2 JSON hash field labeled as `[full 128-character SHA3-512 hex from live pipeline run]`
-- [PAPER] Issue 12: "blockchain-style audit log" → "hash-chained append-only audit log" in Introduction
-- [PAPER] Issue 13a: "Three structural problems compound simultaneously" → "have emerged simultaneously"
-- [PAPER] Issue 13b: Deleted "The analogy between ArtGene-Archive and GenBank in 1979 is the central argument of this paper."
-- [PAPER] Issue 13c: "most consequential non-technical task ahead" → specific governance requirement sentence
-- [PAPER] Issue 14: Added codon-swap attack and WOTS+ certificate forgery resistance discussion to Section 5.3
-- [PAPER] Issue 16: Added CAI value note to Section 4.3 Gate gamma (flagged for replacement with live value)
-- [PAPER] Issue 21: Updated LLM usage statement to specify Claude Code for code, Claude for text drafting, author verification of all technical claims
-- [PAPER] Issue 22: Removed vague "AI biosafety researchers" acknowledgment sentence; retained Apart Research acknowledgment
+### Session 2
+- [CODE+PAPER] Issue 1 (partial): Replaced fabricated demo sequence with PDB 7M5T; real gate values computed (pLDDT 77.6, GRAVY -0.667, HGT 3.28/100, CAI 1.000, SHA3-512 d06f9819…1e271); FASTA updated; reference [30] Anishchenko added; helper script `scripts/compute_real_gate_outputs.py` written
+
+### Session 1
+- [CODE] Issue 8: `event_nonce` added to WOTS+ `generate_keypair`
+- [CODE] Issue 2 (code): `run_demo.py` — 4 gates, MockGate4Adapter wired throughout
+- [CODE] Issue 5 (Gate 2): `composition.py` docstring — real thresholds, composition_heuristic_v1
+- [CODE] Issue 5 (Gate 3): `codon.py` docstring — CAI (Sharp & Li 1987), HGT formula, FAIL threshold
+- [CODE] Issue 10: `spreading.py` docstring — spreading factor, 1 chip/carrier codon
+- [CODE] Issue 12: "blockchain-style" → "hash-chained append-only" in `db/models.py`, `routes/register.py`, `design-reference/CD_demo.md`
+- [PAPER] Issue 2: Abstract Results — "Three primary biosafety gates operational; Gate delta pre-production"
+- [PAPER] Issue 2b: "four-gate biosafety screening" in Section 4.1
+- [PAPER] Issue 5 (beta/gamma): Gate descriptions updated with real thresholds and algorithms
+- [PAPER] Issue 8: WOTS+ (master_seed, registry_id, event_nonce) described
+- [PAPER] Issue 10: TINSEL — "distributed codon steganography", spreading factor explained
+- [PAPER] Issue 11: Figure 2 hash field labelled as full 128-char SHA3-512
+- [PAPER] Issue 12: "hash-chained append-only audit log" in Introduction
+- [PAPER] Issues 13a/b/c: Rhetorical overclaims removed/softened
+- [PAPER] Issue 14: Codon-swap attack and WOTS+ forgery resistance in Section 5.3
+- [PAPER] Issue 16: CAI value note in Section 4.3 Gate gamma
+- [PAPER] Issue 21: LLM usage statement updated
+- [PAPER] Issue 22: Vague acknowledgment removed
