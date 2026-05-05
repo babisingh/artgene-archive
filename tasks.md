@@ -31,24 +31,6 @@ Delete each task as it is completed.
 
 ## MAJOR — Required for acceptance
 
-### [PAPER] Issue 4 — Gate alpha 20% pLDDT threshold: add empirical justification
-- Either cite a DisProt/IDP benchmark supporting the threshold
-- Or add to Section 5.3 Limitations: "The 20% threshold for low-confidence residue fraction has not been benchmarked against a held-out set of known functional IDPs from DisProt; false-positive rate for functional disordered proteins is an acknowledged limitation."
-
-### [PAPER] Issue 6 — Add SynBioHub / iGEM Registry / Addgene comparison
-- Add a paragraph in Section 2.1 or new Section 2.4
-- SynBioHub: no mandatory biosafety gate; no AI-origin labelling requirement
-- iGEM Registry: no cryptographic provenance layer; no AI-origin deposition requirement
-- Addgene: hosts constructs but no sequence-level biosafety gate or watermark
-
-### [PAPER] Issue 7 — TINSEL watermark robustness: add computational validation or move claim
-- Option A: Add Section 3.4.1 or supplementary figure with ART/BadRead simulation across Illumina (~0.1% substitution) and Nanopore (~1-5% including indels) error profiles; report minimum depth for >95% watermark recovery per tier
-- Option B: Move robustness claim from main text to "planned validation" in Section 5.2; remove from Abstract
-
-### [PAPER] Issue 9 — White House EO: add direct primary citation
-- Add direct citation for the executive order separate from arXiv [9]
-- Citation: Executive Office of the President (2025). Executive Order [title and number]. Federal Register.
-- Replace [9] on the EO claim with the new reference number
 
 ---
 
@@ -82,6 +64,12 @@ Delete each task as it is completed.
 ---
 
 ## COMPLETED ✓
+
+- [PAPER] Issue 4: Added pLDDT threshold limitation paragraph to Section 5.3 — notes DisProt benchmark gap and false-positive risk for functional IDPs
+- [PAPER] Issue 6: Added SynBioHub/iGEM Registry/Addgene comparison paragraph in Section 2.1 after EGA description
+- [PAPER] Issue 7: Added TINSEL watermark validation plan paragraph to Section 5.2 — references ART/BadRead simulation plan and Reed-Solomon caveat
+- [PAPER] Issue 9: Added [9, 29] citation on EO sentence in Introduction; added reference [29] (EO placeholder) — author must fill in exact title and Federal Register number
+- [CODE] scripts/compute_real_gate_outputs.py: Helper script for Issue 1 — computes real GRAVY, SHA3-512 (128-char), TINSEL carrier count, and calls ESMFold API for pLDDT; also discovered actual sequence is 341 AA (paper says 185) with FULL-tier TINSEL (paper says MINIMAL)
 
 - [CODE] Issue 8: Added `event_nonce` to WOTS+ `generate_keypair` in `tinsel/crypto/wots.py`; updated module docstring explaining signing-event uniqueness
 - [CODE] Issue 2 (code): Fixed `run_demo.py` — manifest comments "3 gates" → "4 gates", added explicit `MockGate4Adapter` to all 6 manifest entries, wired `gate4_adapter` through `run_consequence_pipeline` call
