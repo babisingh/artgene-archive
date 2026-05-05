@@ -760,7 +760,7 @@ function PipelineSection() {
       const raw = apiResult?.[g];
       const status: GateStatus = raw
         ? (raw.status === 'fail' || raw.s === 'fail' ? 'fail' : 'pass')
-        : (fb.status === 'fail' ? 'fail' : 'pass');
+        : (fb.status === 'fail' ? 'fail' : fb.status === 'pending' ? 'pending' : 'pass');
       const detail = raw?.detail ?? fb.detail;
 
       setGates(prev => ({ ...prev, [g]: status }));
@@ -779,7 +779,8 @@ function PipelineSection() {
   };
 
   const allPass = runState === 'done' &&
-    (Object.values(gates) as GateStatus[]).every(s => s === 'pass');
+    (Object.values(gates) as GateStatus[]).every(s => s === 'pass' || s === 'pending') &&
+    (Object.values(gates) as GateStatus[]).some(s => s === 'pass');
   const seq = DEMO_SEQS[sel];
 
   return (
@@ -858,6 +859,7 @@ function PipelineSection() {
                     {status === 'pass' && <span className="badge badge-verify">PASS</span>}
                     {status === 'fail' && <span className="badge badge-danger">FAIL</span>}
                     {status === 'running' && <span className="badge badge-accent">RUNNING…</span>}
+                    {status === 'pending' && <span className="badge">PRE-PRODUCTION</span>}
                   </div>
                   <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, color: 'var(--ink-3)' }}>
                     {detail?.detail ?? desc}
@@ -877,7 +879,9 @@ function PipelineSection() {
                 Certificate issued: {seq.fallback.cert}
               </div>
               <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: 'var(--verify)', letterSpacing: '0.08em' }}>
-                ALL FOUR GATES PASSED · WOTS+ SIGNATURE APPLIED · IMMUTABLE LEDGER ENTRY CREATED
+                {(Object.values(gates) as GateStatus[]).every(s => s === 'pass')
+                  ? 'ALL FOUR GATES PASSED · WOTS+ SIGNATURE APPLIED · IMMUTABLE LEDGER ENTRY CREATED'
+                  : 'GATES α β γ PASSED · GATE δ PRE-PRODUCTION · WOTS+ SIGNATURE APPLIED · IMMUTABLE LEDGER ENTRY CREATED'}
               </div>
             </div>
           </div>
