@@ -73,7 +73,7 @@ class RegistrationResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 def _entry_hash(seq_num: int, prev_hash: str, cert_hash: str) -> str:
-    """SHA3-256 of the audit log entry fields (blockchain-style chaining)."""
+    """SHA3-256 of the audit log entry fields (hash-chained append-only log)."""
     payload = f"{seq_num}|{prev_hash}|{cert_hash}".encode()
     return hashlib.sha3_256(payload).hexdigest()
 

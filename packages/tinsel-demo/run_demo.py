@@ -2,12 +2,12 @@
 """TINSEL six-sequence demonstration.
 
 Covers every system state:
-  01  GLP-1 agonist        → all 3 gates PASS  →  CERTIFIED / STANDARD
+  01  GLP-1 agonist        → all 4 gates PASS  →  CERTIFIED / STANDARD
   02  Misfolded variant     → Gate 1 FAIL        →  REJECTED (no cert)
   03  Toxin homolog         → Gate 2 FAIL        →  REJECTED (no cert)
   04  IS element            → Gate 3 FAIL        →  REJECTED (no cert)
   05  Near-threshold        → Gate 3 WARN        →  CERTIFIED / REDUCED (escalated review)
-  06  CRISPR sgRNA          → all 3 gates PASS   →  CERTIFIED (non-protein DNA input)
+  06  CRISPR sgRNA          → all 4 gates PASS   →  CERTIFIED (non-protein DNA input)
 
 Usage
 -----
@@ -39,6 +39,7 @@ from tinsel.watermark.tinsel_encoder import TINSELEncoder
 from tinsel_gates.adapters.gate1.mock import MockGate1Adapter
 from tinsel_gates.adapters.gate2.mock import MockGate2Adapter
 from tinsel_gates.adapters.gate3.mock import MockGate3Adapter
+from tinsel_gates.adapters.gate4.mock import MockGate4Adapter
 from tinsel_gates.pipeline import run_consequence_pipeline
 
 # ---------------------------------------------------------------------------
@@ -66,12 +67,12 @@ GOLDEN_DIR = HERE / "golden"
 MANIFEST: list[dict[str, Any]] = [
     {
         "seq_id": "01",
-        "label": "GLP-1 agonist variant — all gates PASS",
+        "label": "GLP-1 agonist variant — all 4 gates PASS",
         "fasta": "01_glp1_pass.fasta",
-        # Default adapters → all PASS
         "gate1": MockGate1Adapter(),
         "gate2": MockGate2Adapter(),
         "gate3": MockGate3Adapter(),
+        "gate4": MockGate4Adapter(),                            # PASS (max_sim=0.32)
         "expected_overall": GateStatus.PASS,
         "expected_cert": CertificateStatus.CERTIFIED,
     },
@@ -82,6 +83,7 @@ MANIFEST: list[dict[str, Any]] = [
         "gate1": MockGate1Adapter(plddt_mean=42.0, plddt_low_fraction=0.65, delta_mfe=4.1),
         "gate2": MockGate2Adapter(),
         "gate3": MockGate3Adapter(),
+        "gate4": MockGate4Adapter(),
         "expected_overall": GateStatus.FAIL,
         "expected_cert": CertificateStatus.FAILED,
     },
@@ -89,9 +91,10 @@ MANIFEST: list[dict[str, Any]] = [
         "seq_id": "03",
         "label": "Toxin homolog — Gate 2 FAIL (toxin_prob 0.87)",
         "fasta": "03_toxin_gate2_fail.fasta",
-        "gate1": MockGate1Adapter(),                            # passes
+        "gate1": MockGate1Adapter(),                            # PASS
         "gate2": MockGate2Adapter(toxin_probability=0.87),      # FAIL
         "gate3": MockGate3Adapter(),
+        "gate4": MockGate4Adapter(),
         "expected_overall": GateStatus.FAIL,
         "expected_cert": CertificateStatus.FAILED,
     },
@@ -99,9 +102,10 @@ MANIFEST: list[dict[str, Any]] = [
         "seq_id": "04",
         "label": "IS element — Gate 3 FAIL (HGT score 74)",
         "fasta": "04_is_element_gate3_fail.fasta",
-        "gate1": MockGate1Adapter(),                            # passes
-        "gate2": MockGate2Adapter(),                            # passes
+        "gate1": MockGate1Adapter(),                            # PASS
+        "gate2": MockGate2Adapter(),                            # PASS
         "gate3": MockGate3Adapter(hgt_score=74.0),              # FAIL
+        "gate4": MockGate4Adapter(),
         "expected_overall": GateStatus.FAIL,
         "expected_cert": CertificateStatus.FAILED,
     },
@@ -109,20 +113,21 @@ MANIFEST: list[dict[str, Any]] = [
         "seq_id": "05",
         "label": "Near-threshold — Gate 3 WARN → ESCALATED",
         "fasta": "05_near_threshold_warn.fasta",
-        "gate1": MockGate1Adapter(),                            # passes
-        "gate2": MockGate2Adapter(),                            # passes
+        "gate1": MockGate1Adapter(),                            # PASS
+        "gate2": MockGate2Adapter(),                            # PASS
         "gate3": MockGate3Adapter(escape_probability=0.18),     # WARN
+        "gate4": MockGate4Adapter(),
         "expected_overall": GateStatus.WARN,
         "expected_cert": CertificateStatus.CERTIFIED,           # WARN → still certified
     },
     {
         "seq_id": "06",
-        "label": "CRISPR sgRNA — all gates PASS (non-protein DNA input)",
+        "label": "CRISPR sgRNA — all 4 gates PASS (non-protein DNA input)",
         "fasta": "06_sgrna_pass.fasta",
-        # Default adapters → all PASS
         "gate1": MockGate1Adapter(),
         "gate2": MockGate2Adapter(),
         "gate3": MockGate3Adapter(),
+        "gate4": MockGate4Adapter(),                            # PASS
         "expected_overall": GateStatus.PASS,
         "expected_cert": CertificateStatus.CERTIFIED,
     },
@@ -146,6 +151,7 @@ async def run_sequence(entry: dict[str, Any]) -> dict[str, Any]:
         gate1_adapter=entry["gate1"],
         gate2_adapter=entry["gate2"],
         gate3_adapter=entry["gate3"],
+        gate4_adapter=entry["gate4"],
     )
 
     # ── Certificate status ────────────────────────────────────────────────

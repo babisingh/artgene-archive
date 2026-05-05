@@ -17,8 +17,12 @@ Security
 Post-quantum secure under the assumption that SHA3-256 is a one-way function.
 The bitmask XOR in the chain hash prevents multi-target attacks (WOTS → WOTS+).
 This is a one-time signature scheme: each keypair MUST sign at most one message.
-Deterministic keypair derivation ensures the one-time property is maintained by
-design — every (registry_id, master_seed) pair produces a unique keypair.
+Signing-event uniqueness is guaranteed by incorporating an ``event_nonce`` into
+the derivation tag (see ``generate_keypair``).  A single registry record may
+accumulate multiple signing events (embargo lifts, distribution copies,
+corrections); each event MUST supply a distinct nonce so that no two events
+share a keypair.  The recommended nonce is a monotonically incrementing integer
+stored alongside the registry record, or a UUID generated at signing time.
 
 References
 ----------
@@ -73,11 +77,32 @@ def _chain(x: bytes, start: int, steps: int, pub_seed: bytes, chain_idx: int) ->
 
 # ── Keypair generation ────────────────────────────────────────────────────────
 
-def generate_keypair(master_seed: bytes, tag: str) -> tuple[list[bytes], list[bytes], bytes]:
-    """Generate a WOTS+ keypair deterministically from (master_seed, tag).
+def generate_keypair(
+    master_seed: bytes,
+    tag: str,
+    event_nonce: int | str = 0,
+) -> tuple[list[bytes], list[bytes], bytes]:
+    """Generate a WOTS+ keypair deterministically from (master_seed, tag, event_nonce).
 
-    The per-certificate seed is:
-        cert_seed = HMAC-SHA3-256(key=master_seed, msg=f"wots:{tag}")
+    The per-event seed is:
+        event_seed = HMAC-SHA3-256(key=master_seed, msg=f"wots:{tag}:event:{event_nonce}")
+
+    ``event_nonce`` MUST be unique for every signing event on the same ``tag``
+    (registry record).  Use a monotonically incrementing integer stored with
+    the record, or a per-event UUID string.  Reusing the same nonce for two
+    signing events on the same record would reuse the WOTS+ private key, which
+    breaks the one-time security guarantee.
+
+    Parameters
+    ----------
+    master_seed:
+        32-byte master secret (per-installation, never shared).
+    tag:
+        Registry record identifier (e.g. AG-ID or registry_id string).
+    event_nonce:
+        Per-signing-event unique value.  Defaults to 0 for the initial
+        certificate issuance.  Must be incremented for every subsequent
+        signing event (embargo lift, distribution copy, correction notice).
 
     Returns
     -------
@@ -86,9 +111,10 @@ def generate_keypair(master_seed: bytes, tag: str) -> tuple[list[bytes], list[by
         pk_chains: WOTS_L × N-byte public key chains (top of each hash chain)
         pub_seed:  N-byte seed used for bitmask generation (public)
     """
-    # Derive per-tag seed + public seed
+    # Derive per-event seed + public seed — nonce ensures keypair uniqueness
+    event_tag = f"wots:{tag}:event:{event_nonce}"
     cert_seed = hmac.new(
-        master_seed, f"wots:{tag}".encode(), "sha3_256"
+        master_seed, event_tag.encode(), "sha3_256"
     ).digest()
     pub_seed = _prf(cert_seed, 0xFFFFFFFF)  # public seed from a distinguished index
 

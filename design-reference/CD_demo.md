@@ -1299,7 +1299,7 @@ const FEATURES = [
   {
     status: 'live',
     title: 'Immutable audit ledger',
-    body: 'A blockchain-style SHA3-256 chained log. DB-level trigger prevents any row from being modified.',
+    body: 'A hash-chained append-only SHA3-256 audit log. DB-level trigger prevents any row from being modified.',
     anchor: null,
   },
   {

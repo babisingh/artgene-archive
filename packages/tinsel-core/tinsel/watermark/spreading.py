@@ -11,6 +11,19 @@ into a codon choice, providing:
 - **Determinism**: same inputs → identical spread sequence, enabling
   clean-channel verification without any stored state beyond the key.
 
+Spreading factor
+----------------
+The spreading factor is **1 chip per carrier codon**: each synonymous codon
+position in the protein carries exactly one watermark bit XOR'd with one
+pseudorandom chip.  The total watermark bit capacity therefore equals the
+number of synonymous carrier positions (codons with ≥ 2 synonyms) in the
+coding sequence.  This capacity determines the watermark tier (DEMO through
+FULL) as defined in ``tinsel.registry``.
+
+The HMAC-SHA3-256 counter-mode construction generates one chip per output
+byte (LSB of each byte), yielding 32 chips per HMAC invocation.  The label
+argument provides domain separation across different watermark instances.
+
 Usage
 -----
 >>> gen = SpreadingCodeGenerator(key=bytes(32))

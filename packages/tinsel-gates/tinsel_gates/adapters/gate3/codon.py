@@ -1,25 +1,40 @@
-"""Gate 3 real adapter — codon-composition HGT and ecological risk scoring.
+"""Gate 3 (gamma) adapter — codon-composition HGT and ecological risk scoring.
+
+SCREENING METHOD: codon_hgt_composite_v1
+-----------------------------------------
+All calculations run locally — no external tools or network calls are required.
 
 Ecological risk pipeline:
-1. GC content — extreme GC bias is a strong indicator of foreign/transferred DNA
-2. Codon Adaptation Index (CAI) — low CAI vs host indicates codon usage mismatch,
-   a signature of horizontal gene transfer (HGT)
-3. HGT score — composite of GC deviation + CAI deviation + k-mer composition
-4. Escape probability — derived from sequence length, GC extremity, and stability
+1. GC content — extreme GC bias is a strong indicator of foreign/transferred DNA.
+   Per-host expected GC ranges are embedded; deviation is measured in tolerance units.
 
-Host-specific codon tables are embedded for:
-    ECOLI, HUMAN, YEAST, CHO (mammalian), INSECT (Sf9), PLANT (A. thaliana)
+2. Codon Adaptation Index (CAI) — Sharp & Li (1987).
+   CAI is the geometric mean of relative synonymous codon usage (RSCU) across the
+   coding sequence, excluding Met (ATG) and Trp (TGG).  Low CAI vs host indicates
+   codon usage mismatch, a recognised signature of horizontal gene transfer (HGT).
+   Host-specific RSCU tables are embedded for ECOLI, HUMAN, YEAST, CHO, INSECT, PLANT.
 
-Reference:
-    Sharp & Li (1987) — Codon Adaptation Index (CAI)
-    Karlin & Burge (1995) — k-mer composition for HGT detection
-    Ochman, Lawrence & Groisman (2000) — review of HGT criteria
+3. HGT score — custom composite metric [0, 100] (codon_hgt_composite_v1):
+       hgt_score = 0.35 × gc_component + 0.45 × cai_component + 0.20 × extreme_gc_penalty
+   where:
+       gc_component  = min(100, |GC − GC_host_mean| / GC_host_tolerance × 25)
+       cai_component = min(100, (1 − CAI) × 60)
+       extreme_gc    = 20 if GC < 0.30 or GC > 0.70, else 0
+   FAIL threshold: hgt_score >= 50.0 (out of 100)
 
-Thresholds:
-    pathogen_hits > 0         → FAIL  (always 0 for now; DB integration Phase 3)
-    hgt_score >= 50.0         → FAIL
+4. Escape probability — composite of HGT score, GC extremity, CAI deviation,
+   and sequence length.  Scale [0, 1]; WARN threshold: escape_probability >= 0.15.
+
+References:
+    Sharp & Li (1987) — Codon Adaptation Index (CAI). Nucleic Acids Research, 15(3).
+    Karlin & Burge (1995) — Dinucleotide relative abundance profiles. Mol Microbiol.
+    Ochman, Lawrence & Groisman (2000) — HGT and the nature of bacterial innovation. Nature.
+
+Decision thresholds:
+    pathogen_hits > 0          → FAIL  (pathogen DB integration planned for Phase 3)
+    hgt_score >= 50.0          → FAIL  (out of 100-point composite scale)
     escape_probability >= 0.15 → WARN
-    otherwise                 → PASS
+    otherwise                  → PASS
 """
 
 from __future__ import annotations
