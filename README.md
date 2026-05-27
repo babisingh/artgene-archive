@@ -1,5 +1,5 @@
-# ArtGene-Archive
-[Website](https://artgene-archive.org/)
+# [ArtGene-Archive](https://artgene-archive.org/)
+
 **A cryptographic provenance and biosafety certification registry for
 AI-generated biological sequences.**
 
@@ -12,6 +12,7 @@ AI-generated biological sequences.**
 ---
 
 ## What this is
+[Website](https://artgene-archive.org/)
 
 Generative AI models now produce novel proteins, genes, and regulatory elements
 faster than the scientific community can catalogue, screen, or attribute them.
