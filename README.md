@@ -1,5 +1,5 @@
-# ArtGene-Archive : [Visit](https://artgene-archive.org/)
-
+# ArtGene-Archive
+[Website](https://artgene-archive.org/)
 **A cryptographic provenance and biosafety certification registry for
 AI-generated biological sequences.**
 
