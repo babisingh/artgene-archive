@@ -12,7 +12,7 @@ AI-generated biological sequences.**
 ---
 
 ## What this is
-[Website](https://artgene-archive.org/)
+Visit [Artgene-Archive](https://artgene-archive.org/)
 
 Generative AI models now produce novel proteins, genes, and regulatory elements
 faster than the scientific community can catalogue, screen, or attribute them.
