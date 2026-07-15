@@ -31,7 +31,7 @@ currently exploitable) it is marked *(latent)*.
 |---|---|---|
 | 1 | `tinsel-core` (crypto, watermark, models, compliance, sequence) | ✅ Done |
 | 2 | `tinsel-api` (routes, auth, vault, DB models + migrations, rate limiting) | ✅ Done |
-| 3 | `tinsel-gates` (pipeline + 4 gate adapters) | ⏳ Pending |
+| 3 | `tinsel-gates` (pipeline + 4 gate adapters) | ✅ Done |
 | 4 | `tinsel-demo`, `scripts/`, infra (Docker, CI, pyproject, railway) | ⏳ Pending |
 | 5 | `apps/dashboard` (Next.js/React + API proxy) | ⏳ Pending |
 | 6 | Cross-cutting: architecture, test coverage, feature roadmap, prioritized summary | ⏳ Pending |
@@ -598,4 +598,201 @@ where those integrations are active.
 
 ---
 
-*End of Phase 2. Phase 3 (`tinsel-gates`) pending your go-ahead.*
+*End of Phase 2.*
+
+---
+
+# Phase 3 — `tinsel-gates`
+
+Package: `packages/tinsel-gates/tinsel_gates/` (~2,864 lines). The four-gate
+biosafety pipeline and its adapters: Gate 1 (ESMFold structural), Gate 2
+(chained composition + SecureDNA + IBBIS), Gate 3 (codon/HGT ecological),
+Gate 4 (embedding functional-analogue).
+
+**What's solid:** clean adapter/ABC structure with mock+real per gate, tidy
+dependency-injection for tests, concurrent gate execution with fail-fast on
+Gate 1, honest per-adapter docstrings that *do* disclose the mock/heuristic
+nature (the code is more truthful than the README/certificates are — see the
+theme below), and thoughtful audit metadata (`databases_queried`).
+
+> **Overarching theme (safety-critical):** In `development`/`production` the
+> pipeline reports `gate_mode="real"`, and certificates/compliance/synthesis
+> docs carry that label — but the *actual* hazard screening that runs in prod
+> is almost entirely heuristic or mock. The three High findings below are facets
+> of one problem: **the system asserts a level of biosafety assurance it does
+> not deliver.** For a registry whose entire value proposition is trustworthy
+> screening, this is the most important cluster in the review.
+
+## 3.1 High — "Real" gates aren't real
+
+### GATE-01 · 🟠 High · security/safety · Production Gate 2 hazard-DB screening is always mock
+**Location:** `pipeline.py` → `_build_gate2()` (hardcodes `ChainedGate2Adapter(use_mock_external=True)`); `adapters/gate2/secureDNA.py`, `adapters/gate2/ibbis.py`
+
+Gate 2 is the toxin/pathogen screen. In every environment the pipeline builds it
+with `use_mock_external=True`, so:
+- **SecureDNA** = `_screen_doprf_mock`: an exact 30-mer match against **three
+  fictional** demo hazard strings. Real hazards are never present, so it only
+  ever returns PASS on real input.
+- **IBBIS commec** = `_screen_hmm_mock`: substring match against fictional
+  signature peptides.
+- The real integrations (`mock=False`) simply `raise NotImplementedError`.
+
+Only the offline composition heuristic actually evaluates real sequences. Yet
+`ChainedGate2Adapter.mock_mode = False` (comment: "SecureDNA mock + IBBIS mock
+still count as 'real'") and the report says `gate_mode="real"`. So a production
+"CERTIFIED" certificate attests to SecureDNA/IBBIS screening that did not
+meaningfully happen.
+
+**Fix:** Don't hardcode `use_mock_external=True`; drive it from config and fail
+closed in production when real screening isn't configured. Never label a run
+`real` unless the external layers actually executed against real databases.
+Record per-layer live/mock state on the certificate.
+
+### GATE-02 · 🟠 High · security/safety · Gate 1 (ESMFold) fails **open** to a constant-PASS mock
+**Location:** `adapters/gate1/esmfold.py` → `ESMFoldGate1Adapter.run()`; `adapters/gate1/mock.py`
+
+On **any** exception — the clause is `except (httpx.HTTPError,
+asyncio.TimeoutError, Exception)`, i.e. catch-all — or a malformed/empty PDB,
+the adapter silently falls back to `MockGate1Adapter().run(...)`. That mock
+**does not analyse the sequence**: with default args it returns a hardcoded
+`pLDDT mean = 87.3`, `low_fraction = 0.05` → **PASS** for literally any input.
+The public `api.esmatlas.com` endpoint is frequently slow/unavailable, so under
+normal operation Gate 1 routinely degrades to "everything passes with fabricated
+confidence," while `gate_mode` still reads `real` and the fail-fast filter waves
+everything through to the other gates.
+
+**Fix:** Fail **closed** — on ESMFold error, return `WARN`/`FAIL` or mark the
+gate `indeterminate`, never a synthetic PASS. Narrow the `except` to real
+network errors. If a fallback is unavoidable, stamp the result and the
+certificate as degraded (not `real`) and don't let it satisfy the pass criteria.
+
+### GATE-03 · 🟠 High · correctness/safety · Gate 4 runs an uncalibrated metric under an ESM-2 threshold
+**Location:** `adapters/gate4/embedding.py` (`use_esm2=False` in prod via `pipeline._build_gate4`), `adapters/gate4/reference_db.py`
+
+In prod Gate 4 uses the 420-D amino-acid+dipeptide **composition fingerprint**,
+not ESM-2 — but keeps the `FAIL ≥ 0.85 / WARN ≥ 0.70` cosine thresholds that
+were chosen for ESM-2 embedding space (the docstring even says "Threshold 0.85
+retained"). Composition vectors live in the non-negative orthant, so cosine
+similarity between *unrelated* proteins is systematically high and compressed
+into a narrow band — 0.85 means something completely different here than in
+ESM-2 space. The result is an essentially uncalibrated detector: likely to both
+false-positive on benign proteins that share bulk composition with a toxin and
+miss true functional analogues. The gate that's advertised as catching
+"AI-designed variants that evade sequence screens" is the least trustworthy in
+the mode that actually runs.
+
+**Fix:** Calibrate separate thresholds for the composition space against a
+labelled positive/negative set (or drop composition mode from "real" and require
+ESM-2). Report an honest confidence and label the method on the certificate.
+
+## 3.2 Medium — Coverage gaps, privacy, accuracy
+
+### GATE-04 · 🟡 Medium · bug · Each gate only meaningfully screens one input type; the other is skipped or fed garbage
+**Location:** `adapters/gate3/codon.py` → `run()` (`if not dna: return PASS`); ties to `register.py` (`dna="" ` for protein input, `protein=sequence` for DNA input) and API-15
+
+Gate 3 auto-**PASSes** whenever `dna` is empty — and registration passes `dna=""`
+for every protein submission, so **protein deposits never receive ecological/HGT
+screening at all**. Conversely, DNA submissions are passed with `protein=<the DNA
+string>`, so Gates 1/2/4 (which expect amino acids) run on nonsense. Net: for any
+given submission, at least one gate is either skipped or operating on
+meaningless input.
+
+**Fix:** Translate DNA→protein (and keep the DNA) before the pipeline so all four
+gates get correct inputs; don't silently PASS Gate 3 on missing DNA — mark it
+`skip`/`indeterminate` and surface that in the certificate.
+
+### GATE-05 · 🟡 Medium · security/privacy · Every registered sequence ≤400 AA is sent in plaintext to a third party
+**Location:** `adapters/gate1/esmfold.py` (`POST https://api.esmatlas.com/...`); also `routes/structure.py`
+
+Real-mode Gate 1 POSTs the raw protein to the public ESMFold Atlas API on every
+registration. This directly conflicts with the platform's "sequences are never
+stored / privacy-preserving" positioning — the sequence leaves the trust boundary
+to an external service (subject to that service's logging/retention) for every
+deposit and every public `/analyse/structure` call.
+
+**Fix:** Disclose the external call, gate it behind consent/config, or run
+ESMFold in-house; at minimum document the data-flow in the privacy notice.
+
+### GATE-06 · 🟡 Medium · accuracy · Composition toxin heuristic will over-flag common benign proteins
+**Location:** `adapters/gate2/composition.py` → `_toxin_probability`, `_screen_toxin_kmers`
+
+The only layer that actually inspects real sequences in prod flags cationic/
+hydrophobic composition as "toxin" (`toxin_probability ≥ 0.30 → FAIL`). Highly
+basic proteins that are perfectly benign — histones, many ribosomal and
+DNA/RNA-binding proteins — are K/R-rich and will trip this. The 9-mer screen
+FAILs on *any* ≤1-mismatch hit against 15 motifs, another false-positive source.
+High false-positive rates erode trust and push users to distrust/bypass the
+screen.
+
+**Fix:** Validate thresholds against a benign reference set (e.g. SwissProt
+human proteome) and tune for a target FPR; treat heuristic hits as WARN pending a
+real database confirmation rather than hard FAIL.
+
+### GATE-07 · 🟡 Medium *(latent)* · efficiency · ESM-2 path recomputes all reference embeddings per request
+**Location:** `adapters/gate4/embedding.py` → `_run_esm2()`
+
+If ESM-2 mode is ever enabled, every screen makes `1 + len(REFERENCE_FAMILIES)`
+HuggingFace API calls (reference embeddings recomputed on the fly — the code
+admits "would normally be pre-cached"), plus O(n·dim) pure-Python mean-pooling.
+That's ~6 external calls per registration and will be slow and rate-limited.
+
+**Fix:** Pre-compute and cache reference embeddings at startup; batch/mean-pool
+with numpy. (Dead today, but wire it before enabling `use_esm2`.)
+
+## 3.3 Low / Nit
+
+### GATE-08 · 🔵 Low · security/labeling · `gate_mode` reflects only `env`, not whether live screening ran
+**Location:** `pipeline.py` → `_gate_mode()`
+
+`_gate_mode` returns `"real"` purely from `env ∈ {development, production}`, with
+no knowledge of GATE-01/02/03. There's no field distinguishing "real gates,
+external layers mocked/failed-over" from "fully live." Downstream compliance and
+synthesis-auth documents inherit the optimistic label.
+
+**Fix:** Compute `gate_mode` from what actually executed (per-gate, per-layer
+live flags); propagate a structured "assurance level" instead of a single
+real/mock string.
+
+### GATE-09 · 🔵 Low · spaghetti · Host organism injected via a private attribute + `type: ignore`
+**Location:** `adapters/gate3/codon.py` → `make_codon_gate3_adapter()` sets `adapter._host_organism`; `run()` reads it via `getattr(self, "_host_organism", "ECOLI")`
+
+The adapter `run(dna, protein)` signature can't carry the host, so it's bolted on
+as an undeclared instance attribute by a factory. Works, but fragile and untyped.
+
+**Fix:** Make host a constructor parameter of `CodonGate3Adapter.__init__`.
+
+### GATE-10 · 🔵 Low · DRY · GC/instability/PDB helpers duplicated across packages
+**Location:** GC content in `tinsel/utils.py`, `gate3/codon.py`, `routes/analyse.py` (and embedding); `_compute_instability_index`/`_parse_plddt_from_pdb` imported from `gate1.esmfold` into `routes/structure.py`
+
+At least three separate GC-content implementations exist, and the API imports
+underscore-private ESMFold helpers across the package boundary.
+
+**Fix:** Centralize bioinformatics primitives in `tinsel.utils` (public) and
+import everywhere; promote the ESMFold helpers to a public module.
+
+### GATE-11 · ⚪ Nit · Over-broad `except`
+**Location:** `adapters/gate1/esmfold.py`
+
+`except (httpx.HTTPError, asyncio.TimeoutError, Exception)` — `Exception`
+subsumes the others and swallows programming errors as "API unavailable." Narrow
+it (and see GATE-02 for why the *handling* is the real problem).
+
+### GATE-12 · ⚪ Nit · Advertised-but-absent signals
+- `delta_mfe` is hardcoded `0.0` ("LinearFold/Nussinov not integrated") though
+  Gate 1 is described as "pLDDT + ΔMFE"; the Nussinov code exists only as dead
+  code in `routes/analyse.py` (API-16).
+- Gate 1 fail-fast means legitimately disordered-but-safe proteins (low pLDDT)
+  are FAILed and never toxin/pathogen-screened — reconsider whether structural
+  confidence should gate hazard screening.
+
+### GATE-13 · ⚪ Nit · Codon tables are approximate; no reading-frame validation
+**Location:** `adapters/gate3/codon.py`
+
+Some tables are self-described approximations (`CHO` "approximated from mammalian
+consensus"), and `_compute_cai` assumes the DNA is in-frame and a multiple of 3
+without checking. Fine for a heuristic, but document the provenance and validate
+frame.
+
+---
+
+*End of Phase 3. Phase 4 (`tinsel-demo`, `scripts/`, infra) pending your go-ahead.*
