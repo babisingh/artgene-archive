@@ -33,7 +33,7 @@ currently exploitable) it is marked *(latent)*.
 | 2 | `tinsel-api` (routes, auth, vault, DB models + migrations, rate limiting) | ✅ Done |
 | 3 | `tinsel-gates` (pipeline + 4 gate adapters) | ✅ Done |
 | 4 | `tinsel-demo`, `scripts/`, infra (Docker, CI, pyproject, railway) | ✅ Done |
-| 5 | `apps/dashboard` (Next.js/React + API proxy) | ⏳ Pending |
+| 5 | `apps/dashboard` (Next.js/React + API proxy) | ✅ Done |
 | 6 | Cross-cutting: architecture, test coverage, feature roadmap, prioritized summary | ⏳ Pending |
 
 ---
@@ -923,4 +923,271 @@ feasible.
 
 ---
 
-*End of Phase 4. Phase 5 (`apps/dashboard`, the Next.js frontend) pending your go-ahead.*
+*End of Phase 4.*
+
+---
+
+# Phase 5 — `apps/dashboard` (Next.js frontend)
+
+App: `apps/dashboard/` (~10,385 lines TS/TSX). Next.js 14 App Router + React +
+TanStack Query + Tailwind, with a server-side proxy route to the backend.
+
+**What's solid:** the API key is deliberately kept in `sessionStorage` (not a
+cookie/URL) and routed through a server-side proxy so the backend URL isn't
+baked into the client; `CertificateCard` *does* surface `pq_is_stub` and a
+`gate_mode==="mock"` warning; and the JSON viewer's `_syntaxHighlight` correctly
+HTML-escapes `&/</>` **before** adding highlight spans, so both
+`dangerouslySetInnerHTML` sites are not XSS-exploitable as written. Good typed
+API client mirroring the Pydantic schemas.
+
+> **Theme (continues Phases 1–3):** the frontend frequently presents
+> mock/heuristic/stub backend output as authoritative — "● LIVE", "CERTIFIED",
+> "WOTS+ SIGNATURE APPLIED", "anchored to the ledger" — without surfacing the
+> `is_stub`/`gate_mode` reality. The trust-signal findings (FE-T*) are the
+> user-facing face of GATE-01/02/08 and API-01. This is the phase where the
+> gap becomes visible to end users and third parties.
+
+## 5.1 High — Security surface
+
+### FE-01 · 🟠 High · security · Proxy's shared-key fallback turns the dashboard into an open authenticated gateway
+**Location:** `app/api/proxy/[...path]/route.ts:21` — `const apiKey = req.headers.get("x-api-key") || SERVER_API_KEY;`
+
+When `API_KEY` is configured on the Next server, the proxy signs **every**
+request that lacks a browser-supplied key with that shared server key. Any
+anonymous visitor who can load the site can therefore call the backend as an
+authenticated org — including `POST /register`, `/certificates/{id}/revoke`, and
+the distribution endpoints. The backend's API-key auth (a real strength, per
+Phase 2) is effectively nullified for anyone who reaches the dashboard.
+
+**Fix:** Don't fall back to a privileged shared key for state-changing routes.
+If a public read-only demo is desired, use a separate least-privilege key
+restricted to safe GET endpoints, and require a real key for register/revoke/
+distribute. Consider per-route allowlisting in the proxy.
+
+### FE-02 · 🟠 High · security · `NEXT_PUBLIC_API_KEY` ships a working key to every browser
+**Location:** `lib/providers.tsx:52-55` (prefers `process.env.NEXT_PUBLIC_API_KEY`); `app/sequences/page.tsx:348` and `app/sequences/[id]/page.tsx:2452` instruct users to set it
+
+Any `NEXT_PUBLIC_*` var is inlined into the client bundle at build time. So a
+deployment that sets `NEXT_PUBLIC_API_KEY` (which the UI explicitly tells users
+to do) embeds a live API key in the JavaScript served to every visitor —
+publicly extractable. Together with FE-01 there are two independent paths that
+make the shared key public.
+
+**Fix:** Never expose an API key via `NEXT_PUBLIC_*`. Keep keys server-side
+(proxy) or require users to paste their own; update the on-screen guidance.
+
+### FE-03 · 🟡 Medium · security · No security headers (CSP/HSTS/X-Frame-Options)
+**Location:** `next.config.mjs` (no `headers()` config)
+
+There's no Content-Security-Policy, `X-Frame-Options`/`frame-ancestors`,
+`Referrer-Policy`, or HSTS. For a public site that holds an API key in
+`sessionStorage` and uses `dangerouslySetInnerHTML` (safe today, but one refactor
+from unsafe), a CSP is important defense-in-depth and would also mitigate key
+exfiltration via injected script.
+
+**Fix:** Add a `headers()` block (or middleware) with a strict CSP, `frame-
+ancestors 'none'`, `Referrer-Policy: no-referrer`, and HSTS in production.
+
+## 5.2 High — Trust / UX-safety (mock/stub presented as authoritative)
+
+### FE-T1 · 🟠 High · trust · UI shows "● LIVE" and hides the mock reality of production gates
+**Location:** `app/sequences/[id]/page.tsx:2362-2379` ("● LIVE" when `gate_mode==="real"`); `components/CertificateCard.tsx:251` (warning only when `gate_mode==="mock"`)
+
+The detail page renders a green **"● LIVE"** badge whenever `gate_mode==="real"`,
+and the only "no real biosafety assurance" warning fires solely on
+`gate_mode==="mock"`. But per GATE-01/GATE-08 the backend reports `"real"` in
+production even though SecureDNA/IBBIS are mocked and ESMFold silently falls back
+to a constant-PASS mock. So the UI actively badges partially-mock screening as
+LIVE, and the honest warning never appears in prod.
+
+**Fix:** Drive trust badges off a truthful per-layer assurance signal (once the
+backend provides it — GATE-08), not the single `real/mock` flag; show which
+external databases actually ran.
+
+### FE-T2 · 🟠 High · trust · `pq_is_stub` is not surfaced on the certificate detail page
+**Location:** `app/sequences/[id]/page.tsx` — `pq_is_stub` only appears inside a JSON blob (`:1262`); visible UI shows a "Watermark present" badge (`:1307`), raw `signature_hex` (`:1313`), and "anchored to the ledger" custody wording (`:1252`)
+
+Unlike `CertificateCard` (which shows a stub notice), the detail page presents a
+signature and "anchored" ledger language with no human-readable stub/unsigned
+disclaimer, even when `pq_is_stub` is true. Combined with API-01 (signatures are
+never actually verified anywhere), the page implies cryptographic assurance that
+may not exist.
+
+**Fix:** Render a prominent "unsigned / stub signature" banner whenever
+`pq_is_stub`; drop "anchored/ledger" wording until a real signed chain entry
+exists and is verified.
+
+### FE-T3 · 🟠 High · trust · The register wizard fabricates the biosafety analysis
+**Location:** `app/register/page.tsx:43-47` (hard-coded gate durations), `:208` (`Promise.all([register, sleep(3400)])`), `:455` (`report?.[gateKey]?.status ?? "pass"`), `:523-550` (fabricated thresholds + unconditional "watermark embedded… anchored to the ledger"), `:533` (dead download button)
+
+The registration flow simulates a "~90 second" multi-gate analysis with fixed
+timers, defaults every gate badge to **PASS** when the report is missing/partial,
+lists thresholds for tools that don't run (ESMFold pLDDT, ToxinPred2, DriftRadar)
+that don't match the real composition heuristics, asserts a watermark was
+embedded/anchored unconditionally, and offers a non-functional "Download
+certificate" button.
+
+**Fix:** Drive progress and gate badges from the real consequence report; default
+unknown gates to a neutral state (not PASS); correct the tool/threshold labels to
+what actually ran; gate the watermark/ledger copy on real data; wire or remove
+the download button.
+
+### FE-T4 · 🟠 High · trust · Showcase hard-codes CERTIFIED rows and stub crypto as authoritative
+**Location:** `app/showcase/page.tsx:361` (every registry row labeled `CERTIFIED`), `:549` / `:883-884` ("WOTS+ / SHA3-512", "WOTS+ SIGNATURE APPLIED · IMMUTABLE LEDGER ENTRY CREATED"), `:150` ("Immutable audit ledger" = live) vs `:160` (LWE "currently stubbed")
+
+The public showcase labels all rows `CERTIFIED` regardless of real status
+(a REVOKED/FAILED sequence would show CERTIFIED), and states signatures/ledger as
+applied/immutable/live in the same file that admits parts are stubbed.
+
+**Fix:** Render each row's actual status; gate crypto/ledger claims on the real
+`pq_is_stub`/`gate_mode` fields or clearly mark the showcase as an illustrative
+mock.
+
+### FE-T5 · 🟡 Medium · trust · Mock data is silently substituted for real registry/certificate data on error
+**Location:** `app/registry/page.tsx:173` + `:358` ("Error state is suppressed when mock data is shown"), `app/sequences/[id]/page.tsx:2432-2440` (`MOCK_CERTIFICATE_DETAILS` fallback), `lib/mock-data.ts` imported into both
+
+When the live registry errors *or* returns zero rows, the registry page shows
+`lib/mock-data.ts` fixtures instead and suppresses the error; the detail page
+serves mock certs for `AG-DEMO-*` and as a fallback when the API throws. There is
+a demo banner on the registry, but a backend outage can make fabricated
+certificates appear as real registry content, and the detail page won't flag
+their stub-ness (FE-T2). `mock-data.ts` is thus in production render paths, not
+just tests.
+
+**Fix:** Never substitute mock data for a failed live query without an
+unmistakable "DEMO DATA — backend unavailable" state; keep demo records strictly
+behind `AG-DEMO-*` and always badge them.
+
+### FE-T6 · 🟡 Medium · trust · Fabricated institution names shipped to the landing page
+**Location:** `app/page.tsx:57-58` — ticker of `"WELLCOME TRUST-mock"`, `"NIH-mock"`, `"Anthropic-mock"`, etc.
+
+The homepage renders a scrolling list of real institutions with a `-mock` suffix.
+On a site presenting itself as live public-interest infrastructure, displaying
+named organizations (even suffixed) reads as implied affiliation/endorsement and
+is a credibility/integrity risk.
+
+**Fix:** Remove real org names until there are genuine participants, or clearly
+frame as "illustrative."
+
+### FE-T7 · 🟡 Medium · trust · Gate count/labels are inconsistent across the product
+**Location:** showcase "ALL FOUR GATES (α β γ δ)", detail renders Gate 4 (`:690`), but `CertificateCard`/`ConsequenceSummary` show only gates 1-3 and `register` says "three gates"
+
+Users see three or four gates depending on the page, with α/β/γ vs "Gate 1/2/3"
+naming mismatches.
+
+**Fix:** Standardize the gate set and naming everywhere from one source.
+
+## 5.3 High/Medium — Structural / spaghetti
+
+### FE-S1 · 🟠 High · dead code/bug · Dead `nav.tsx` means dark mode is non-functional app-wide
+**Location:** `app/nav.tsx` (never imported; `app/layout.tsx:4,31` uses `SiteHeader`); `tailwind.config.ts:4` (`darkMode:"class"`)
+
+`nav.tsx` is the only code that toggles the `.dark` class, but it's dead —
+`SiteHeader` replaced it and has no theme toggle. Since nothing sets `.dark`, the
+hundreds of `dark:` variants across ~19 files never activate: the shipped app is
+permanently light mode, and a large fraction of the styling code is inert.
+
+**Fix:** Delete `nav.tsx`; either add a real theme toggle that sets `.dark` (and
+persist it) or remove the dead `dark:` utilities.
+
+### FE-S2 · 🟠 High · spaghetti · Two parallel, non-shared styling systems
+**Location:** Tailwind `slate/dark:` utilities (`app/sequences/page.tsx`, `demo/page.tsx`, `verify/page.tsx`, `components/*`) vs CSS-variable + inline-style design system (`registry/page.tsx`, `register/page.tsx`, `sequences/[id]/page.tsx`, `components/design/*`)
+
+Half the app is styled one way, half another, sharing nothing — double the
+maintenance surface and inconsistent theming (compounds FE-S1).
+
+**Fix:** Choose one system and migrate the other set of pages.
+
+### FE-S3 · 🟠 High · spaghetti · 2,670-line single-file page mixing ~20 concerns
+**Location:** `app/sequences/[id]/page.tsx`
+
+One file holds the page plus StatusBadge, GateItem, ~8 gate panels, ProvenanceTab,
+DistributionSection, DistributeModal, ComplianceTab, SynthesizerTab, a JSON
+syntax-highlighter, and more.
+
+**Fix:** Extract tabs/panels into `app/sequences/[id]/tabs/*` and
+`components/gates/*`.
+
+### FE-S4 · 🟡 Medium · DRY · Status/tier/gate badge helpers duplicated 3-5×
+**Location:** `StatusBadge` in `CertBadges.tsx:17`, `registry/page.tsx:30`, `sequences/[id]/page.tsx:43`; tier-color map in `CertBadges.tsx:9`, `CertificateCard.tsx:22`, `CodonBiasChart.tsx:252`, `sequences/[id]/page.tsx:2499`; the `{pass,fail,warn,skip}→badge-*` map in 5+ spots
+
+**Fix:** One shared `components/badges.tsx` keyed by status/tier.
+
+### FE-S5 · 🔵 Low · dead code · Leftover scaffold/stub comments in shipped code
+**Location:** `app/showcase/page.tsx:3-17` ("IMPLEMENTATION GUIDE… stubbed with a TODO… See HANDOFF.md"); `sequences/[id]/page.tsx:1648` ("Phase 3c — stubs filled in…"); `CertBadges.tsx:63` ("Phase 3" in user-facing text)
+
+**Fix:** Remove scaffolding comments and internal phase references from shipped UI.
+
+### FE-S6 · 🔵 Low · spaghetti · Message-substring branching couples UI to backend wording
+**Location:** `CertificateCard.tsx:106-117` (`GATE_FIX_HINTS` branches on "k-mer"/"allergen"/"disordered" substrings)
+
+**Fix:** Return a stable hint key from the API instead of matching prose.
+
+## 5.4 Medium/Low — Correctness
+
+### FE-C1 · 🟡 Medium · bug · Registry search/filter only sees the current 10-row page
+**Location:** `app/registry/page.tsx:158-174` (`applyFilter` over one page of `listCertificates(PAGE_SIZE, offset)`)
+
+Searching by AG-ID/institution or filtering by status only matches within the
+current page, so real matches on other pages are missed ("No records match")
+while `totalPages` still reflects the unfiltered total.
+
+**Fix:** Push search/status filters to the API, or fetch the full set before
+client-side filtering.
+
+### FE-C2 · 🟠 High · test correctness · e2e tests are stale and intercept the wrong layer
+**Location:** `e2e/sequences.spec.ts:125,134,143` (assert text absent from `app/page.tsx`), `:250-252` (gate titles that don't match the α/β/γ panels), `:10,100-113` (`page.route()` on `http://localhost:8000/api/v1/**` while the browser calls the relative `/api/proxy/...`)
+
+The Playwright specs assert UI strings that no longer exist and mock a URL the
+browser never calls directly (the proxy fetch is server-side, uncatchable by
+page-level interception) — so these tests are likely passing vacuously or testing
+nothing meaningful.
+
+**Fix:** Update expected strings to the current UI and intercept `/api/proxy/**`.
+
+### FE-C3 · 🟡 Medium · test correctness · e2e mock fixtures don't match `lib/api.ts` types
+**Location:** `e2e/sequences.spec.ts:42-81` (`MOCK_CERT_DETAIL` missing `screening_method`, `secureDNA_checked`, `databases_queried`, `gate4`, `gate_mode`, `pq_algorithm`/`pq_is_stub`; `MOCK_HEALTH:83` includes `env` that `HealthResponse` intentionally omits)
+
+**Fix:** Regenerate fixtures from the current types.
+
+### FE-C4 · 🟡 Medium · bug/trust · Register gate badges default to PASS with no data
+**Location:** `app/register/page.tsx:455` (`report?.[gateKey]?.status ?? "pass"`)
+
+If the consequence report is missing/partial, every gate row renders ✓ PASS —
+the wrong default for a safety UI (also part of FE-T3).
+
+**Fix:** Default to unknown/neutral, never pass.
+
+### FE-C5 · 🔵 Low · bug · `GateProgressTracker` combined β+γ status can mislabel
+**Location:** `components/GateProgressTracker.tsx:184-201` (seeds the reducer with `"pass"`; non-done branch also defaults to `"pass"`)
+
+A skipped/pending pair can render as PASS.
+
+**Fix:** Seed from the actual worst status; default to pending/skip.
+
+### FE-C6 · 🔵 Low · bug · Distribution refetch abuses queryKey instead of invalidation
+**Location:** `app/sequences/[id]/page.tsx:1130-1138` (bumps a `refetchKey` into the queryKey)
+
+Works, but bypasses React Query's intended `invalidateQueries`.
+
+**Fix:** Use `queryClient.invalidateQueries`.
+
+### FE-C7 · ⚪ Nit · pLDDT strip axis labels use bucket start, not midpoint
+**Location:** `app/sequences/[id]/page.tsx:144,149` — "Residue ~N" is off by half a bucket. **Fix:** label with the bucket midpoint.
+
+## 5.5 Low — Accessibility
+
+- **FE-A1 · Low** — `registry/page.tsx:88` sets `cursor:pointer` on a `<tr>` that isn't itself clickable (only inner `<Link>`s). Make the row clickable or drop the cursor.
+- **FE-A2 · Low** — Color-only status encoding in `PlddtResidueStrip` (`sequences/[id]/page.tsx:119-124`), `CodonBiasChart.tsx:352-359`, and StatCards. Add text/pattern cues.
+- **FE-A3 · Low** — `InfoTooltip.tsx:58` tooltip is `pointer-events-none` and not associated via `aria-describedby`; not AT/keyboard-selectable. Associate via `aria-describedby`.
+- **FE-A4 · Low** — Five metadata inputs in `register/page.tsx:337-343` lack `htmlFor`/`id` pairing. Add matching ids.
+
+## 5.6 Low — Performance
+
+- **FE-P1 · Low** — `CodonBiasChart.tsx:224` recomputes an O(protein×pool) scan every render; wrap in `useMemo` keyed on `[original_protein, dna_sequence]`.
+- **FE-P2 · Low** — `app/sequences/page.tsx:282` fetches and renders 100 rows unvirtualized; fine now, add row virtualization if counts grow.
+- **FE-P3 · Nit** — `sequences/[id]/page.tsx:1257` re-runs `JSON.stringify` each render; `useMemo` if desired.
+
+---
+
+*End of Phase 5. Phase 6 (cross-cutting synthesis, feature roadmap, prioritized summary) pending your go-ahead.*
