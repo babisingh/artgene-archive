@@ -30,7 +30,7 @@ currently exploitable) it is marked *(latent)*.
 | Phase | Area | Status |
 |---|---|---|
 | 1 | `tinsel-core` (crypto, watermark, models, compliance, sequence) | ✅ Done |
-| 2 | `tinsel-api` (routes, auth, vault, DB models + migrations, rate limiting) | ⏳ Pending |
+| 2 | `tinsel-api` (routes, auth, vault, DB models + migrations, rate limiting) | ✅ Done |
 | 3 | `tinsel-gates` (pipeline + 4 gate adapters) | ⏳ Pending |
 | 4 | `tinsel-demo`, `scripts/`, infra (Docker, CI, pyproject, railway) | ⏳ Pending |
 | 5 | `apps/dashboard` (Next.js/React + API proxy) | ⏳ Pending |
@@ -284,4 +284,318 @@ it's a fresh SHA3-256 (which is fine and preferable). Reword to avoid confusion.
 
 ---
 
-*End of Phase 1. Phase 2 (`tinsel-api`) pending your go-ahead.*
+*End of Phase 1.*
+
+---
+
+# Phase 2 — `tinsel-api`
+
+Package: `packages/tinsel-api/sentinel_api/` (~4,161 lines). FastAPI service:
+routes, API-key auth, secrets vault, async SQLAlchemy models + Alembic
+migrations, slowapi rate limiting, plus bootstrap scripts.
+
+**What's solid (worth keeping):** proper API-key hashing (raw keys never stored),
+consistent 404-for-wrong-org to avoid existence leaks, `X-API-Key` never
+client-spoofable `org_id`, the DB-level append-only trigger (migration 003),
+HMAC key separation for spreading vs signing keys, and env-gated production
+guards on the spreading key. The findings below are what to fix on top of that.
+
+## 2.1 High — Integrity, auth, and abuse surface
+
+### API-01 · 🟠 High · security · WOTS+ signatures are never verified anywhere (write-only crypto)
+**Location:** whole package; `grep` shows `PQSigner.verify_certificate` has zero call sites. `certificates.py` → `verify_certificate()` only runs the *watermark* decoder.
+
+Registration signs the certificate hash with WOTS+, but **no endpoint ever
+verifies that signature**, and none recomputes `certificate_hash` from the
+stored fields. `POST /certificates/{id}/verify` verifies a codon watermark
+(which isn't even embedded at registration — see API-10), not the PQ signature.
+So the system's headline claim ("cryptographically verifiable creator
+attribution," "tamper-evident") has **no verification path** in the API — the
+crypto is write-only. A tampered `certificate_hash`/fields row would pass every
+read endpoint. Ties directly to CORE-01/CORE-02.
+
+**Fix:** Add a real verification endpoint that (a) recomputes the canonical
+certificate hash from stored fields and (b) calls `PQSigner.verify_certificate`
+against the stored public key/signature; expose it publicly for third-party
+(synthesizer) verification. Fold it into `/compliance/verify` and `export`.
+
+### API-02 · 🟠 High · bug/security · Audit-log hash chain is not concurrency-safe
+**Location:** `routes/register.py` → `_next_seq_num()`, `_prev_entry_hash()`, `register_sequence()`
+
+`seq_num` is `SELECT count(*)+1` and `prev_hash` is "hash of current tip," both
+read without any lock, then written. Two concurrent registrations read the same
+`count`/tip, compute the same `seq_num` and both chain off the same
+`prev_hash`. The `unique(seq_num)` constraint means one commit wins and the
+other 500s (lost registration, generic error), and the design leans entirely on
+that constraint to prevent a forked chain — there is no serialization of the
+append itself. Under real concurrency this is both a correctness risk and an
+availability bug.
+
+**Fix:** Serialize the append — use a Postgres `SEQUENCE` (or `pg_advisory_xact_lock`
+on a chain key, or `SERIALIZABLE` isolation) and retry-on-conflict, so `seq_num`
+and `prev_hash` are read-and-appended atomically. Compute `registry_id` from the
+sequence value, not `count(*)`.
+
+### API-03 · 🟠 High · security · Revoke/publish bypass the tamper-evident audit log
+**Location:** `routes/certificates.py` → `revoke_certificate()`, `publish_certificate()`
+
+The audit chain only records *issuance*. Revocation (a safety-critical state
+change that blocks synthesis) and publish (a visibility change) mutate
+`certificates` directly via the ORM and commit — **nothing is appended to
+`registry_audit_log`**. So the "tamper-evident" trail cannot prove when/why a
+certificate was revoked or made public, and a DB actor could revoke/un-revoke
+invisibly. Compounded by the inert ORM guard (API-07).
+
+**Fix:** Append a signed audit-log entry for every state transition
+(issue / revoke / publish), chained the same way as issuance.
+
+### API-04 · 🟠 High · security (DoS/cost) · Unauthenticated demo endpoints fan out to the vault and real external gates
+**Location:** `routes/analyse.py` (`/analyse`, `/analyse/fragments`), `routes/structure.py` (`/analyse/structure`)
+
+All three are unauthenticated. In production they: fetch keys from the vault
+(AWS Secrets Manager — a paid, throttled API) on every call; call ESMFold Atlas
+(external); and `/analyse/fragments` runs the consequence pipeline **once per
+fragment (up to 50) plus once for the assembly** — up to 51 pipeline invocations
+per request. The only protection is per-IP `10/minute`, and that limiter is
+in-memory (see API-05), so it is trivially bypassed from multiple IPs or resets
+per worker/Lambda. This is a cost- and resource-amplification DoS on the
+unauthenticated surface.
+
+**Fix:** Require auth (or a scoped demo token) for anything that hits the vault
+or external services; cap `/analyse/fragments` fan-out; cache vault reads
+(API-12); move to a shared rate-limit store (API-05); consider a hard global
+concurrency cap on external calls.
+
+## 2.2 Medium — Correctness, privacy, and consistency
+
+### API-05 · 🟡 Medium · security · Rate limiting is in-memory and per-process
+**Location:** `rate_limit.py` (`Limiter(key_func=_key_func)` — no `storage_uri`)
+
+Default slowapi storage is in-process memory. The app ships **both** a uvicorn
+entrypoint and a `Mangum` Lambda handler; under multiple workers or serverless
+cold-starts each process keeps its own counters, so global limits (esp. the
+20/min write limit protecting `/register`) don't hold. Also the key bucket is
+the **raw API key string** (`f"key:{api_key}"`) — using a live secret as a
+cache key.
+
+**Fix:** Configure a shared store (`storage_uri="redis://..."`). Key the bucket
+on a hash of the API key or the resolved `org_id`, not the raw secret.
+
+### API-06 · 🟡 Medium · bug · Dedup is TOCTOU with no DB uniqueness backstop
+**Location:** `routes/register.py` (dedup `SELECT` then insert); `db/models.py` → `Certificate` (no unique constraint on `sequence_hash`)
+
+The "already registered" check is a `SELECT` followed later by an `INSERT` with
+no unique constraint on `sequence_hash`, so two concurrent identical submissions
+both pass the check and both insert. The model docstring says "one per
+sequence+owner pair" but no constraint enforces it.
+
+**Fix:** Add a unique constraint/index (on `sequence_hash`, or `(sequence_hash,
+owner_id)` per the stated policy) and convert the resulting `IntegrityError`
+into the existing 409 response.
+
+### API-07 · 🟡 Medium · security · `AppendOnlyMixin` is inert — false sense of protection
+**Location:** `db/models.py` → `AppendOnlyMixin`; `_mark_committed()` has zero call sites
+
+The mixin only raises after `_committed` is set, but `_mark_committed()` is
+never called anywhere, and SQLAlchemy sets attributes on load via the
+instrumentation layer (bypassing `__setattr__`), so the guard never fires. Both
+the class docstring and the module header claim ORM-level append-only
+enforcement that does not exist. Only the DB trigger (migration 003) actually
+protects the table.
+
+**Fix:** Either delete the mixin and rely on the trigger (documenting that
+clearly), or wire it correctly (SQLAlchemy events: block `before_update`/
+`before_delete` on the mapper). Don't advertise protection that isn't active.
+
+### API-08 · 🟡 Medium · security/privacy · Full plaintext sequence is stored, contradicting the privacy claim
+**Location:** `routes/register.py` (`watermark_metadata={"original_protein": protein}`)
+
+The README and `FragmentKmerIndex` docstring emphasize that sequences are never
+stored — "only their hashes." But registration stores the **entire original
+protein in plaintext** in `certificates.watermark_metadata`, and `get_certificate`
+returns it to the owner. A DB compromise exposes every registered sequence,
+directly contradicting the stated privacy posture.
+
+**Fix:** If the full sequence is genuinely needed (for distribution
+re-encoding), store it encrypted at rest (envelope-encrypt with a vault key) or
+document the change in posture explicitly. Otherwise store only what's required.
+
+### API-09 · 🟡 Medium · bug · `verify-source` requires byte-identical DNA (defeats mutation tolerance)
+**Location:** `routes/distributions.py` → `verify_source()`
+
+Leak attribution is `result.dna_sequence.upper() == submitted_dna` — exact
+string equality. Any re-synthesis artifact, single codon change, or trimming
+yields "no match," despite the README's core promise that the watermark
+"survives re-synthesis and is recoverable from re-sequenced DNA." The
+mutation-tolerant `TINSELDecoder` exists but isn't used here.
+
+**Fix:** Score each candidate with `TINSELDecoder` (BER / bit-recovery) and
+match on best-score-below-threshold, not exact equality. Return a confidence.
+
+### API-10 · 🟡 Medium · bug/docs · `tier` hardcoded, `chi_squared` unset, no watermark at registration
+**Location:** `routes/register.py` (`tier="STANDARD"`, no `chi_squared`, no `TINSELEncoder` call)
+
+Every certificate is written with `tier="STANDARD"` regardless of the sequence's
+actual capacity, `chi_squared` is never populated, and no codon watermark is
+embedded at registration (it happens only at distribution time). The README
+states each deposited sequence "receives a TINSEL … watermark" at registration —
+the implementation defers that entirely. At minimum the stored `tier` is wrong
+for most sequences.
+
+**Fix:** Compute `tier`/`chi_squared` from `check_capacity`/encoder output and
+store them, and either embed the watermark at registration or correct the
+public claims to match the distribution-time model.
+
+### API-11 · 🟡 Medium · security (DoS) · No request-size limit; field caps applied post-parse
+**Location:** `routes/register.py`, `routes/analyse.py`, `RegistrationRequest`
+
+There is no global body-size limit; the `_MAX_AA`/demo caps are checked only
+*after* `normalise()` builds the full string in memory. `owner_id`/`ethics_code`
+have no pydantic `max_length` (DB columns are 255/100), so an oversized value
+sails through validation and 500s at the DB.
+
+**Fix:** Enforce a max request body size (reverse-proxy or ASGI middleware); add
+`max_length` to string fields; reject oversized input before heavy parsing.
+
+### API-12 · 🟡 Medium · bug/efficiency · AWS vault client blocks the event loop and re-fetches every call
+**Location:** `vault/aws_secrets.py` → `AWSSecretsVaultClient`
+
+`get_spreading_key` calls synchronous `boto3` (`client.get_secret_value`) inside
+an `async def`, blocking the event loop for the whole network round-trip, and it
+constructs a new client + fetches the secret **on every call** (every register,
+every demo request via API-04). No caching, no error mapping (the interface
+promises `KeyError`, but botocore raises its own exceptions).
+
+**Fix:** Cache the secret in-process with a TTL; use `aioboto3` or
+`run_in_executor`; map missing-secret to `KeyError`.
+
+### API-13 · 🟡 Medium · security · The "never use in production" vault client *is* the production path
+**Location:** `vault/__init__.py` → `get_vault_client()`; `vault/env_mock.py` header
+
+When `sentinel_env == "production"` but `aws_account_id` is unset (the default
+Railway deploy), `get_vault_client()` returns `EnvMockVaultClient` — whose own
+module says "NEVER use in production: the key material is visible in the process
+environment and any crash dump." So the documented production deployment keeps
+the master key in an env var.
+
+**Fix:** Decide the intended posture. If env-var keys are acceptable for Railway,
+remove the scary warning and document it; if not, fail closed in production when
+no real vault is configured.
+
+### API-14 · 🟡 Medium · security (DoS/cost) · Public `/health` does DB + vault work every call
+**Location:** `routes/health.py` → `health()` / `_connectivity()`
+
+The unauthenticated, un-rate-limited `/health` runs a DB query **and** a vault
+fetch on every request. In production that's a Secrets Manager call per health
+hit — cost, throttling, and a cheap amplification vector.
+
+**Fix:** Make the public probe cheap (process liveness only, or a cached
+connectivity result with a short TTL); keep the deep check on the authenticated
+`/health/detail`.
+
+### API-15 · 🟡 Medium · bug · Route inputs aren't validated against allowed alphabets; DNA treated as protein
+**Location:** `routes/register.py` (`protein = sequence`), `sequence/fasta.normalise` (no char validation); `validators.py` is unused by routes
+
+`normalise()` only detects a type; it never validates characters. For non-DNA/RNA
+input, everything is labelled PROTEIN and passed downstream, and DNA input is
+fed to the pipeline **as if it were protein** ("placeholder until a translator is
+wired"). Gates and capacity math then run on meaningless symbols, and unknown
+letters surface as 500s deep in the encoder.
+
+**Fix:** Call the existing `validators.py` in the request path; translate DNA→
+protein before gating (the codon table already exists in `utils.translate`);
+reject invalid alphabets with a 422 up front.
+
+## 2.3 Low / Nit — Dead code, duplication, ops
+
+### API-16 · 🔵 Low · dead code (latent bug) · Unused helpers in `analyse.py`, one that would crash
+**Location:** `routes/analyse.py` → `_codon_diff` (unused), `_nussinov` + `_approx_mfe` (unused)
+
+`_codon_diff` constructs `CodonDiff(control_codon=..., watermarked_codon=...)`
+but the model's fields are `original_codon`/`fingerprinted_codon` — it would
+raise a `ValidationError` if ever called (the live path uses `_codon_diff_pair`
+with correct names). `_nussinov` (O(n³) RNA folder) and `_approx_mfe` are dead.
+
+**Fix:** Delete the dead functions (or wire them and fix the field names).
+
+### API-17 · 🔵 Low · security · Seed scripts print/ship credentials
+**Location:** `scripts/seed_prod.py` (prints raw key to logs), `scripts/seed_dev.py` (hardcoded `tinsel-dev-key-00000000`)
+
+`seed_prod` prints the generated API key to stdout (persisted in Railway logs).
+`seed_dev` ships a well-known key that grants full API access whenever
+`SENTINEL_ENV=development`. If an env is ever misconfigured to `development`
+publicly, that key is a backdoor.
+
+**Fix:** Deliver the prod key out-of-band (write to the vault, or print a
+one-time retrieval token, not the key). Ensure dev seeding can never run in a
+network-exposed deployment.
+
+### API-18 · 🔵 Low · efficiency/security · Auth writes on every request; unsalted key hash
+**Location:** `dependencies.py` → `require_api_key()`
+
+Every authenticated request issues an `UPDATE api_keys SET last_used_at` (write
+amplification, row contention on hot keys). Keys are hashed with a single
+unsalted SHA3-256 — acceptable *only* if keys are high-entropy random tokens
+(they are, via `secrets.token_urlsafe`); note it explicitly so nobody introduces
+low-entropy keys later. No lockout/backoff on repeated invalid keys.
+
+**Fix:** Throttle `last_used_at` writes (e.g. update at most once/minute per
+key); document the high-entropy-key assumption; consider counting failed auths.
+
+### API-19 · 🔵 Low · feature-gap · Pathway Merkle tree/proof are stubs
+**Location:** `routes/pathways.py` → `create_pathway()` (root = `sha3_256` of joined IDs), `get_pathway_proof()` (`proof: {"not_implemented": True}`)
+
+The advertised "Merkle pathway" is a single hash of concatenated IDs, and proofs
+are unimplemented. `gene_count` counts duplicates if the same ID is passed twice.
+
+**Fix:** Implement a real Merkle tree + inclusion proofs, or clearly label the
+feature as preview. De-duplicate `certificate_ids`.
+
+### API-20 · 🔵 Low · spaghetti/DRY · Repeated maps, loops, and scattered inline imports
+**Location:** multiple
+
+`_HOST_ORGANISM_ENUM` is redefined in `analyse.py` and `distributions.py`; the
+k-mer hashing loop is duplicated (`_kmer_hashes` vs inline in
+`_add_kmer_index_rows`); many modules do function-local imports
+(`from ... import` inside handlers) mixing with top-level imports.
+
+**Fix:** Hoist shared constants/helpers into a small `sentinel_api/_common.py`;
+normalize imports to module top unless there's a genuine cycle to break.
+
+### API-21 · ⚪ Nit · misc
+- `main.py` uses the deprecated `@app.on_event("startup")` — migrate to the
+  `lifespan` context manager.
+- CORS `allow_credentials=True` is unnecessary for header-based (`X-API-Key`)
+  auth and slightly widens exposure; drop it unless cookies are used.
+- `structure.py` imports underscore-private helpers
+  (`_compute_instability_index`, `_parse_plddt_from_pdb`) across the package
+  boundary from `tinsel_gates` — promote them to public API or duplicate
+  intentionally.
+
+### API-22 · 🔵 Low · ops · `start.sh` masks seed failures; fragile DB-readiness parse
+**Location:** `scripts/start.sh`
+
+Runs `alembic upgrade head` **and** the prod seed on every container start;
+`python seed_prod.py || true` swallows any seeding error silently. The readiness
+probe reconstructs the DB URL by stripping `postgresql://`, which breaks if the
+password contains `@` or `/`.
+
+**Fix:** Don't `|| true` the seed (or log loudly on failure); gate migrations
+behind an explicit release step for production; parse the URL with a real URL
+parser.
+
+### API-23 · 🔵 Low · security · Only the spreading key is guarded against dev defaults in production
+**Location:** `config.py`
+
+The model validator rejects the dev `spreading_key` in production, but nothing
+guards the localhost `database_url` default (a prod deploy could silently run
+against localhost), and the default `database_url` embeds a literal password.
+`ncbi_*` creds default empty with no warning where required.
+
+**Fix:** Extend the production guard to reject the default `database_url` (and
+any obviously-local host) in `production`, and surface missing external creds
+where those integrations are active.
+
+---
+
+*End of Phase 2. Phase 3 (`tinsel-gates`) pending your go-ahead.*
