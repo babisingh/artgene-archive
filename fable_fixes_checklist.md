@@ -32,7 +32,7 @@ currently exploitable) it is marked *(latent)*.
 | 1 | `tinsel-core` (crypto, watermark, models, compliance, sequence) | ✅ Done |
 | 2 | `tinsel-api` (routes, auth, vault, DB models + migrations, rate limiting) | ✅ Done |
 | 3 | `tinsel-gates` (pipeline + 4 gate adapters) | ✅ Done |
-| 4 | `tinsel-demo`, `scripts/`, infra (Docker, CI, pyproject, railway) | ⏳ Pending |
+| 4 | `tinsel-demo`, `scripts/`, infra (Docker, CI, pyproject, railway) | ✅ Done |
 | 5 | `apps/dashboard` (Next.js/React + API proxy) | ⏳ Pending |
 | 6 | Cross-cutting: architecture, test coverage, feature roadmap, prioritized summary | ⏳ Pending |
 
@@ -795,4 +795,132 @@ frame.
 
 ---
 
-*End of Phase 3. Phase 4 (`tinsel-demo`, `scripts/`, infra) pending your go-ahead.*
+*End of Phase 3.*
+
+---
+
+# Phase 4 — `tinsel-demo`, `scripts/`, and infrastructure
+
+Covers `packages/tinsel-demo/` (demo runner + golden fixtures),
+`scripts/compute_real_gate_outputs.py`, and the deploy/build layer
+(`Dockerfile`, `docker-compose.yml`, `railway.json`, root `pyproject.toml`,
+`.github/workflows/ci.yml`, alembic `env.py`, `.env.example`).
+
+**What's solid:** a genuine CI matrix (ruff + bandit + mypy-strict + pytest with
+coverage, plus a dashboard type-check/build), pinned Postgres image and
+healthchecks in compose, correct async alembic setup with `NullPool` and
+`compare_type`/`compare_server_default`, a deterministic golden-file demo harness,
+and an `.env.example` that documents the prod-key requirement.
+
+## 4.1 Medium
+
+### INFRA-01 · 🟡 Medium · security · API container runs as root
+**Location:** `packages/tinsel-api/Dockerfile`
+
+There is no `USER` directive, so `start.sh`/uvicorn run as **root** inside the
+container. Combined with auto-running migrations and seeds on boot, any RCE or
+container breakout starts with root. Standard hardening is missing.
+
+**Fix:** Create and switch to a non-root user (`RUN adduser --system app`,
+`USER app`), ensure file ownership/permissions are set, and drop capabilities in
+the runtime platform.
+
+### INFRA-02 · 🟡 Medium · docs/safety · `.env.example` (and config comments) misdescribe the env→gate mapping
+**Location:** `.env.example` ("development — uses mock biosafety gates"; "production — uses real gates"); cross-ref `pipeline._REAL_ENVS`, GATE-08
+
+The pipeline treats **both** `development` and `production` as real
+(`_REAL_ENVS = {"development", "production"}`); only `test` is fully mocked. But
+`.env.example` tells operators that `development` "uses mock biosafety gates."
+An operator who trusts this will believe a `development` deployment is inert when
+it is actually calling ESMFold, storing plaintext sequences, etc. — and,
+conversely, may not realize `production` still mocks the external hazard DBs
+(GATE-01). Safety-relevant documentation error.
+
+**Fix:** Correct the description to reflect reality (`test` = mock, `development`/
+`production` = real adapters with externally-mocked DB layers unless configured),
+and align it with the honest per-adapter docstrings.
+
+## 4.2 Low
+
+### DEMO-01 · 🔵 Low · correctness/provenance · Heuristics reimplemented a third time; golden fixtures don't match the runner's adapters
+**Location:** `scripts/compute_real_gate_outputs.py`; `packages/tinsel-demo/run_demo.py` (MANIFEST uses mock adapters); `packages/tinsel-demo/golden/*.json`
+
+`compute_real_gate_outputs.py` re-implements the gate heuristics independently and
+*differently* from `gate2/composition.py` — e.g. `toxin_probability = (K+R)/len`
+and `allergen_probability = C/len`, versus composition.py's sigmoid features. So
+the "real gate outputs" that feed the paper/README come from a **different
+algorithm** than the deployed gates (third parallel copy after `composition.py`
+and this script; see also GATE-10 on GC duplication). Separately, `run_demo.py`'s
+MANIFEST drives the pipeline with **mock** adapters, yet the golden files carry
+real-looking values and messages (`"plddt_mean": 77.6 … ESMFold API`,
+`GRAVY -0.667`) that the mock adapters (default pLDDT 87.3) would not produce — so
+`run_demo.py` (verify mode) appears unable to reproduce its own golden fixtures.
+
+**Fix:** Have one source of truth for the heuristics (import from
+`tinsel_gates`), and regenerate golden files from the exact adapters the runner
+uses so `--generate` and verify are consistent. If goldens are meant to capture
+*real* runs, make the runner run real adapters for generation.
+
+### DEMO-02 · 🔵 Low · consistency · Demo signing-key derivation differs from the vault's
+**Location:** `run_demo.py` (`DEMO_SIGNING_KEY = sha3_256(DEMO_KEY + b":tinsel-signing-key-v1")`) vs `vault/base.py` (`_derive_signing_key = HMAC(spreading, b"tinsel-signing-key-v1")`)
+
+The demo derives the signing key with a plain SHA3-256 concatenation, while the
+real vault path uses HMAC. Not a vulnerability, but it means demo-produced
+watermarks/signatures are not reproducible by the production derivation and vice
+versa — an avoidable inconsistency in a repo that emphasizes deterministic,
+verifiable output.
+
+**Fix:** Import and reuse `_derive_signing_key` in the demo.
+
+### INFRA-03 · 🔵 Low · ci · Security gates in CI don't actually gate
+**Location:** `.github/workflows/ci.yml`
+
+- `npm audit --audit-level=high` has `continue-on-error: true` → advisory only.
+- `bandit -ll` reports only High severity; Medium findings pass silently.
+- Coverage is collected (`--cov`) but never enforced (`--cov-fail-under` absent).
+- No dashboard tests; no secret-scanning/`detect-secrets` step.
+- Triggers are `push`/`pull_request` to `main` only, so work on feature branches
+  (including branches that never target `main` directly) gets no CI.
+
+**Fix:** Make `npm audit` and bandit failing checks (or triage explicitly), add a
+coverage floor, add secret scanning, and broaden trigger branches (or run on all
+PRs regardless of base).
+
+### INFRA-04 · 🔵 Low · security · Dockerfile supply-chain hardening
+**Location:** `packages/tinsel-api/Dockerfile`
+
+Base image `python:3.12-slim` is tag-pinned but not digest-pinned; `pip install`
+runs without hash pinning; single-stage build ships build tooling into the
+runtime image; no `HEALTHCHECK` in the image itself (only compose has one).
+
+**Fix:** Pin the base by digest, use `uv`/pip with a locked+hashed requirement
+set (a `uv.lock` already exists at the root — use it), consider a multi-stage
+build, and add an image `HEALTHCHECK`.
+
+### INFRA-05 · 🔵 Low · consistency · The insecure `"aa"*32` dev key is hardcoded in three places
+**Location:** `config.py` (`spreading_key` default), `docker-compose.yml` (inline default), `run_demo.py` (`DEMO_KEY`)
+
+The same weak dev key literal is repeated; a change in one won't propagate, and
+its presence in compose means a stray `SENTINEL_ENV` other than `production`
+would run with a known key (the prod guard only fires for `production`).
+
+**Fix:** Centralize the dev-key default; ensure any non-`test`/non-local run
+refuses known-weak keys, not just `production`.
+
+## 4.3 Nit
+
+### INFRA-06 · ⚪ Nit · lint/type config gaps
+**Location:** root `pyproject.toml`
+
+Ruff `select` omits `B` (bugbear) and `S` (flake8-bandit) which would catch some
+of the issues in this review (broad excepts, etc.). Mypy is strict for core/gates
+but broadly relaxed for `sentinel_api.*` — reasonable, but several route bugs
+here (e.g. API-16's wrong Pydantic fields) are the kind stricter typing would
+surface.
+
+**Fix:** Add `B`/`S` to ruff; tighten the `sentinel_api` mypy overrides where
+feasible.
+
+---
+
+*End of Phase 4. Phase 5 (`apps/dashboard`, the Next.js frontend) pending your go-ahead.*
