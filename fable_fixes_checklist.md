@@ -34,7 +34,12 @@ currently exploitable) it is marked *(latent)*.
 | 3 | `tinsel-gates` (pipeline + 4 gate adapters) | ✅ Done |
 | 4 | `tinsel-demo`, `scripts/`, infra (Docker, CI, pyproject, railway) | ✅ Done |
 | 5 | `apps/dashboard` (Next.js/React + API proxy) | ✅ Done |
-| 6 | Cross-cutting: architecture, test coverage, feature roadmap, prioritized summary | ⏳ Pending |
+| 6 | Cross-cutting: architecture, test coverage, feature roadmap, prioritized summary | ✅ Done |
+
+> **New here?** Jump to the [Executive Summary](#phase-6--cross-cutting-synthesis) and the
+> [Prioritized "Fix First" list](#62-prioritized-fix-first-ordering) in Phase 6.
+> ~90 findings total across 5 packages; the single most important one is the
+> **claims-vs-reality gap** (§6.1).
 
 ---
 
@@ -1190,4 +1195,221 @@ Works, but bypasses React Query's intended `invalidateQueries`.
 
 ---
 
-*End of Phase 5. Phase 6 (cross-cutting synthesis, feature roadmap, prioritized summary) pending your go-ahead.*
+*End of Phase 5.*
+
+---
+
+# Phase 6 — Cross-cutting synthesis
+
+This phase steps back from individual files to the system. It consolidates the
+recurring theme, gives a single prioritized "fix first" ordering across all
+phases, assesses test coverage, and proposes features.
+
+## Executive summary
+
+ArtGene-Archive / TINSEL is an ambitious, genuinely interesting system with a
+**strong foundation**: the WOTS+ and Reed-Solomon implementations are real and
+well-tested at the primitive level, the spread-spectrum codon watermark is a
+clever idea implemented cleanly, the API has thoughtful auth (hashed keys,
+org-scoped 404s, non-spoofable `org_id`), a real DB-level append-only trigger,
+proper HMAC key separation, and honest per-module docstrings. The engineering
+quality of the *building blocks* is above average for a project this size.
+
+The central risk is not a single bug — it is a **systematic gap between what the
+system claims and what it does**. Certificates, the README, and the dashboard
+assert cryptographic verification, watermarking-at-registration, mutation-tolerant
+forensic tracing, an immutable ledger, and multi-database biosafety screening.
+In the implementation, most of those are deferred, stubbed, mocked, or written
+but never invoked — while the output is still labeled authoritative ("CERTIFIED",
+"● LIVE", "WOTS+ SIGNATURE APPLIED", `gate_mode="real"`). For a system whose
+entire purpose is *trustworthy provenance and biosafety*, that gap is the
+headline finding: it's a governance/safety problem before it's a code problem.
+
+None of this makes the project unsalvageable — the opposite. The primitives are
+there; what's missing is (a) wiring verification and real screening into the live
+paths, (b) failing *closed* instead of *open*, and (c) making every trust signal
+tell the truth about its own assurance level. Concrete ordering below.
+
+## 6.1 The core theme — claims vs. implementation reality
+
+| Public claim (README / cert / UI) | Implementation reality | Findings |
+|---|---|---|
+| "Cryptographically verifiable creator attribution" | WOTS+ signs, but **nothing ever verifies** — `verify_certificate` has no call site; no endpoint recomputes the cert hash | API-01, FE-T2 |
+| "WOTS+ post-quantum signed" (one-time signature) | `sign_certificate` never passes `event_nonce` → re-signing a registry_id **reuses the one-time key** (forgeable) | CORE-01 |
+| "Tamper-evident SHA3-256-chained audit log" | Chain append is not concurrency-safe; revoke/publish **bypass the log entirely**; ORM append-only guard is inert (trigger is the only real protection) | API-02, API-03, API-07 |
+| "Every sequence receives a TINSEL watermark" (at registration) | Registration embeds **no watermark**; `tier` hardcoded `STANDARD`; watermarking happens only at distribution | API-10, FE-T3 |
+| "Watermark survives re-synthesis and mutation" | `verify-source` uses **exact string equality**; the mutation-tolerant decoder isn't used | API-09 |
+| "Four-gate automated biosafety screen" (real) | Prod Gate 2 (SecureDNA/IBBIS) is **always mock**; Gate 1 **fails open to a constant-PASS mock**; Gate 4 uses an uncalibrated metric; Gate 3 skipped for protein input — yet `gate_mode="real"` | GATE-01, GATE-02, GATE-03, GATE-04, GATE-08, FE-T1 |
+| "Immutable ledger entry created" / "anchored" (UI) | Shown unconditionally, including for stub signatures; Merkle pathways are stubs | FE-T2, FE-T4, API-19 |
+| "Sequences are never stored — only hashes" | Full plaintext protein stored in `watermark_metadata`; every ≤400 AA seq POSTed to a third-party API | API-08, GATE-05 |
+| "CERTIFIED" (showcase/registry rows) | Hardcoded regardless of real status; mock data substituted on backend error | FE-T4, FE-T5 |
+
+**The fix pattern is consistent:** either implement the claim on the live path,
+or make the claim tell the truth about its assurance level. A single structured
+`assurance_level` field (propagated from gates → certificate → compliance doc →
+UI badge) would resolve most of the row-by-row mismatches.
+
+## 6.2 Prioritized "fix first" ordering
+
+Ordered by (safety/security impact × how misleading the current state is). This
+is the recommended work sequence, not just severity.
+
+### P0 — Do before this is used for anything real
+1. **GATE-01 / GATE-02** — Stop labeling mock/failed-open screening as `real`.
+   Fail *closed* on ESMFold errors; don't hardcode `use_mock_external=True`;
+   gate the `real` label on real external screening actually running.
+2. **CORE-01** — Thread `event_nonce` through WOTS+ signing; forbid key reuse per
+   registry_id. (One-time-signature key reuse is a break, not a bug.)
+3. **API-01** — Implement and expose real certificate verification (recompute
+   hash + `PQSigner.verify_certificate`); wire it into the UI and a public
+   verifier. Without this the crypto is decorative.
+4. **FE-01 / FE-02** — Remove the proxy shared-key fallback for write/revoke and
+   never expose an API key via `NEXT_PUBLIC_*`.
+5. **FE-T1 / FE-T2 / FE-T3 / FE-T4 / FE-T5** — Make every trust signal honest:
+   no "● LIVE"/"CERTIFIED"/"anchored" over stub/mock data; no silent mock-data
+   substitution.
+
+### P1 — Correctness & integrity, before scale
+6. **CORE-02** — Canonicalize the certificate hash (separators + sorted keys +
+   versioned scheme).
+7. **API-02 / API-06** — Serialize the audit-chain append (sequence/advisory
+   lock/retry) and add a DB unique constraint for dedup.
+8. **API-03** — Record revoke/publish in the audit chain.
+9. **API-10 / GATE-04** — Store the real tier/chi-squared; translate DNA→protein
+   so each gate screens correct input; don't auto-PASS Gate 3 on empty DNA.
+10. **API-04 / API-05** — Auth-gate (or scope) the vault/external-hitting demo
+    endpoints; move rate limiting to a shared store.
+11. **API-08 / GATE-05** — Reconcile the "never stored" claim: encrypt sequences
+    at rest and/or disclose the ESMFold third-party data flow.
+12. **CORE-04 / CORE-05** — Leap-day validity crash; make `gate_mode` default safe.
+
+### P2 — Hardening, hygiene, maintainability
+13. **INFRA-01** — Non-root container user.
+14. **API-13 / INFRA-02** — Reconcile the prod vault posture and fix the
+    `.env.example` env→gate description.
+15. **FE-S1 / FE-S2 / FE-S3** — Dead nav/dark-mode; unify styling; split the
+    2.6k-line page.
+16. **FE-C1 / FE-C2 / FE-C3** — Server-side registry search; fix the stale e2e
+    tests that currently protect nothing.
+17. Everything else (dedup helpers, dead code, DRY, a11y, perf, CI gates).
+
+## 6.3 Recurring engineering patterns (root causes)
+
+These show up across packages; fixing the *pattern* prevents recurrence:
+
+- **Fail-open instead of fail-closed.** ESMFold→constant-PASS mock (GATE-02),
+  Gate 3 auto-PASS on empty DNA (GATE-04), register gate badges default PASS
+  (FE-C4), `gate_mode` defaults `"real"` (CORE-05). A safety system should
+  degrade to WARN/FAIL/indeterminate, never to PASS.
+- **"Real" is a binary that hides partial mocking.** `gate_mode`/`mock_mode`
+  conflate "not the test double" with "actually screened." Replace with a
+  structured per-layer assurance level (GATE-08) that propagates to the UI.
+- **Write-only / never-invoked security code.** WOTS+ verify (API-01), the
+  append-only ORM mixin (API-07), the real SecureDNA/IBBIS/ESM-2 paths
+  (`NotImplementedError`). Code that exists but is never called reads as a
+  guarantee that isn't there.
+- **TOCTOU / missing serialization.** Audit chain (API-02) and dedup (API-06)
+  both check-then-act without a lock or DB constraint.
+- **Duplication of load-bearing logic.** Heuristics (composition vs
+  `compute_real_gate_outputs.py`), GC content (×4), status/tier badges (×5),
+  `_gate_summary` (×2), signing-key derivation (demo vs vault). Divergence risk
+  on exactly the code that determines outcomes.
+- **Docs/labels drift from behavior.** `.env.example` gate mapping, Ed25519
+  "fallback", `__license__` MIST vs Apache, "Phase 3c/7" leftovers, p-value
+  docstring inversion. Individually minor; collectively they erode trust in the
+  docs.
+
+## 6.4 Test coverage assessment
+
+**Well covered (keep it up):** RS codec (systematic encoding, syndromes,
+correction at exactly *t* errors, over-*t* raises), spreading code (balance,
+determinism, roundtrip), watermark clean roundtrip + wrong-key BER, HMAC
+signature determinism/uniqueness, chi-squared covertness, validators, utils. The
+`test_security_properties.py` suite is a genuine asset.
+
+**Critical gaps — the highest-severity findings have no tests:**
+- **No WOTS+ tests at all** — not keypair uniqueness per nonce (CORE-01), not
+  sign→verify roundtrip, not tamper-detection. `TestSignatureUnforgeability`
+  tests the *HMAC watermark* signature, not the WOTS+ certificate signature.
+- **No certificate-hash canonicalization test** (CORE-02).
+- **No audit-chain concurrency test** — `test_register_sequential_ids_increment`
+  is serial and won't catch API-02.
+- **Real gate paths are never exercised** — the whole suite runs `env=test`
+  (all mocks), so GATE-01/02/03/04 (ESMFold fallback, mock-external labeling,
+  Gate-4 calibration, DNA-as-protein) are untested. Add tests that run adapters
+  with `env="production"`-style wiring and assert fail-closed behavior.
+- **No leap-day (CORE-04), dedup-race (API-06), or verify-endpoint (API-01)
+  tests.**
+- **Frontend has no unit/component tests**, and the e2e specs are stale and
+  mock the wrong layer (FE-C2/C3) — effectively zero real frontend coverage.
+
+**Recommendation:** add a `--cov-fail-under` floor, write the WOTS+ and
+audit-chain tests first (they guard P0/P1 items), and add a small set of
+"assurance/labeling" tests that assert a mock/failed gate never yields a `real`,
+PASS certificate.
+
+## 6.5 Suggested features / enhancements
+
+Beyond fixing findings, these would materially strengthen the platform (roughly
+high→low leverage):
+
+**Trust & verification**
+- **Public, keyless verification endpoint + verifier UI** — recompute cert hash,
+  verify WOTS+, walk and verify the audit chain; this is the product's core value
+  and is currently absent (API-01).
+- **Structured `assurance_level`** on every certificate (which gates ran live vs
+  heuristic vs mock, signature real vs stub), surfaced end-to-end.
+- **Revocation status endpoint (CRL/OCSP-style)** so synthesizers can check
+  live status, plus audit-logged revocations (API-03).
+- **Real Merkle pathway trees + inclusion proofs** (API-19), and periodic
+  published chain checkpoints (e.g., a signed root) for external anchoring.
+
+**Biosafety depth**
+- **Config-gated real integrations** (SecureDNA API, IBBIS `commec`, ESM-2) with
+  fail-closed defaults and calibrated thresholds (GATE-01/03).
+- **Calibration harness** — evaluate gate FPR/FNR against a benign proteome +
+  known-hazard set; publish the operating point (GATE-06).
+- **DNA↔protein translation in the pipeline** so all four gates apply to both
+  input types (GATE-04).
+
+**Platform / ops**
+- Redis-backed rate limiting (API-05); **key rotation & versioning** for
+  spreading/signing keys; sequence **encryption at rest** (API-08); request-ID
+  logging, metrics, and tracing; SBOM + secret-scanning + enforced `npm
+  audit`/bandit in CI (INFRA-03).
+- Scoped/role-based API keys (read vs write vs admin) so a public demo key can't
+  register/revoke (ties to FE-01).
+- Cursor pagination + server-side search on the registry (FE-C1).
+
+**Frontend**
+- Working theme toggle (FE-S1), unified design system (FE-S2), real certificate
+  download, list virtualization, and an accessibility pass (FE-A*).
+
+## 6.6 What's genuinely good (keep these)
+
+So the report isn't only a defect list — deliberate strengths worth preserving:
+real WOTS+/RS/spreading primitives with property tests; hashed, org-scoped API
+keys with existence-non-leaking 404s; the DB-level append-only trigger; HMAC key
+separation between spreading and signing keys; production guard on the dev
+spreading key; honest per-adapter docstrings; a clean adapter/ABC gate
+architecture with DI; a typed API client mirroring the backend schemas; correct
+HTML-escaping in the JSON viewer; and a real CI matrix (ruff + bandit + mypy-
+strict + pytest + dashboard build). The bones are good.
+
+## 6.7 Review stats
+
+- **Scope reviewed:** all 4 Python packages (~11.9k LOC) + the Next.js dashboard
+  (~10.4k LOC) + infra/CI/docker/migrations.
+- **Findings:** ~90 total — Phase 1 (16), Phase 2 (23), Phase 3 (13), Phase 4 (8),
+  Phase 5 (~30).
+- **Severity mix:** a handful of Critical/High concentrated in crypto invocation,
+  audit-chain integrity, gate authenticity, and frontend trust signals; the
+  majority are Medium/Low correctness, DRY, and hygiene items.
+- **One-line takeaway:** *Solid primitives; the work now is to make the live
+  paths and every trust signal actually deliver — and honestly label — what the
+  system claims.*
+
+---
+
+*End of review. All six phases complete. This document is advisory only — no
+application code was modified.*
