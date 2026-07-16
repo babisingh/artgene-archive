@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 // Both vars are server-side runtime env vars — set them in Railway.
 // API_URL  → tinsel-api service URL (e.g. https://tinsel-api.up.railway.app)
-// API_KEY  → shared API key injected into every proxied request
+// API_KEY  → OPTIONAL shared key used ONLY for read-only (GET/HEAD) requests,
+//            so a public dashboard can browse the registry without per-user
+//            keys.  It is deliberately NEVER applied to state-changing requests
+//            (register / revoke / publish / distributions), which require the
+//            caller to supply their own key — otherwise the shared key would let
+//            any anonymous visitor mutate the registry. Keep it least-privilege
+//            (a read-scoped key) if you set it at all.
 const API_URL = process.env.API_URL ?? "http://localhost:8000";
 const SERVER_API_KEY = process.env.API_KEY ?? "";
 
@@ -15,10 +21,24 @@ async function proxy(
   const targetUrl = new URL(`${API_URL}/api/v1/${path.join("/")}`);
   targetUrl.search = req.nextUrl.search;
 
+  const isReadOnly = method === "GET" || method === "HEAD";
+  const browserKey = req.headers.get("x-api-key");
+  // Shared server key is a fallback for READ-ONLY requests only. Writes must
+  // carry a caller-supplied key.
+  const apiKey = browserKey || (isReadOnly ? SERVER_API_KEY : "");
+
+  if (!apiKey && !isReadOnly) {
+    return NextResponse.json(
+      {
+        detail:
+          "An API key is required for this operation. Set your key via " +
+          '"Set API Key" in the dashboard navigation bar.',
+      },
+      { status: 401 },
+    );
+  }
+
   const headers: Record<string, string> = {};
-  // Prefer a key explicitly provided by the browser; fall back to the
-  // server-side API_KEY so the app works without per-user keys.
-  const apiKey = req.headers.get("x-api-key") || SERVER_API_KEY;
   if (apiKey) headers["x-api-key"] = apiKey;
   const ct = req.headers.get("content-type");
   if (ct) headers["content-type"] = ct;

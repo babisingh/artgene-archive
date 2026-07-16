@@ -1001,8 +1001,16 @@ API client mirroring the Pydantic schemas.
 
 ## 5.1 High — Security surface
 
-### FE-01 · 🟠 High · security · Proxy's shared-key fallback turns the dashboard into an open authenticated gateway
+### FE-01 · 🟠 High · security · Proxy's shared-key fallback turns the dashboard into an open authenticated gateway · ✅ FIXED
 **Location:** `app/api/proxy/[...path]/route.ts:21` — `const apiKey = req.headers.get("x-api-key") || SERVER_API_KEY;`
+
+> **✅ Fixed:** The proxy now applies the shared `SERVER_API_KEY` fallback **only
+> to read-only (GET/HEAD)** requests. State-changing requests (POST — register,
+> revoke, publish, distributions, verify-source) must carry a caller-supplied
+> `x-api-key`; without one the proxy returns 401 and never forwards them with the
+> shared key. Anonymous visitors can still browse the public read surface but can
+> no longer mutate the registry with the server key. Type-check + production
+> build pass.
 
 When `API_KEY` is configured on the Next server, the proxy signs **every**
 request that lacks a browser-supplied key with that shared server key. Any
@@ -1016,8 +1024,18 @@ If a public read-only demo is desired, use a separate least-privilege key
 restricted to safe GET endpoints, and require a real key for register/revoke/
 distribute. Consider per-route allowlisting in the proxy.
 
-### FE-02 · 🟠 High · security · `NEXT_PUBLIC_API_KEY` ships a working key to every browser
+### FE-02 · 🟠 High · security · `NEXT_PUBLIC_API_KEY` ships a working key to every browser · ✅ FIXED
 **Location:** `lib/providers.tsx:52-55` (prefers `process.env.NEXT_PUBLIC_API_KEY`); `app/sequences/page.tsx:348` and `app/sequences/[id]/page.tsx:2452` instruct users to set it
+
+> **✅ Fixed:** `providers.tsx` no longer reads `NEXT_PUBLIC_API_KEY` at all — the
+> key comes solely from user-entered `sessionStorage`, so no key is inlined into
+> the client bundle. Updated the on-screen guidance in
+> `sequences/[id]/page.tsx` to say "Click **Set API Key** in the navigation bar"
+> instead of telling users to set the public env var (`sequences/page.tsx`
+> already had correct guidance; its `NEXT_PUBLIC_API_URL` reference is the API
+> URL, which is legitimately public). For a keyless public demo, the server-side
+> proxy `API_KEY` (read-only per FE-01) is the intended path. Type-check +
+> build pass.
 
 Any `NEXT_PUBLIC_*` var is inlined into the client bundle at build time. So a
 deployment that sets `NEXT_PUBLIC_API_KEY` (which the UI explicitly tells users

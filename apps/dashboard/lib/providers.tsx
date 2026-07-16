@@ -48,13 +48,14 @@ function getQueryClient() {
 export function Providers({ children }: { children: ReactNode }) {
   const queryClient = getQueryClient();
 
+  // The API key is entered by the user and kept in sessionStorage only. It is
+  // deliberately NOT sourced from NEXT_PUBLIC_API_KEY: any NEXT_PUBLIC_* value is
+  // inlined into the client bundle at build time and would ship a live key to
+  // every visitor. For a keyless public demo, configure the server-side proxy
+  // (API_KEY) instead, which never reaches the browser.
   const [apiKey, setApiKeyState] = useState<string>(() => {
-    if (typeof window === "undefined") return process.env.NEXT_PUBLIC_API_KEY ?? "";
-    return (
-      process.env.NEXT_PUBLIC_API_KEY ||
-      sessionStorage.getItem("artgene_api_key") ||
-      ""
-    );
+    if (typeof window === "undefined") return "";
+    return sessionStorage.getItem("artgene_api_key") || "";
   });
 
   function setApiKey(key: string) {

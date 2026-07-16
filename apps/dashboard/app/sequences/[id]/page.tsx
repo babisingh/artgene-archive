@@ -2449,7 +2449,7 @@ export default function CertificatePage({
   if (!apiKey && !isDemoId) {
     return (
       <div className="wrap" style={{ padding: "80px 0", textAlign: "center", color: "var(--ink-3)" }}>
-        <p>No API key configured. Add <code>NEXT_PUBLIC_API_KEY</code> to your environment.</p>
+        <p>No API key configured. Click <strong>Set API Key</strong> in the navigation bar to enter your key.</p>
         <Link href="/sequences" className="btn btn-ghost btn-sm" style={{ marginTop: 16, display: "inline-block" }}>
           ← Back to sequences
         </Link>
