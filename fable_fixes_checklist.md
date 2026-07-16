@@ -91,8 +91,17 @@ is a natural fit) or a per-event UUID, persist it on the certificate/event row,
 and refuse to sign twice with the same `(registry_id, nonce)`. Add a regression
 test that signs the same `registry_id` twice and asserts the keypairs differ.
 
-### CORE-02 · 🟠 High · security/bug · Certificate hash uses ambiguous, order-dependent serialization
+### CORE-02 · 🟠 High · security/bug · Certificate hash uses ambiguous, order-dependent serialization · ✅ FIXED
 **Location:** `tinsel/registry.py` → `HybridCertificate.compute_hash()`
+
+> **✅ Fixed:** `compute_hash` now emits canonical JSON (`sort_keys=True`,
+> `separators=(",",":")`, `default=str`) prefixed with a versioned scheme tag
+> (`HASH_SCHEME = "tinsel-cert-hash-v1"`, a `ClassVar`), so field boundaries are
+> unambiguous (no `"12"+"3"` vs `"1"+"23"` collision) and the hash is
+> order-independent. Added a `canonical_timestamp()` helper (naive→UTC) used on
+> both the signing and verification paths so field-integrity checks don't depend
+> on DB timezone round-tripping. New `TestCertificateHashCanonicalization` (4
+> tests: boundary-collision, order-independence, determinism, value-sensitivity).
 
 ```python
 payload = "".join(str(v) for v in fields.values()).encode("utf-8")
@@ -320,8 +329,20 @@ guards on the spreading key. The findings below are what to fix on top of that.
 
 ## 2.1 High — Integrity, auth, and abuse surface
 
-### API-01 · 🟠 High · security · WOTS+ signatures are never verified anywhere (write-only crypto)
+### API-01 · 🟠 High · security · WOTS+ signatures are never verified anywhere (write-only crypto) · ✅ FIXED
 **Location:** whole package; `grep` shows `PQSigner.verify_certificate` has zero call sites. `certificates.py` → `verify_certificate()` only runs the *watermark* decoder.
+
+> **✅ Fixed:** Added a public, no-auth endpoint
+> `GET /api/v1/certificates/{registry_id}/verify-signature` (for `public`
+> certificates) that (a) verifies the WOTS+ signature over the stored
+> certificate hash and (b) recomputes the canonical hash from the stored fields
+> and compares it — returning `signature_valid`, `field_integrity`,
+> `overall_verified`, `algorithm`, `is_stub`, and `event_nonce`. Verification
+> uses a new seedless `PQSigner.verify_signature()` staticmethod (no master
+> secret needed — genuine public-key verification, so third parties/synthesizers
+> can verify). Regression tests: `TestVerifySignature` (register→verify happy
+> path with `overall_verified is True`, plus 404). Full audit-chain (ledger)
+> verification remains a separate follow-up (API-03).
 
 Registration signs the certificate hash with WOTS+, but **no endpoint ever
 verifies that signature**, and none recomputes `certificate_hash` from the

@@ -9,8 +9,14 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from tinsel.compliance import build_compliance_manifest
-from tinsel.crypto import ALGORITHM_WOTS, PQSigner
-from tinsel.registry import AnchorMap, CertificateStatus, WatermarkConfig
+from tinsel.crypto import PQSigner
+from tinsel.registry import (
+    AnchorMap,
+    CertificateStatus,
+    HybridCertificate,
+    WatermarkConfig,
+    canonical_timestamp,
+)
 from tinsel.synthesis_auth import build_synthesis_auth_document
 from tinsel.watermark.decoder import TINSELDecoder
 
@@ -398,6 +404,83 @@ async def verify_compliance_public(
         "pq_is_stub": pk_dict.get("is_stub", True),
         "overall_gate_status": report.get("overall_status", "skip"),
         "screening_databases": [db.get("name") for db in databases if db.get("name")],
+        "verified_at": datetime.now(UTC).isoformat(),
+    }
+
+
+@router.get("/{registry_id}/verify-signature")
+async def verify_certificate_signature(
+    registry_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Publicly verify a certificate's WOTS+ signature and field integrity.
+
+    No authentication required — third parties (e.g. DNA synthesis providers) can
+    verify any *public* certificate using only public material:
+
+    * ``signature_valid`` — the stored WOTS+ signature verifies against the
+      stored public key over the stored certificate hash (proves the hash is
+      authentic and unforged; needs no secret seed).
+    * ``field_integrity`` — the certificate hash recomputed from the stored
+      fields matches the stored hash (detects field tampering). This requires the
+      stored fields to serialise identically to issuance time.
+
+    ``overall_verified`` is true only if the signature is a real (non-stub) WOTS+
+    signature that verifies **and** the recomputed field hash matches.
+
+    Note: this endpoint verifies the certificate's own signature and hash. Full
+    audit-chain (ledger) verification is a separate concern (see API-03).
+    """
+    result = await db.execute(
+        select(Certificate).where(
+            Certificate.id == registry_id,
+            Certificate.visibility == "public",
+        )
+    )
+    cert = result.scalars().first()
+    if cert is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Certificate '{registry_id}' not found or not publicly visible",
+        )
+
+    pk_dict = cert.wots_public_key or {}
+    sig_dict = cert.wots_signature or {}
+    is_stub = pk_dict.get("is_stub", True)
+    algorithm = pk_dict.get("algorithm_id", "stub_zero_v1")
+
+    # (b) Signature verification — public-key only, no master seed required.
+    signature_valid, signature_reason = PQSigner.verify_signature(
+        cert.certificate_hash, pk_dict, sig_dict
+    )
+
+    # (a) Field integrity — recompute the canonical hash from stored fields and
+    # compare to the stored hash. Field names/order here MUST match the payload
+    # signed at issuance (see register.register_sequence).
+    recomputed_fields = {
+        "registry_id": cert.id,
+        "owner_id": cert.owner_id,
+        "org_id": str(cert.org_id),
+        "ethics_code": cert.ethics_code,
+        "sequence_hash": cert.sequence_hash,
+        "timestamp": canonical_timestamp(cert.timestamp),
+    }
+    recomputed_hash = HybridCertificate.compute_hash(recomputed_fields)
+    field_integrity = recomputed_hash == cert.certificate_hash
+
+    overall_verified = bool(signature_valid and field_integrity and not is_stub)
+
+    return {
+        "registry_id": cert.id,
+        "algorithm": algorithm,
+        "is_stub": is_stub,
+        "event_nonce": pk_dict.get("event_nonce"),
+        "signature_valid": signature_valid,
+        "signature_reason": signature_reason or None,
+        "field_integrity": field_integrity,
+        "certificate_hash": cert.certificate_hash,
+        "hash_scheme": HybridCertificate.HASH_SCHEME,
+        "overall_verified": overall_verified,
         "verified_at": datetime.now(UTC).isoformat(),
     }
 

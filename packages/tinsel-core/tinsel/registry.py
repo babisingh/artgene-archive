@@ -30,9 +30,10 @@ positions (watermark bit capacity) in the protein sequence:
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime
+import json
+from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
 
@@ -110,6 +111,21 @@ TIER_SIG_BYTES: dict[WatermarkTier, int] = {
     WatermarkTier.DEMO:      1,   # 8-bit signature
     WatermarkTier.REJECTED:  0,
 }
+
+
+def canonical_timestamp(dt: datetime) -> str:
+    """Return a canonical UTC ISO-8601 string for a datetime, for use in the
+    signed certificate payload.
+
+    A naive datetime is treated as UTC.  This guarantees that a timestamp
+    hashed at issuance and one re-read from the database (which, depending on the
+    backend, may come back naive) serialise to the *same* string — so
+    field-integrity verification does not depend on backend-specific timezone
+    round-tripping.
+    """
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC).isoformat()
 
 
 def select_tier(carrier_positions: int) -> WatermarkTier:
@@ -336,7 +352,28 @@ class HybridCertificate(BaseModel):
     chi_squared: float | None = None
     tier: WatermarkTier
 
+    #: Version tag for the canonical certificate-hash scheme.  Prefixed into the
+    #: hashed payload for domain separation so a future scheme change is
+    #: detectable and old/new hashes never silently collide.
+    HASH_SCHEME: ClassVar[str] = "tinsel-cert-hash-v1"
+
     @classmethod
     def compute_hash(cls, fields: dict[str, Any]) -> str:
-        payload = "".join(str(v) for v in fields.values()).encode("utf-8")
+        """Return the canonical SHA3-512 hash of *fields*.
+
+        The payload is a canonical JSON encoding — keys sorted, no insignificant
+        whitespace, non-JSON values coerced via ``str`` — prefixed with a scheme
+        version tag.  Unlike a bare ``"".join(str(v))``, this makes field
+        boundaries unambiguous (so ``{"a":"12","b":"3"}`` and
+        ``{"a":"1","b":"23"}`` no longer collide) and makes the hash independent
+        of dict insertion order.
+        """
+        canonical = json.dumps(
+            fields,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            default=str,
+        )
+        payload = f"{cls.HASH_SCHEME}\n{canonical}".encode()
         return hashlib.sha3_512(payload).hexdigest()

@@ -125,10 +125,35 @@ class PQSigner:
     ) -> tuple[bool, str]:
         """Verify a WOTS+ certificate signature.
 
+        Thin instance wrapper around :meth:`verify_signature`.  Verification uses
+        only the stored public key and signature, so it does **not** require the
+        master seed; ``registry_id`` is accepted for call-site symmetry but is
+        not needed to verify.
+
         Returns
         -------
         (ok, reason)
             ok     — True if signature is valid
+            reason — human-readable explanation (empty string if ok)
+        """
+        return self.verify_signature(cert_hash_hex, pk_dict, sig_dict)
+
+    @staticmethod
+    def verify_signature(
+        cert_hash_hex: str,
+        pk_dict: dict,
+        sig_dict: dict,
+    ) -> tuple[bool, str]:
+        """Verify a WOTS+ signature from public material alone (no secret seed).
+
+        This is public-key verification: given the stored public key, signature,
+        and the certificate hash, anyone (including third parties who never hold
+        the master seed) can check validity.
+
+        Returns
+        -------
+        (ok, reason)
+            ok     — True if the signature is valid
             reason — human-readable explanation (empty string if ok)
         """
         algo = pk_dict.get("algorithm_id", ALGORITHM_STUB)

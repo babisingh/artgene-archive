@@ -335,3 +335,49 @@ class TestDistributions:
     ) -> None:
         resp = await client.get(f"/api/v1/sequences/{registered_id}/distributions")
         assert resp.status_code in (401, 422)
+
+
+# ── Public certificate signature verification (API-01) ─────────────────────────
+
+class TestVerifySignature:
+    @pytest.fixture
+    async def registered_id(self, client: AsyncClient, auth_headers: dict) -> str:
+        resp = await client.post(
+            "/api/v1/register",
+            json={
+                "fasta": FASTA_OK,
+                "owner_id": "OWNER_VERIFY",
+                "org_id": "test-org",
+                "ethics_code": "ERC-009",
+                "host_organism": "ECOLI",
+                "visibility": "public",
+            },
+            headers=auth_headers,
+        )
+        assert resp.status_code == 201, resp.text
+        return resp.json()["registry_id"]
+
+    async def test_signature_verifies_without_auth(
+        self, client: AsyncClient, registered_id: str
+    ) -> None:
+        """A freshly registered public certificate's WOTS+ signature must verify
+        via the public (keyless, no-auth) endpoint."""
+        resp = await client.get(f"/api/v1/certificates/{registered_id}/verify-signature")
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["registry_id"] == registered_id
+        assert body["is_stub"] is False
+        assert body["algorithm"] == "wots_plus_sha3_256_w256_l35"
+        assert body["signature_valid"] is True, body.get("signature_reason")
+        assert body["event_nonce"] is not None
+        assert body["hash_scheme"] == "tinsel-cert-hash-v1"
+        # Canonical timestamp handling makes field-integrity robust to DB
+        # timezone round-tripping, so a valid certificate fully verifies.
+        assert body["field_integrity"] is True
+        assert body["overall_verified"] is True
+
+    async def test_verify_unknown_certificate_returns_404(
+        self, client: AsyncClient
+    ) -> None:
+        resp = await client.get("/api/v1/certificates/AG-9999-999999/verify-signature")
+        assert resp.status_code == 404

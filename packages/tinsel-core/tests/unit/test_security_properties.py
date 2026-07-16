@@ -22,6 +22,7 @@ from tinsel import (
     TINSELEncoder,
 )
 from tinsel.crypto import PQSigner
+from tinsel.registry import HybridCertificate
 
 # ---------------------------------------------------------------------------
 # Test fixtures
@@ -427,3 +428,47 @@ class TestWOTSOneTimeSignature:
             "AG-2027-000001", self._CERT_HASH_A, event_nonce="b1946ac9-uuid"
         )
         assert pk_int["chains"] != pk_uuid["chains"]
+
+    def test_seedless_static_verification(self):
+        """verify_signature works from public material alone — no signer/seed
+        (enables third-party public verification; API-01)."""
+        s = self._signer()
+        pk, sig = s.sign_certificate("AG-2027-000001", self._CERT_HASH_A)
+        ok, _ = PQSigner.verify_signature(self._CERT_HASH_A, pk, sig)
+        assert ok, "Seedless public-key verification failed for a valid signature"
+        bad, _ = PQSigner.verify_signature(self._CERT_HASH_B, pk, sig)
+        assert not bad, "Seedless verification accepted a wrong certificate hash"
+
+
+# ---------------------------------------------------------------------------
+# 7. Certificate hash canonicalization (CORE-02)
+# ---------------------------------------------------------------------------
+
+class TestCertificateHashCanonicalization:
+    """HybridCertificate.compute_hash must be collision-safe at field boundaries
+    and independent of dict insertion order."""
+
+    def test_no_field_boundary_collision(self):
+        """Distinct field sets that a naive ''.join(str(v)) would collide on
+        (both → '123') must produce different hashes."""
+        h1 = HybridCertificate.compute_hash({"a": "12", "b": "3"})
+        h2 = HybridCertificate.compute_hash({"a": "1", "b": "23"})
+        assert h1 != h2, "Field-boundary collision — hash is not canonical"
+
+    def test_order_independent(self):
+        """The same fields in a different insertion order must hash identically."""
+        h1 = HybridCertificate.compute_hash({"a": "1", "b": "2", "c": "3"})
+        h2 = HybridCertificate.compute_hash({"c": "3", "a": "1", "b": "2"})
+        assert h1 == h2, "Hash depends on dict insertion order"
+
+    def test_deterministic_and_well_formed(self):
+        fields = {"registry_id": "AG-2027-000001", "owner_id": "OWNER_A", "n": 7}
+        h1 = HybridCertificate.compute_hash(fields)
+        h2 = HybridCertificate.compute_hash(dict(fields))
+        assert h1 == h2
+        assert len(h1) == 128 and all(c in "0123456789abcdef" for c in h1)  # SHA3-512 hex
+
+    def test_value_change_changes_hash(self):
+        base = {"registry_id": "AG-2027-000001", "owner_id": "OWNER_A"}
+        changed = {"registry_id": "AG-2027-000001", "owner_id": "OWNER_B"}
+        assert HybridCertificate.compute_hash(base) != HybridCertificate.compute_hash(changed)

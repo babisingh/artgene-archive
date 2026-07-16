@@ -30,6 +30,7 @@ from tinsel.registry import (
     LWECommitmentData,
     WOTSPublicKey,
     WOTSSignature,
+    canonical_timestamp,
 )
 from tinsel.sequence.fasta import normalise
 from tinsel_gates.pipeline import run_consequence_pipeline
@@ -362,7 +363,7 @@ async def register_sequence(
             "org_id": str(org.id),
             "ethics_code": body.ethics_code,
             "sequence_hash": seq_hash,
-            "timestamp": now.isoformat(),
+            "timestamp": canonical_timestamp(now),
         }
         cert_hash = HybridCertificate.compute_hash(cert_fields)
 
