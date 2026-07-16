@@ -687,8 +687,21 @@ closed in production when real screening isn't configured. Never label a run
 `real` unless the external layers actually executed against real databases.
 Record per-layer live/mock state on the certificate.
 
-### GATE-02 · 🟠 High · security/safety · Gate 1 (ESMFold) fails **open** to a constant-PASS mock
+### GATE-02 · 🟠 High · security/safety · Gate 1 (ESMFold) fails **open** to a constant-PASS mock · ✅ FIXED
 **Location:** `adapters/gate1/esmfold.py` → `ESMFoldGate1Adapter.run()`; `adapters/gate1/mock.py`
+
+> **✅ Fixed:** All three silent mock-PASS fallbacks (sequence > limit, API
+> error, unparseable PDB) now route through a new `_degraded_gate1()` helper that
+> returns **WARN** with `plddt_* = None` — structural confidence is reported as
+> *not assessed*, never a fabricated PASS (the old path returned a constant
+> pLDDT 87.3). WARN doesn't trip Gate-1 fail-fast, so hazard gates still run and
+> the certificate is flagged for review rather than silently certified. The
+> `except` was narrowed to `(TimeoutError, httpx.HTTPError)` so unexpected
+> (non-transport) errors propagate as a pipeline error instead of being masked;
+> the now-unused `MockGate1Adapter`/`math` imports were removed. New
+> `test_esmfold_failclosed.py` (5 tests: long-seq, transport error, timeout,
+> unparseable PDB → WARN; unexpected error → propagates). Note: `gate_mode`
+> labeling (GATE-08) is still separate — this fix stops the *silent PASS*.
 
 On **any** exception — the clause is `except (httpx.HTTPError,
 asyncio.TimeoutError, Exception)`, i.e. catch-all — or a malformed/empty PDB,

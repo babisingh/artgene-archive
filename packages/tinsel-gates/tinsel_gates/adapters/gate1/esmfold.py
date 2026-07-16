@@ -7,10 +7,11 @@ Structural analysis pipeline:
 3. Compute instability index (Guruprasad 1990) from dipeptide composition.
 4. Apply standard thresholds and return a Gate1Result with rich fields.
 
-Falls back to MockGate1Adapter automatically on:
+Fails **closed** to a WARN (structure not assessed — never a synthetic PASS) on:
   - Network / timeout error
   - Sequence length > 400 AA (ESMFold Atlas limit)
   - Malformed PDB response
+Unexpected (non-transport) errors propagate rather than being masked.
 
 Thresholds (same as mock):
     pLDDT mean < 70.0          → FAIL
@@ -21,17 +22,13 @@ Thresholds (same as mock):
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import math
 
 import httpx
-
 from tinsel.consequence import Gate1Result
 from tinsel.models import GateStatus
 
 from tinsel_gates.adapters.base import Gate1Adapter
-from tinsel_gates.adapters.gate1.mock import MockGate1Adapter
 
 logger = logging.getLogger(__name__)
 
@@ -128,14 +125,46 @@ def _parse_plddt_from_pdb(pdb_text: str) -> list[float]:
 
 
 # ---------------------------------------------------------------------------
+# Fail-closed degraded result
+# ---------------------------------------------------------------------------
+
+def _degraded_gate1(protein: str, reason: str) -> Gate1Result:
+    """Return a fail-closed Gate 1 result when the structure could not be assessed.
+
+    Structural confidence is *unknown* — so the gate returns ``WARN`` (never a
+    synthetic ``PASS``): the sequence is flagged for manual review rather than
+    silently certified as well-folded.  pLDDT fields are ``None`` because no
+    folding was performed; the (sequence-only) instability index is still
+    reported.  A ``WARN`` does not trip the pipeline's Gate-1 fail-fast, so the
+    off-target / ecological / functional gates still run.
+    """
+    return Gate1Result(
+        status=GateStatus.WARN,
+        plddt_mean=None,
+        plddt_low_fraction=None,
+        delta_mfe=None,
+        message=(
+            f"Structural confidence NOT assessed — {reason}. "
+            "Result is not a structural PASS; flagged for manual review."
+        ),
+        plddt_per_residue=None,
+        instability_index=round(_compute_instability_index(protein), 2),
+        sequence_length=len(protein),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Real Gate 1 adapter
 # ---------------------------------------------------------------------------
 
 class ESMFoldGate1Adapter(Gate1Adapter):
     """Gate 1 implementation: ESMFold API for pLDDT + instability index.
 
-    For sequences longer than ``ESMFOLD_MAX_LENGTH`` or when the API is
-    unreachable, computation falls back to the deterministic mock adapter.
+    When the sequence is longer than ``ESMFOLD_MAX_LENGTH`` or ESMFold is
+    unreachable / returns an unparseable structure, the gate **fails closed**:
+    it returns ``WARN`` (structure not assessed), never a synthetic ``PASS``.
+    Unexpected (non-network) errors are allowed to propagate so they surface as
+    a pipeline error rather than being silently swallowed.
     """
 
     mock_mode = False
@@ -143,27 +172,23 @@ class ESMFoldGate1Adapter(Gate1Adapter):
     async def run(self, dna: str, protein: str) -> Gate1Result:
         sequence_length = len(protein)
 
-        # ── Long sequence fallback ────────────────────────────────────────
+        # ── Long sequence: ESMFold Atlas cannot fold > limit → fail closed ─
         if sequence_length > ESMFOLD_MAX_LENGTH:
             logger.info(
-                "Sequence length %d > %d; falling back to mock Gate 1",
+                "Sequence length %d > %d; Gate 1 cannot assess structure (WARN)",
                 sequence_length,
                 ESMFOLD_MAX_LENGTH,
             )
-            mock_result = await MockGate1Adapter().run(dna, protein)
-            ii = _compute_instability_index(protein)
-            return Gate1Result(
-                status=mock_result.status,
-                plddt_mean=mock_result.plddt_mean,
-                plddt_low_fraction=mock_result.plddt_low_fraction,
-                delta_mfe=mock_result.delta_mfe,
-                message=(mock_result.message or "") + " [mock — sequence > 400 AA]",
-                plddt_per_residue=None,
-                instability_index=ii,
-                sequence_length=sequence_length,
+            return _degraded_gate1(
+                protein,
+                f"sequence length {sequence_length} exceeds the ESMFold Atlas "
+                f"limit of {ESMFOLD_MAX_LENGTH} AA",
             )
 
         # ── ESMFold API call ─────────────────────────────────────────────
+        # Narrow catch: only expected transient transport errors degrade to a
+        # WARN.  Anything else propagates (fail closed via a pipeline error)
+        # rather than being masked as "API unavailable".
         pdb_text: str | None = None
         try:
             async with httpx.AsyncClient(timeout=ESMFOLD_TIMEOUT_S) as client:
@@ -174,40 +199,15 @@ class ESMFoldGate1Adapter(Gate1Adapter):
                 )
                 response.raise_for_status()
                 pdb_text = response.text
-        except (httpx.HTTPError, asyncio.TimeoutError, Exception) as exc:
-            logger.warning("ESMFold API call failed: %s; using mock", exc)
-
-        # ── API fallback ─────────────────────────────────────────────────
-        if pdb_text is None:
-            mock_result = await MockGate1Adapter().run(dna, protein)
-            ii = _compute_instability_index(protein)
-            return Gate1Result(
-                status=mock_result.status,
-                plddt_mean=mock_result.plddt_mean,
-                plddt_low_fraction=mock_result.plddt_low_fraction,
-                delta_mfe=mock_result.delta_mfe,
-                message=(mock_result.message or "") + " [mock — ESMFold API unavailable]",
-                plddt_per_residue=None,
-                instability_index=ii,
-                sequence_length=sequence_length,
-            )
+        except (TimeoutError, httpx.HTTPError) as exc:
+            logger.warning("ESMFold API call failed: %s; Gate 1 fails closed (WARN)", exc)
+            return _degraded_gate1(protein, f"ESMFold API unavailable ({type(exc).__name__})")
 
         # ── Parse PDB ────────────────────────────────────────────────────
         plddt_scores = _parse_plddt_from_pdb(pdb_text)
         if not plddt_scores:
-            logger.warning("No pLDDT scores extracted from ESMFold PDB; using mock")
-            mock_result = await MockGate1Adapter().run(dna, protein)
-            ii = _compute_instability_index(protein)
-            return Gate1Result(
-                status=mock_result.status,
-                plddt_mean=mock_result.plddt_mean,
-                plddt_low_fraction=mock_result.plddt_low_fraction,
-                delta_mfe=mock_result.delta_mfe,
-                message=(mock_result.message or "") + " [mock — PDB parse failed]",
-                plddt_per_residue=None,
-                instability_index=ii,
-                sequence_length=sequence_length,
-            )
+            logger.warning("No pLDDT scores extracted from ESMFold PDB; Gate 1 fails closed (WARN)")
+            return _degraded_gate1(protein, "ESMFold returned an unparseable structure")
 
         # ── Compute metrics ───────────────────────────────────────────────
         plddt_mean = sum(plddt_scores) / len(plddt_scores)
