@@ -366,9 +366,14 @@ async def register_sequence(
         }
         cert_hash = HybridCertificate.compute_hash(cert_fields)
 
-        # PQSigner derives a per-certificate keypair from (spreading_key, registry_id).
+        # PQSigner derives a per-certificate one-time keypair from
+        # (spreading_key, registry_id, event_nonce).  seq_num is a monotonic,
+        # globally-unique value, so it is used as the event_nonce to guarantee
+        # the WOTS+ keypair is never reused across signing events.
         pq_signer = PQSigner(master_seed=spreading_key)
-        pk_dict, sig_dict = pq_signer.sign_certificate(registry_id, cert_hash)
+        pk_dict, sig_dict = pq_signer.sign_certificate(
+            registry_id, cert_hash, event_nonce=seq_num
+        )
         wots_pub = WOTSPublicKey(**pk_dict)
         wots_sig = WOTSSignature(**sig_dict)
 

@@ -29,8 +29,6 @@ available in the Docker container and any pip-installed deployment.  Ed25519 fro
 from __future__ import annotations
 
 import hashlib
-import hmac as _hmac
-import os
 
 from tinsel.crypto import wots as _wots
 
@@ -63,25 +61,42 @@ class PQSigner:
     # ── Core sign / verify ───────────────────────────────────────────────────
 
     def sign_certificate(
-        self, registry_id: str, cert_hash_hex: str
+        self, registry_id: str, cert_hash_hex: str, event_nonce: int | str = 0
     ) -> tuple[dict, dict]:
         """Generate a keypair and sign the certificate hash.
+
+        WOTS+ is a *one-time* signature: a given keypair must sign at most one
+        message.  The keypair is derived from ``(master_seed, registry_id,
+        event_nonce)``, so every signing event on the same ``registry_id`` MUST
+        supply a distinct ``event_nonce`` — otherwise the one-time key is reused
+        and the scheme is broken (two signatures under one WOTS+ key allow
+        forgery).
 
         Parameters
         ----------
         registry_id:
-            Unique certificate ID (e.g. "AG-2026-000001").  Used as the WOTS+
-            derivation tag — each certificate gets a unique one-time keypair.
+            Unique certificate ID (e.g. "AG-2026-000001").  Part of the WOTS+
+            derivation tag.
         cert_hash_hex:
             Hex-encoded SHA3-512 certificate hash (the signed material).
+        event_nonce:
+            Per-signing-event unique value on this ``registry_id``.  Defaults to
+            ``0`` for the initial certificate issuance.  Callers that sign the
+            same record more than once (re-issuance, embargo lift, distribution
+            copy, correction) MUST pass a distinct, never-before-used value —
+            e.g. a monotonically incrementing counter or the audit-log seq_num.
 
         Returns
         -------
         (pk_dict, sig_dict)
             Both are dicts suitable for direct storage in the DB JSONB columns.
+            The ``event_nonce`` used is recorded in both dicts so the signing
+            event is auditable and non-reuse can be checked.
         """
         msg_hash = _msg_hash(cert_hash_hex)
-        sk, pk_chains, pub_seed = _wots.generate_keypair(self._seed, registry_id)
+        sk, pk_chains, pub_seed = _wots.generate_keypair(
+            self._seed, registry_id, event_nonce
+        )
         sig_chains = _wots.sign(msg_hash, sk, pub_seed)
 
         pk_dict = {
@@ -89,6 +104,7 @@ class PQSigner:
             "public_seed": pub_seed.hex(),
             "algorithm_id": ALGORITHM_WOTS,
             "is_stub": False,
+            "event_nonce": event_nonce,
         }
         sig_dict = {
             "signature_chains": _wots.chains_to_hex(sig_chains),
@@ -96,6 +112,7 @@ class PQSigner:
             "message_hash": msg_hash.hex(),
             "algorithm_id": ALGORITHM_WOTS,
             "is_stub": False,
+            "event_nonce": event_nonce,
         }
         return pk_dict, sig_dict
 

@@ -21,6 +21,7 @@ from tinsel import (
     TINSELDecoder,
     TINSELEncoder,
 )
+from tinsel.crypto import PQSigner
 
 # ---------------------------------------------------------------------------
 # Test fixtures
@@ -357,3 +358,72 @@ class TestSpreadingCodeProperties:
             gen_a.generate(128, b"same"),
             gen_b.generate(128, b"same"),
         )
+
+
+# ---------------------------------------------------------------------------
+# 6. WOTS+ one-time signature — nonce prevents keypair reuse (CORE-01)
+# ---------------------------------------------------------------------------
+
+class TestWOTSOneTimeSignature:
+    """WOTS+ is a one-time scheme: signing two messages under one keypair is a
+    break.  The keypair is derived from (master_seed, registry_id, event_nonce),
+    so a distinct event_nonce MUST yield a distinct keypair for the same record.
+    """
+
+    _MASTER = bytes.fromhex("11" * 32)
+    _CERT_HASH_A = "a1" * 64   # 64-byte SHA3-512-style hex
+    _CERT_HASH_B = "b2" * 64
+
+    def _signer(self) -> PQSigner:
+        return PQSigner(master_seed=self._MASTER)
+
+    def test_sign_then_verify_roundtrip(self):
+        """A freshly signed certificate must verify against its own keypair."""
+        s = self._signer()
+        pk, sig = s.sign_certificate("AG-2027-000001", self._CERT_HASH_A)
+        ok, reason = s.verify_certificate("AG-2027-000001", self._CERT_HASH_A, pk, sig)
+        assert ok, f"Valid signature rejected: {reason}"
+
+    def test_tampered_cert_hash_fails_verification(self):
+        """Verifying against a different cert hash must fail."""
+        s = self._signer()
+        pk, sig = s.sign_certificate("AG-2027-000001", self._CERT_HASH_A)
+        ok, _ = s.verify_certificate("AG-2027-000001", self._CERT_HASH_B, pk, sig)
+        assert not ok, "Signature verified against a tampered certificate hash"
+
+    def test_distinct_nonce_gives_distinct_keypair_for_same_record(self):
+        """The core CORE-01 guarantee: two signing events on the SAME registry_id
+        with different event_nonces must NOT reuse the one-time keypair."""
+        s = self._signer()
+        pk0, sig0 = s.sign_certificate("AG-2027-000001", self._CERT_HASH_A, event_nonce=0)
+        pk1, sig1 = s.sign_certificate("AG-2027-000001", self._CERT_HASH_A, event_nonce=1)
+        assert pk0["chains"] != pk1["chains"], (
+            "WOTS+ public key was reused across signing events on the same "
+            "registry_id — one-time key reuse (forgeable)."
+        )
+        assert pk0["public_seed"] != pk1["public_seed"], "public seed reused"
+        assert sig0["signature_chains"] != sig1["signature_chains"], "signature reused"
+
+    def test_nonce_is_recorded_for_audit(self):
+        """The event_nonce used must be persisted in both dicts for auditability."""
+        s = self._signer()
+        pk, sig = s.sign_certificate("AG-2027-000001", self._CERT_HASH_A, event_nonce=7)
+        assert pk["event_nonce"] == 7
+        assert sig["event_nonce"] == 7
+
+    def test_same_nonce_is_deterministic(self):
+        """Re-deriving with the same (record, nonce) reproduces the same keypair —
+        the property that makes non-reuse the caller's explicit responsibility."""
+        s = self._signer()
+        pk_a, _ = s.sign_certificate("AG-2027-000001", self._CERT_HASH_A, event_nonce=3)
+        pk_b, _ = s.sign_certificate("AG-2027-000001", self._CERT_HASH_A, event_nonce=3)
+        assert pk_a["chains"] == pk_b["chains"]
+
+    def test_string_nonce_supported(self):
+        """A UUID-style string nonce is accepted and distinguishes keypairs."""
+        s = self._signer()
+        pk_int, _ = s.sign_certificate("AG-2027-000001", self._CERT_HASH_A, event_nonce=0)
+        pk_uuid, _ = s.sign_certificate(
+            "AG-2027-000001", self._CERT_HASH_A, event_nonce="b1946ac9-uuid"
+        )
+        assert pk_int["chains"] != pk_uuid["chains"]

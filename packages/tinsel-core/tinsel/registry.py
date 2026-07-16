@@ -237,6 +237,7 @@ class WOTSPublicKey(BaseModel):
     public_seed: str        # hex-encoded 32-byte seed for bitmask generation
     algorithm_id: str = "stub_zero_v1"
     is_stub: bool = True
+    event_nonce: int | str = 0   # per-signing-event nonce (WOTS+ one-time uniqueness)
 
     @classmethod
     def stub(cls) -> WOTSPublicKey:
@@ -256,6 +257,7 @@ class WOTSSignature(BaseModel):
     message_hash: str               # hex-encoded SHA3-256 of signed material
     algorithm_id: str = "stub_zero_v1"
     is_stub: bool = True
+    event_nonce: int | str = 0      # per-signing-event nonce (WOTS+ one-time uniqueness)
 
     @classmethod
     def stub(cls, message_hash: str = "00" * 32) -> WOTSSignature:

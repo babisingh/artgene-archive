@@ -50,8 +50,21 @@ and watermarking heart of the system, so it gets the most scrutiny.
 
 ## 1.1 Critical / High — Cryptographic correctness & integrity
 
-### CORE-01 · 🔴 Critical · security · WOTS+ one-time keypair is reused across signing events
+### CORE-01 · 🔴 Critical · security · WOTS+ one-time keypair is reused across signing events · ✅ FIXED
 **Location:** `tinsel/crypto/__init__.py` → `PQSigner.sign_certificate()`; `tinsel/crypto/wots.py` → `generate_keypair()`
+
+> **✅ Fixed** (commit on `claude/code-review-checklist-ydgp51`):
+> `PQSigner.sign_certificate()` now takes an `event_nonce` and threads it into
+> `generate_keypair(seed, registry_id, event_nonce)`; the nonce is persisted in
+> both `pk_dict`/`sig_dict` (and the `WOTSPublicKey`/`WOTSSignature` models) for
+> auditability. `register.py` passes the monotonic, globally-unique audit
+> `seq_num` as the nonce, so no two signing events can derive the same one-time
+> keypair. Added `TestWOTSOneTimeSignature` (6 tests) covering sign→verify
+> roundtrip, tamper rejection, distinct-nonce→distinct-keypair, nonce
+> persistence, determinism, and string (UUID) nonces. Also removed the two dead
+> imports in `crypto/__init__.py` (**CORE-10** partial). Full core+gates suites
+> (110 tests) pass; the 2 failing `TestHealth` API tests are pre-existing
+> (connectivity 503, unrelated to this change).
 
 `wots.py` is emphatic (module docstring + `generate_keypair` docstring) that
 WOTS+ is a **one-time** signature: each keypair MUST sign at most one message,
