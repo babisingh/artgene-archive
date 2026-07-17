@@ -14,6 +14,7 @@ import {
   YAxis,
 } from "recharts";
 import { useApiKey } from "../../../lib/providers";
+import { gateAssurance } from "../../../lib/assurance";
 import { MOCK_CERTIFICATE_DETAILS } from "../../../lib/mock-data";
 import { CertSeal } from "../../../components/design/CertSeal";
 import { CodonGrid } from "../../../components/design/CodonGrid";
@@ -1249,7 +1250,10 @@ function ProvenanceTab({
       t: "Certified",
       when: new Date(cert.timestamp).toISOString().slice(0, 16).replace("T", " ") + " UTC",
       who: "ArtGene automated pipeline",
-      detail: `Certificate hash ${cert.certificate_hash.slice(0, 16)}… anchored. Tier ${cert.tier}.`,
+      detail: `Certificate hash ${cert.certificate_hash.slice(0, 16)}… recorded. Tier ${cert.tier}.` +
+        (cert.pq_is_stub
+          ? " Post-quantum signature is a stub — not cryptographically anchored."
+          : ""),
       highlight: true,
     },
   ];
@@ -2359,26 +2363,58 @@ function BiosafetyTab({ cert }: { cert: Certificate }) {
           </a>
         </div>
 
-        {report.gate_mode && (
-          <div className="card mt-16" style={{ padding: 20 }}>
-            <div className="mono mb-8" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
-              Screen mode
+        {report.gate_mode && (() => {
+          const assurance = gateAssurance(report);
+          const accent =
+            assurance.level === "live"
+              ? "var(--verify)"
+              : assurance.level === "partial"
+              ? "var(--warn)"
+              : "var(--danger)";
+          return (
+            <div className="card mt-16" style={{ padding: 20 }}>
+              <div className="mono mb-8" style={{ fontSize: 10.5, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+                Screening assurance
+              </div>
+              <span
+                className="mono"
+                style={{
+                  fontSize: 11,
+                  background: `color-mix(in oklab, ${accent} 12%, var(--paper))`,
+                  color: accent,
+                  padding: "4px 10px",
+                  borderRadius: 3,
+                  border: "0.5px solid var(--rule)",
+                }}
+              >
+                {assurance.label}
+              </span>
+              <p style={{ fontSize: 12, color: "var(--ink-3)", lineHeight: 1.5, margin: "12px 0 0" }}>
+                {assurance.detail}
+              </p>
+              {assurance.ranLayers.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <div className="mono" style={{ fontSize: 9.5, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+                    Databases / screens that ran
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "var(--ink-2)", lineHeight: 1.5 }}>
+                    {assurance.ranLayers.map((l) => <li key={l}>{l}</li>)}
+                  </ul>
+                </div>
+              )}
+              {assurance.caveats.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <div className="mono" style={{ fontSize: 9.5, color: "var(--warn)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+                    Not fully assured
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "var(--ink-3)", lineHeight: 1.5 }}>
+                    {assurance.caveats.map((c) => <li key={c}>{c}</li>)}
+                  </ul>
+                </div>
+              )}
             </div>
-            <span
-              className="mono"
-              style={{
-                fontSize: 11,
-                background: report.gate_mode === "real" ? "color-mix(in oklab, var(--verify) 12%, var(--paper))" : "var(--paper-3)",
-                color: report.gate_mode === "real" ? "var(--verify)" : "var(--ink-3)",
-                padding: "4px 10px",
-                borderRadius: 3,
-                border: "0.5px solid var(--rule)",
-              }}
-            >
-              {report.gate_mode === "real" ? "● LIVE" : `${report.gate_mode}`}
-            </span>
-          </div>
-        )}
+          );
+        })()}
       </aside>
     </div>
   );
@@ -2602,6 +2638,54 @@ export default function CertificatePage({
           </div>
         </div>
       </section>
+
+      {/* ── Trust banners (demo record / stub signature) ── */}
+      {(isDemoId || cert.pq_is_stub) && (
+        <section className="wrap" style={{ paddingBottom: 8 }}>
+          {isDemoId && (
+            <div
+              role="note"
+              style={{
+                padding: "10px 16px",
+                marginBottom: cert.pq_is_stub ? 10 : 0,
+                background: "color-mix(in oklab, var(--warn) 10%, var(--paper))",
+                border: "0.5px solid color-mix(in oklab, var(--warn) 35%, transparent)",
+                borderRadius: 6,
+                fontSize: 12.5,
+                color: "var(--ink-2)",
+                lineHeight: 1.5,
+              }}
+            >
+              <span className="mono" style={{ color: "var(--warn)", letterSpacing: "0.08em", textTransform: "uppercase", fontSize: 11 }}>
+                ◌ Demo record
+              </span>{" "}
+              — this is an illustrative <code>AG-DEMO-*</code> fixture, not a real registry entry. Its
+              screening results and signatures are placeholders.
+            </div>
+          )}
+          {cert.pq_is_stub && (
+            <div
+              role="note"
+              style={{
+                padding: "10px 16px",
+                background: "color-mix(in oklab, var(--danger) 8%, var(--paper))",
+                border: "0.5px solid color-mix(in oklab, var(--danger) 35%, transparent)",
+                borderRadius: 6,
+                fontSize: 12.5,
+                color: "var(--ink-2)",
+                lineHeight: 1.5,
+              }}
+            >
+              <span className="mono" style={{ color: "var(--danger)", letterSpacing: "0.08em", textTransform: "uppercase", fontSize: 11 }}>
+                ⚠ Unsigned · stub signature
+              </span>{" "}
+              — this certificate&rsquo;s post-quantum signature ({cert.pq_algorithm}) is a zero-filled
+              placeholder. It is <strong>not</strong> cryptographically verifiable and provides no
+              tamper-evidence. Do not rely on it as proof of authenticity.
+            </div>
+          )}
+        </section>
+      )}
 
       {/* ── Sticky tabs ── */}
       <div

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { ConsequenceReport, RegistrationResponse, WatermarkMetadata } from "../lib/api";
+import { gateAssurance } from "../lib/assurance";
 import { CodonBiasChart } from "./CodonBiasChart";
 
 // ---------------------------------------------------------------------------
@@ -248,13 +249,30 @@ export function CertificateCard({ response }: CertificateCardProps) {
               </h3>
               <ConsequenceSummary report={consequence_report} />
             </div>
-            {consequence_report.gate_mode === "mock" && (
-              <div className="rounded-lg border border-red-200 dark:border-red-700 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-xs text-red-800 dark:text-red-300 leading-relaxed">
-                <span className="font-semibold">Warning:</span> Biosafety gates ran in mock mode.
-                This certificate carries no real biosafety assurance. Do not use for regulatory or
-                IP purposes.
-              </div>
-            )}
+            {(() => {
+              const assurance = gateAssurance(consequence_report);
+              if (assurance.level === "mock") {
+                return (
+                  <div className="rounded-lg border border-red-200 dark:border-red-700 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-xs text-red-800 dark:text-red-300 leading-relaxed">
+                    <span className="font-semibold">Warning:</span> Biosafety gates ran in mock mode.
+                    This certificate carries no real biosafety assurance. Do not use for regulatory or
+                    IP purposes.
+                  </div>
+                );
+              }
+              if (assurance.level === "partial") {
+                return (
+                  <div className="rounded-lg border border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                    <span className="font-semibold">Partial assurance:</span> production screening ran,
+                    but some layers used heuristics or were not wired to their external database:
+                    <ul className="list-disc pl-5 mt-1 space-y-0.5">
+                      {assurance.caveats.map((c) => <li key={c}>{c}</li>)}
+                    </ul>
+                  </div>
+                );
+              }
+              return null;
+            })()}
             {!certified && <FailureDetail report={consequence_report} />}
             {certified && consequence_report.overall_status === "warn" && (
               <WarnDetail report={consequence_report} />

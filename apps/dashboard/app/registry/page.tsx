@@ -77,7 +77,7 @@ function SkeletonRow() {
 // Table row
 // ---------------------------------------------------------------------------
 
-function CertRow({ cert }: { cert: CertificateSummary }) {
+function CertRow({ cert, demo = false }: { cert: CertificateSummary; demo?: boolean }) {
   const date = new Date(cert.timestamp).toLocaleDateString("en-GB", {
     year: "numeric",
     month: "short",
@@ -87,9 +87,20 @@ function CertRow({ cert }: { cert: CertificateSummary }) {
   return (
     <tr style={{ cursor: "pointer" }}>
       <td>
-        <Link href={`/sequences/${cert.registry_id}`} className="id">
-          {cert.registry_id}
-        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Link href={`/sequences/${cert.registry_id}`} className="id">
+            {cert.registry_id}
+          </Link>
+          {demo && (
+            <span
+              className="badge badge-warn"
+              style={{ fontSize: 9, letterSpacing: "0.08em", padding: "1px 5px" }}
+              title="Illustrative demo record — not a real registry entry"
+            >
+              DEMO
+            </span>
+          )}
+        </div>
       </td>
       <td>
         <div
@@ -242,19 +253,33 @@ export default function RegistryPage() {
       {isMock && (
         <section className="wrap" style={{ paddingBottom: 16 }}>
           <div
+            role={isError ? "alert" : "note"}
             style={{
-              padding: "9px 16px",
-              background: "color-mix(in oklab, var(--accent) 6%, transparent)",
-              border: "0.5px solid color-mix(in oklab, var(--accent) 22%, transparent)",
+              padding: isError ? "12px 18px" : "9px 16px",
+              background: isError
+                ? "color-mix(in oklab, var(--danger) 10%, var(--paper))"
+                : "color-mix(in oklab, var(--accent) 6%, transparent)",
+              border: isError
+                ? "1px solid color-mix(in oklab, var(--danger) 40%, transparent)"
+                : "0.5px solid color-mix(in oklab, var(--accent) 22%, transparent)",
               borderRadius: 6,
-              fontSize: 11.5,
-              color: "var(--ink-3)",
-              fontFamily: "var(--mono)",
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
+              fontSize: isError ? 12.5 : 11.5,
+              color: isError ? "var(--ink-2)" : "var(--ink-3)",
+              fontFamily: isError ? "var(--sans)" : "var(--mono)",
+              letterSpacing: isError ? "normal" : "0.06em",
+              textTransform: isError ? "none" : "uppercase",
+              lineHeight: 1.5,
             }}
           >
-            {isError ? "Live registry unreachable — showing demo data. AG-DEMO-* records are illustrative only." : "Demo data — AG-DEMO-* records are illustrative only. Deposit a real sequence to populate the live registry."}
+            {isError ? (
+              <>
+                <strong style={{ color: "var(--danger)" }}>Live registry unavailable — backend unreachable.</strong>{" "}
+                The rows below are illustrative <code>AG-DEMO-*</code> fixtures, not real registry
+                content. Every row is badged <span className="badge badge-warn" style={{ fontSize: 9, padding: "1px 5px" }}>DEMO</span>.
+              </>
+            ) : (
+              "Demo data — AG-DEMO-* records are illustrative only. Deposit a real sequence to populate the live registry."
+            )}
           </div>
         </section>
       )}
@@ -406,7 +431,7 @@ export default function RegistryPage() {
                   </tr>
                 ) : (
                   displayItems.map((cert) => (
-                    <CertRow key={cert.registry_id} cert={cert} />
+                    <CertRow key={cert.registry_id} cert={cert} demo={isMock} />
                   ))
                 )}
               </tbody>

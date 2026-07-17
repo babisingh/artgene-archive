@@ -41,9 +41,9 @@ function sleep(ms: number): Promise<void> {
 }
 
 const GATES = [
-  { letter: "α", name: "Structural confidence (ESMFold)",          ms: 900  },
-  { letter: "β", name: "Off-target homology (BLAST + ToxinPred2)", ms: 1900 },
-  { letter: "γ", name: "Ecological risk (HGT + DriftRadar)",       ms: 3200 },
+  { letter: "α", name: "Structural confidence (ESMFold)",           ms: 900  },
+  { letter: "β", name: "Composition & toxin heuristic screen",      ms: 1900 },
+  { letter: "γ", name: "Ecological risk (codon usage / HGT)",       ms: 3200 },
 ] as const;
 
 const STEPPER = [
@@ -106,14 +106,25 @@ function GateRow({
   const isFail = status === "fail";
   const isWarn = status === "warn";
   const isSkip = status === "skip";
+  const isPass = status === "pass";
+  // Any other value (incl. undefined) is "no data" — never default to PASS.
+  const isUnknown = !isFail && !isWarn && !isSkip && !isPass;
   const doneColor = isFail
     ? "var(--danger)"
     : isWarn
     ? "var(--warn)"
-    : isSkip
+    : isSkip || isUnknown
     ? "var(--ink-4)"
     : "var(--verify)";
-  const doneLabel = isFail ? "✗ FAIL" : isWarn ? "⚠ WARN" : isSkip ? "— SKIP" : "✓ PASS";
+  const doneLabel = isFail
+    ? "✗ FAIL"
+    : isWarn
+    ? "⚠ WARN"
+    : isSkip
+    ? "— SKIP"
+    : isUnknown
+    ? "— NO DATA"
+    : "✓ PASS";
 
   return (
     <div style={{ padding: "14px 0", borderTop: "0.5px solid var(--rule-2)" }} role="listitem">
@@ -168,6 +179,28 @@ export default function RegisterPage() {
   const [response, setResponse]   = useState<RegistrationResponse | null>(null);
   const [report, setReport]       = useState<ConsequenceReport | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  async function handleDownloadCertificate() {
+    if (!response?.registry_id) return;
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      const data = await client.exportCertificate(response.registry_id);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${response.registry_id}.artgene.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : "Download failed — please try again.");
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   const {
     register, handleSubmit, setValue, watch, trigger,
@@ -245,7 +278,7 @@ export default function RegisterPage() {
           Register a <em>new sequence.</em>
         </h1>
         <p className="lede mt-16" style={{ maxWidth: 640 }}>
-          Four short steps. Your sequence is analyzed in under ninety seconds; a signed
+          Four short steps. Your sequence is screened through the automated biosafety gates and a
           certificate is issued on pass. Submissions are free for public deposits.
         </p>
       </section>
@@ -452,7 +485,8 @@ export default function RegisterPage() {
                 <div role="list">
                   {GATES.map((g) => {
                     const gateKey = g.letter === "α" ? "gate1" : g.letter === "β" ? "gate2" : "gate3";
-                    const status  = allDone ? (report?.[gateKey as "gate1" | "gate2" | "gate3"]?.status ?? "pass") : undefined;
+                    // Never default a missing/partial gate to PASS — show "no data" instead.
+                    const status  = allDone ? report?.[gateKey as "gate1" | "gate2" | "gate3"]?.status : undefined;
                     return (
                       <GateRow
                         key={g.letter}
@@ -519,9 +553,11 @@ export default function RegisterPage() {
                 <h2 className="display" style={{ fontSize: "clamp(28px, 4vw, 40px)", margin: "0 0 14px" }}>
                   Your accession is<br /><em>{response.registry_id ?? "—"}</em>
                 </h2>
-                <p style={{ fontSize: 15, color: "var(--ink-2)", maxWidth: 520, margin: "0 auto 28px", lineHeight: 1.6 }}>
-                  The record is now public. A watermark has been embedded in the coding sequence
-                  and the certificate has been anchored to the ledger.
+                <p style={{ fontSize: 15, color: "var(--ink-2)", maxWidth: 540, margin: "0 auto 28px", lineHeight: 1.6 }}>
+                  The record is now public and citable by its AG-ID. Per-recipient provenance
+                  watermarking is applied when you issue tracked distribution copies from the
+                  record&rsquo;s Provenance tab — it is not embedded at registration. Post-quantum
+                  certificate signatures are reserved for a later phase and are not yet active.
                 </p>
                 <div className="flex gap-12" style={{ justifyContent: "center" }}>
                   {response.registry_id && (
@@ -529,9 +565,19 @@ export default function RegisterPage() {
                       View record →
                     </Link>
                   )}
-                  {/* Download wires to /certificates/:id/export — registry_id lookup needed */}
-                  <button type="button" className="btn btn-ghost">↓ Download certificate</button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={handleDownloadCertificate}
+                    disabled={downloading || !response.registry_id}
+                    aria-busy={downloading}
+                  >
+                    {downloading ? "Downloading…" : "↓ Download certificate"}
+                  </button>
                 </div>
+                {downloadError && (
+                  <p style={{ fontSize: 12, color: "var(--danger)", marginTop: 14 }} role="alert">{downloadError}</p>
+                )}
               </div>
             )}
 
@@ -545,9 +591,9 @@ export default function RegisterPage() {
               </div>
               <div style={{ display: "grid", gap: 14 }}>
                 {([
-                  ["α", "Structural",  "ESMFold pLDDT ≥ 0.70"],
-                  ["β", "Off-target",  "BLAST vs. pathogen DB. ToxinPred2 < 0.4"],
-                  ["γ", "Ecological",  "HGT probability < 0.25. DriftRadar."],
+                  ["α", "Structural",  "ESMFold pLDDT + instability index."],
+                  ["β", "Composition", "Toxin / allergen composition heuristic. Full BLAST + SecureDNA/IBBIS screening in development."],
+                  ["γ", "Ecological",  "Codon usage & GC content vs. host; HGT risk heuristic."],
                 ] as const).map(([L, n, d]) => (
                   <div key={L} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
                     <div style={{

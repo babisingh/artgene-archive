@@ -1060,7 +1060,7 @@ ancestors 'none'`, `Referrer-Policy: no-referrer`, and HSTS in production.
 
 ## 5.2 High — Trust / UX-safety (mock/stub presented as authoritative)
 
-### FE-T1 · 🟠 High · trust · UI shows "● LIVE" and hides the mock reality of production gates
+### FE-T1 · 🟠 High · trust · UI shows "● LIVE" and hides the mock reality of production gates ✅ FIXED
 **Location:** `app/sequences/[id]/page.tsx:2362-2379` ("● LIVE" when `gate_mode==="real"`); `components/CertificateCard.tsx:251` (warning only when `gate_mode==="mock"`)
 
 The detail page renders a green **"● LIVE"** badge whenever `gate_mode==="real"`,
@@ -1074,7 +1074,20 @@ LIVE, and the honest warning never appears in prod.
 backend provides it — GATE-08), not the single `real/mock` flag; show which
 external databases actually ran.
 
-### FE-T2 · 🟠 High · trust · `pq_is_stub` is not surfaced on the certificate detail page
+**✅ FIXED.** Added `apps/dashboard/lib/assurance.ts` — `gateAssurance(report)`
+derives an honest **live / partial / mock** level client-side from the fields
+the report already carries (`gate_mode`, `gate2.screening_method`,
+`gate2.secureDNA_checked`, `gate2.ibbis_checked`, `gate1.plddt_mean`,
+`gate4.method`) and returns the screens that genuinely ran plus the honesty
+caveats. The detail page's "Screen mode" card (`sequences/[id]/page.tsx`) now
+renders that level (green LIVE / amber PARTIAL / red MOCK) with the ran-layers
+and "not fully assured" lists, instead of blanket-badging `gate_mode==="real"`
+as `● LIVE`. `CertificateCard.tsx` now shows the red mock warning **and** an
+amber "partial assurance" notice (listing the heuristic/un-wired layers), not
+just the mock case. Fully replacing the client-side derivation with a backend
+per-layer signal is still tracked under GATE-08.
+
+### FE-T2 · 🟠 High · trust · `pq_is_stub` is not surfaced on the certificate detail page ✅ FIXED
 **Location:** `app/sequences/[id]/page.tsx` — `pq_is_stub` only appears inside a JSON blob (`:1262`); visible UI shows a "Watermark present" badge (`:1307`), raw `signature_hex` (`:1313`), and "anchored to the ledger" custody wording (`:1252`)
 
 Unlike `CertificateCard` (which shows a stub notice), the detail page presents a
@@ -1087,7 +1100,18 @@ may not exist.
 `pq_is_stub`; drop "anchored/ledger" wording until a real signed chain entry
 exists and is verified.
 
-### FE-T3 · 🟠 High · trust · The register wizard fabricates the biosafety analysis
+**✅ FIXED.** `sequences/[id]/page.tsx` now renders a page-level red banner
+(between the record header and the tabs, so it's visible on every tab)
+whenever `cert.pq_is_stub`: "⚠ Unsigned · stub signature — this certificate's
+post-quantum signature (`<algo>`) is a zero-filled placeholder … not
+cryptographically verifiable." The provenance chain-of-custody "Certified"
+event no longer says the hash was "anchored" — it says "recorded" and appends
+"Post-quantum signature is a stub — not cryptographically anchored." when
+`pq_is_stub`. (The "Watermark present" badge and `signature_hex` remain — those
+describe the real embedded codon watermark, which is distinct from the WOTS+
+certificate signature.)
+
+### FE-T3 · 🟠 High · trust · The register wizard fabricates the biosafety analysis ✅ FIXED
 **Location:** `app/register/page.tsx:43-47` (hard-coded gate durations), `:208` (`Promise.all([register, sleep(3400)])`), `:455` (`report?.[gateKey]?.status ?? "pass"`), `:523-550` (fabricated thresholds + unconditional "watermark embedded… anchored to the ledger"), `:533` (dead download button)
 
 The registration flow simulates a "~90 second" multi-gate analysis with fixed
@@ -1102,7 +1126,21 @@ unknown gates to a neutral state (not PASS); correct the tool/threshold labels t
 what actually ran; gate the watermark/ledger copy on real data; wire or remove
 the download button.
 
-### FE-T4 · 🟠 High · trust · Showcase hard-codes CERTIFIED rows and stub crypto as authoritative
+**✅ FIXED.** In `register/page.tsx`: a missing/partial gate no longer defaults
+to PASS (`?? "pass"` removed) — `GateRow` renders a neutral **"— NO DATA"**
+state for any non-`pass/fail/warn/skip` value. Gate labels and sidebar
+descriptions were corrected to what actually runs — β is now "Composition &
+toxin heuristic screen" (was "Off-target homology (BLAST + ToxinPred2)") and γ
+"Ecological risk (codon usage / HGT)" (was "HGT + DriftRadar"), with the sidebar
+noting full BLAST/SecureDNA/IBBIS screening is in development. The step-4 success
+copy no longer claims "a watermark has been embedded … anchored to the ledger";
+it now states watermarking is applied per-recipient at distribution (not at
+registration) and that post-quantum signatures are not yet active. The dead
+"Download certificate" button is wired to `client.exportCertificate()` with
+loading/error states. The lede's fabricated "under ninety seconds" figure was
+removed.
+
+### FE-T4 · 🟠 High · trust · Showcase hard-codes CERTIFIED rows and stub crypto as authoritative ✅ FIXED
 **Location:** `app/showcase/page.tsx:361` (every registry row labeled `CERTIFIED`), `:549` / `:883-884` ("WOTS+ / SHA3-512", "WOTS+ SIGNATURE APPLIED · IMMUTABLE LEDGER ENTRY CREATED"), `:150` ("Immutable audit ledger" = live) vs `:160` (LWE "currently stubbed")
 
 The public showcase labels all rows `CERTIFIED` regardless of real status
@@ -1113,7 +1151,17 @@ applied/immutable/live in the same file that admits parts are stubbed.
 `pq_is_stub`/`gate_mode` fields or clearly mark the showcase as an illustrative
 mock.
 
-### FE-T5 · 🟡 Medium · trust · Mock data is silently substituted for real registry/certificate data on error
+**✅ FIXED.** In `showcase/page.tsx`: the registry table no longer hard-codes
+`CERTIFIED` on every row. `RegRecord` carries the real `status` from the live
+API and a `regStatusBadge()` helper maps it (CERTIFIED / CERTIFIED ⚠ / UNDER
+REVIEW / FAILED / REVOKED); static fallback rows (no live status) are labelled
+**DEMO** instead of CERTIFIED. The interactive certify demo's summary line now
+reads "WOTS+ SIGNATURE (STUB) · LEDGER ENTRY RECORDED" (was "WOTS+ SIGNATURE
+APPLIED · IMMUTABLE LEDGER ENTRY CREATED") with an added caption noting it's an
+illustrative test-vector run and signatures are stubbed; `CERT_FIELDS` now shows
+the signature as "WOTS+ / SHA3-512 (stub — not yet active)".
+
+### FE-T5 · 🟡 Medium · trust · Mock data is silently substituted for real registry/certificate data on error ✅ FIXED
 **Location:** `app/registry/page.tsx:173` + `:358` ("Error state is suppressed when mock data is shown"), `app/sequences/[id]/page.tsx:2432-2440` (`MOCK_CERTIFICATE_DETAILS` fallback), `lib/mock-data.ts` imported into both
 
 When the live registry errors *or* returns zero rows, the registry page shows
@@ -1127,6 +1175,16 @@ just tests.
 **Fix:** Never substitute mock data for a failed live query without an
 unmistakable "DEMO DATA — backend unavailable" state; keep demo records strictly
 behind `AG-DEMO-*` and always badge them.
+
+**✅ FIXED.** `registry/page.tsx`: on a live-query error the subtle accent
+banner is replaced with an unmistakable **danger** alert ("Live registry
+unavailable — backend unreachable … The rows below are illustrative AG-DEMO-*
+fixtures, not real registry content"), and every substituted row now carries a
+per-row **DEMO** badge next to its AG-ID (empty-but-reachable still shows the
+lighter demo note). `sequences/[id]/page.tsx`: demo records (`AG-DEMO-*`, incl.
+the `MOCK_CERTIFICATE_DETAILS` fallback) now render a "◌ Demo record" banner
+stating the screening/signatures are placeholders — combined with the FE-T2 stub
+banner, a fabricated cert can no longer masquerade as a real signed record.
 
 ### FE-T6 · 🟡 Medium · trust · Fabricated institution names shipped to the landing page
 **Location:** `app/page.tsx:57-58` — ticker of `"WELLCOME TRUST-mock"`, `"NIH-mock"`, `"Anthropic-mock"`, etc.
@@ -1330,9 +1388,11 @@ is the recommended work sequence, not just severity.
    verifier. Without this the crypto is decorative.
 4. **FE-01 / FE-02** — Remove the proxy shared-key fallback for write/revoke and
    never expose an API key via `NEXT_PUBLIC_*`.
-5. **FE-T1 / FE-T2 / FE-T3 / FE-T4 / FE-T5** — Make every trust signal honest:
-   no "● LIVE"/"CERTIFIED"/"anchored" over stub/mock data; no silent mock-data
-   substitution.
+5. **FE-T1 / FE-T2 / FE-T3 / FE-T4 / FE-T5** ✅ FIXED — Make every trust signal
+   honest: no "● LIVE"/"CERTIFIED"/"anchored" over stub/mock data; no silent
+   mock-data substitution. (Per-layer assurance derived client-side via
+   `lib/assurance.ts`; a real backend per-layer signal remains tracked in
+   GATE-08.)
 
 ### P1 — Correctness & integrity, before scale
 6. **CORE-02** — Canonicalize the certificate hash (separators + sorted keys +

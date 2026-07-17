@@ -302,6 +302,21 @@ interface RegRecord {
   name: string;
   institution: string;
   date: string;
+  /** Real record status when live; undefined for illustrative fallback rows. */
+  status?: string;
+}
+
+// Map a certificate status to a showcase badge. Fallback rows (no live status)
+// are labelled DEMO rather than fabricated as CERTIFIED.
+function regStatusBadge(status: string | undefined) {
+  if (!status) return { cls: 'badge badge-warn', label: 'DEMO' };
+  const s = status.toUpperCase();
+  if (s === 'CERTIFIED') return { cls: 'badge badge-verify', label: 'CERTIFIED' };
+  if (s === 'CERTIFIED_WITH_WARNINGS') return { cls: 'badge badge-warn', label: 'CERTIFIED ⚠' };
+  if (s === 'PENDING') return { cls: 'badge badge-warn', label: 'UNDER REVIEW' };
+  if (s === 'FAILED') return { cls: 'badge badge-danger', label: 'FAILED' };
+  if (s === 'REVOKED') return { cls: 'badge badge-danger', label: 'REVOKED' };
+  return { cls: 'badge', label: s };
 }
 
 function RegistrySection() {
@@ -319,6 +334,7 @@ function RegistrySection() {
             name:        r.sequence_name ?? r.name ?? '—',
             institution: r.institution ?? '—',
             date:        r.created_at?.slice(0, 10) ?? r.date ?? '—',
+            status:      r.status ?? undefined,
           }));
           setRecords(rows);
           setIsLive(true);
@@ -352,15 +368,18 @@ function RegistrySection() {
               </tr>
             </thead>
             <tbody>
-              {records.map((r, i) => (
-                <tr key={i}>
-                  <td><span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--accent)' }}>{r.id}</span></td>
-                  <td style={{ fontWeight: 500 }}>{r.name}</td>
-                  <td style={{ color: 'var(--ink-2)' }}>{r.institution}</td>
-                  <td style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)' }}>{r.date}</td>
-                  <td><span className="badge badge-verify">CERTIFIED</span></td>
-                </tr>
-              ))}
+              {records.map((r, i) => {
+                const badge = regStatusBadge(r.status);
+                return (
+                  <tr key={i}>
+                    <td><span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--accent)' }}>{r.id}</span></td>
+                    <td style={{ fontWeight: 500 }}>{r.name}</td>
+                    <td style={{ color: 'var(--ink-2)' }}>{r.institution}</td>
+                    <td style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)' }}>{r.date}</td>
+                    <td><span className={badge.cls}>{badge.label}</span></td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -546,7 +565,7 @@ const CERT_FIELDS: [string, string][] = [
   ['Sequence',           'HallProteIn-0515 (PDB 7M5T)'],
   ['Depositor',          'Genethropic Research'],
   ['Issued',             '2026-04-18 14:22 UTC'],
-  ['Signature',          'WOTS+ / SHA3-512'],
+  ['Signature',          'WOTS+ / SHA3-512 (stub — not yet active)'],
   ['Distribution copies','0 — not yet distributed'],
 ];
 
@@ -880,8 +899,12 @@ function PipelineSection() {
               </div>
               <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: 'var(--verify)', letterSpacing: '0.08em' }}>
                 {(Object.values(gates) as GateStatus[]).every(s => s === 'pass')
-                  ? 'ALL FOUR GATES PASSED · WOTS+ SIGNATURE APPLIED · IMMUTABLE LEDGER ENTRY CREATED'
-                  : 'GATES α β γ PASSED · GATE δ PRE-PRODUCTION · WOTS+ SIGNATURE APPLIED · IMMUTABLE LEDGER ENTRY CREATED'}
+                  ? 'ALL FOUR GATES PASSED · WOTS+ SIGNATURE (STUB) · LEDGER ENTRY RECORDED'
+                  : 'GATES α β γ PASSED · GATE δ PRE-PRODUCTION · WOTS+ SIGNATURE (STUB) · LEDGER ENTRY RECORDED'}
+              </div>
+              <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', marginTop: 6 }}>
+                Illustrative demo run on a test-vector sequence. Post-quantum signatures are stubbed
+                in the current build.
               </div>
             </div>
           </div>
