@@ -1,0 +1,31 @@
+ArtGene-Archive: Project Summary
+
+As LLMs begin producing novel proteins and genes at scale, we need a way to
+tell AI-designed sequences apart from those already catalogued as synthetic.
+The distinction matters because the two carry different risks and different
+provenance questions.
+
+The synthetic divisions at ENA and GenBank record things like plasmids,
+cloning vectors, and codon-optimised genes: human-assembled, but built from
+known biological parts. AI-designed sequences are different. They may have no
+natural relative, are produced by a specific model under specific conditions,
+and can't be traced or safety-checked against any existing organism.
+
+So what if every AI-designed gene carried an invisible signature, baked
+straight into its DNA? That's what I'm building with TINSEL, a watermark
+algorithm. Because the same protein can be spelled with different codons,
+TINSEL hides a provenance tag in those synonymous choices. The protein stays
+exactly the same, but the DNA now records who made it, and the mark survives
+re-synthesis, so even a sequence found in the wild, in wastewater, or anywhere
+else can be traced back.
+
+The goal is that no sequencing machine should synthesize an AI-generated
+sequence until a certificate confirms its provenance is already on record. On
+top of that, every AI-generated sequence should pass biosafety screening for
+structure, toxicity, and ecological risk before it's certified. That's what
+I'm working on.
+
+But can we prove the watermark idea actually works? We can test it
+experimentally: express a watermarked GFP reporter protein alongside an
+unmarked control, and check that both show equal expression and fluorescence.
+If they match, the watermark is biologically invisible.
