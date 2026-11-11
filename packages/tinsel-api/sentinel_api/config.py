@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
+from urllib.parse import urlsplit
+
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _VALID_ENVS = frozenset({"test", "development", "production"})
+
+# Hosts that can only be a developer's own machine or a compose network. Used by
+# _reject_dev_mode_against_remote_db below: "development" is a privileged mode
+# (mock biosafety gates, a seed script that creates a known API key), so it is
+# only allowed to talk to a database that cannot be a real one. "db" is the
+# service name in docker-compose.yml; "postgres" is the common alternative.
+_LOCAL_DB_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "db", "postgres", ""})
 
 
 class Settings(BaseSettings):
@@ -83,6 +92,43 @@ class Settings(BaseSettings):
                 "SPREADING_KEY is still the insecure development default in production mode. "
                 "Set SPREADING_KEY to a random 64-char hex string in your Railway/environment variables. "
                 "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _reject_dev_mode_against_remote_db(self) -> "Settings":
+        """Refuse to run in development mode against a database that is not local.
+
+        SENTINEL_ENV defaults to "development" here, in start.sh and in the
+        shell prompt line, so a service deployed with the variable simply absent
+        would silently run in development mode. That has two consequences worth
+        refusing outright: the biosafety gates fall back to mock adapters, and
+        start.sh runs seed_dev.py, which creates an organisation whose API key is
+        published in this repository. One missing environment variable would hand
+        the internet a working key and switch screening off.
+
+        Rather than trusting the variable to be present, infer the risk from the
+        database it is pointed at: a development deployment that can reach a
+        non-local database is a misconfiguration regardless of intent.
+        """
+        if self.sentinel_env != "development":
+            return self
+
+        # Fail closed: a URL we cannot parse is treated as remote, since the
+        # whole point is to refuse development mode when we cannot prove the
+        # database is local.
+        try:
+            host = (urlsplit(self.database_url).hostname or "").lower()
+        except ValueError:
+            host = "<unparseable>"
+
+        if host not in _LOCAL_DB_HOSTS:
+            raise ValueError(
+                f"SENTINEL_ENV=development with a non-local database host ({host!r}). "
+                "Development mode uses mock biosafety gates and seeds a publicly "
+                "known API key, so it must never point at a real database. "
+                "Set SENTINEL_ENV=production for a deployed service, or point "
+                "DATABASE_URL at localhost for local work."
             )
         return self
 

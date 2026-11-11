@@ -2449,7 +2449,14 @@ export default function CertificatePage({
   if (!apiKey && !isDemoId) {
     return (
       <div className="wrap" style={{ padding: "80px 0", textAlign: "center", color: "var(--ink-3)" }}>
-        <p>No API key configured. Add <code>NEXT_PUBLIC_API_KEY</code> to your environment.</p>
+        <p>
+          No API key in this session. Unpublished records are operator only, so
+          viewing one needs a key in this tab&apos;s{" "}
+          <code>sessionStorage</code> under{" "}
+          <code>artgene_api_key</code>. A key must never be put in a build
+          variable: Next compiles those into the bundle it serves to every
+          visitor.
+        </p>
         <Link href="/sequences" className="btn btn-ghost btn-sm" style={{ marginTop: 16, display: "inline-block" }}>
           ← Back to sequences
         </Link>

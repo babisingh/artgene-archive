@@ -430,7 +430,7 @@ an oracle, and iterative probing narrows the archived content. Mitigations: keep
 the per key write limits low, log and alert on repeated 422s from one key, and
 treat it as a review trigger rather than an immediate hard rejection.
 
-## 8. Privacy and licensing
+## 8. Privacy, licensing and author enquiry
 
 The archive processes personal data: author names, ORCIDs and affiliations.
 Operating from the EU, that needs a stated basis and a route for complaints.
@@ -466,6 +466,128 @@ For CC-BY compliance the record page must render author list, title, source link
 license name with link, and an indication of whether anything was modified. That
 is a required component, not a nicety, and it is the same component that makes
 the attribution gate testable.
+
+### Resolving an unstated license
+
+An unstated license is the commonest case and the most wasteful one, because the
+data may well be shareable and nobody has been asked. So `UNSTATED` raises a flag
+and opens an enquiry rather than closing the question.
+
+Two columns on `catalogue_records`, kept deliberately separate, because they
+answer different things:
+
+- `hosting_decision`: what the archive does. `hosted`, `metadata_only`,
+  `withheld`.
+- `license_resolution`: how the archive knows. `stated_permissive`,
+  `stated_restrictive`, `unstated`, `ambiguous`, `author_confirmed`,
+  `author_declined`.
+
+Only `unstated` and `ambiguous` are enquiry candidates. `stated_restrictive` is
+settled: the authors have already answered, in their license, and asking again
+would be pestering them to change their mind.
+
+```sql
+-- One enquiry per source, not per record: a paper with forty designs gets one
+-- email. Opened automatically, sent by a human, never by an agent.
+CREATE TABLE license_enquiries (
+    id               uuid PRIMARY KEY,
+    source_id        uuid NOT NULL REFERENCES sources(id),
+    reason           text NOT NULL,   -- unstated | ambiguous | conflicting | no_data_deposited
+    status           text NOT NULL,   -- queued | drafted | sent | reminded | replied | no_response | closed
+    contact_name     text,
+    contact_orcid    text,
+    contact_email    text,            -- held only while the enquiry is open, then purged
+    detected_at      timestamptz NOT NULL DEFAULT now(),
+    sent_at          timestamptz,
+    reminded_at      timestamptz,
+    replied_at       timestamptz,
+    response_license text REFERENCES licenses(spdx_id),
+    response_note    text,
+    response_evidence text,           -- how we know, e.g. 'email of 2026-11-20, quoted verbatim'
+    opt_in           boolean,         -- did they want the sequences included
+    closed_at        timestamptz,
+    UNIQUE (source_id)
+);
+
+-- Survives record withdrawal and enquiry purging. Keyed on ORCID where there is
+-- one, otherwise on a peppered hash of the address, so suppression works without
+-- retaining the address itself.
+CREATE TABLE do_not_contact (
+    id          uuid PRIMARY KEY,
+    orcid       text UNIQUE,
+    email_hmac  text UNIQUE,
+    reason      text NOT NULL,
+    recorded_at timestamptz NOT NULL DEFAULT now()
+);
+```
+
+When an author answers, their reply becomes the permission the archive cites.
+`sequence_blobs.stored_because` records it in words, for example
+`enquiry 4f2a, corresponding author confirmed CC-BY-4.0 by email of 2026-11-20`,
+so every hosted byte traces to a specific statement by a specific person.
+`license_resolution` moves to `author_confirmed`, the license on `sources` is
+updated, and the hosting decision is re-evaluated. An author who declines moves
+the record to `author_declined`, which is permanent and suppresses future
+enquiries.
+
+Four rules, in descending order of how much they matter:
+
+1. **No agent ever sends an email.** The pipeline detects, queues and drafts. A
+   human reads the draft and sends it from their own mail client. This is not a
+   configuration setting; there is no send path in the codebase to disable.
+2. **Never enquire about a record whose `biosafety_class` is `elevated` or
+   `restricted`.** Writing to a group to ask for a hazardous sequence under a
+   friendlier license is the wrong letter to send, and the archive would not host
+   the answer anyway.
+3. **One enquiry per paper, one reminder, then stop.** `UNIQUE (source_id)` makes
+   the first mechanical. The second is a matter of discipline, and the schema
+   records `reminded_at` so it is visible when it slips.
+4. **Declining never costs the authors their citation, and never costs the index
+   its coverage.** An objection reduces a record to a bare citation: title,
+   authors, DOI, link. That is what any literature review contains, so there is
+   nothing to object to, and the archive does not become a biased sample of
+   agreeable laboratories. Full removal stays available for a legal or privacy
+   claim through `takedown_requests`.
+
+On the lawful basis for the enquiry itself: writing to a corresponding author
+about their own published paper, at the address they published for
+correspondence, is ordinary scholarly contact under Article 6(1)(f). It stays
+that way only while the volume stays low and the letter stays specific. One
+paper a day, one email per paper, no follow up marketing. The address is held
+while the enquiry is open and purged when it closes; the name and ORCID stay,
+because attribution needs them regardless.
+
+The draft letter says what was recorded, what was not copied, and how to say no:
+
+```
+Subject: ArtGene Archive record for <short title>
+
+Dear <name>,
+
+I am writing about <title>, <venue>, <date>.
+
+ArtGene Archive is a public index of AI designed protein and nucleic acid
+sequences that have been built and tested in a laboratory. Your paper is
+recorded as <AGC-id>, crediting you and your co-authors, with a link to the
+original. We have not copied your sequence data: the paper states no license
+for it, so the record holds accessions, lengths and checksums only.
+
+Two questions, if you have a moment.
+
+1. Under what license may the designed sequences from this work be
+   redistributed? If the answer is that they may not, the record stays as it
+   is, metadata only.
+2. Would you like the sequences themselves included? A deposited record keeps
+   your attribution and a permanent identifier, under whichever license you
+   choose, and you can ask for it to be withdrawn at any time.
+
+If you would rather not be involved, reply saying so and the record will be
+reduced to a plain citation, title, authors and a link, and you will not be
+contacted again.
+
+<sender>
+ArtGene Archive, artgene-archive.org
+```
 
 ## 9. Phases
 

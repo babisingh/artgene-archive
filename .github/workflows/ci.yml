@@ -56,6 +56,23 @@ jobs:
         env:
           SENTINEL_ENV: test
 
+  # ── Client credential exposure guard ────────────────────────────────────
+  # Catches the class of mistake a generic secret scanner misses: a credential
+  # read on the client, which Next inlines into the bundle at build time, and a
+  # server-side proxy that lends its key to anonymous callers. Stdlib only, so
+  # it needs no install step.
+  client-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: No credential can reach the browser
+        run: python3 scripts/check_no_client_secrets.py
+
   # ── Dashboard: type-check + build ───────────────────────────────────────
   build-dashboard:
     runs-on: ubuntu-latest
@@ -81,6 +98,13 @@ jobs:
 
       - name: Type check
         run: npm run type-check
+
+      # Run again here, where the build environment is the one Next will read,
+      # so a secret-shaped NEXT_PUBLIC_* variable fails the build rather than
+      # being compiled into the bundle.
+      - name: No credential in the build environment
+        working-directory: ${{ github.workspace }}
+        run: python3 scripts/check_no_client_secrets.py
 
       - name: Build
         run: npm run build

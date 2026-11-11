@@ -157,7 +157,7 @@ Google Fonts link:
 |---|----------|-----------|
 | 1 | Dark mode | **Removed entirely.** No `.dark` CSS, no toggle, no `dark:` Tailwind classes. |
 | 2 | Font authority | **CD_theme.md** — Manrope for all text, JetBrains Mono for mono. |
-| 3 | API key UI | **Deprecated.** No "Set API Key" button. Key read from `NEXT_PUBLIC_API_KEY` env var, falls back to `sessionStorage`. `useApiKey()` context kept intact. |
+| 3 | API key UI | **Revised 2026-11-12.** No "Set API Key" button. The key is read from `sessionStorage` only. It must NEVER come from `NEXT_PUBLIC_API_KEY` or any other build variable: Next inlines those into the client bundle, so the key would be served to every visitor. Public pages need no key; the server-side proxy supplies a read-only one for allowlisted public GET paths. `useApiKey()` context kept intact. Enforced by `scripts/check_no_client_secrets.py` in CI. |
 | 4 | Provenance tab | **Both** live in one tab: CodonGrid watermark visual + chain-of-custody timeline (new) AND distribution copy issuance UI (existing). Old "TINSEL" branding replaced with "codon fingerprinting". |
 | 5 | Abstract tab data | New fields **added to register form** (Phase 3d). Mandatory: sequence name, molecule type, generating model. Optional: abstract, authors, ORCID, keywords, design method. Empty state shown until backend exposes fields. |
 | 6 | Watermark positions | Use `cert.watermark_metadata.anchor_map.carrier_indices` for codon highlight positions in Sequence tab. |

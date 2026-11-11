@@ -5,7 +5,21 @@
 set -e
 
 echo "=== ArtGene Archive / TINSEL API ==="
-echo "Environment : ${SENTINEL_ENV:-development}"
+
+# SENTINEL_ENV is deliberately NOT defaulted. Defaulting it to "development",
+# as this script used to, means a deployment that simply lacks the variable
+# runs with mock biosafety gates and seeds an organisation whose API key used to
+# be a constant in this repository. Refuse to start instead.
+if [ -z "${SENTINEL_ENV:-}" ]; then
+    echo "ERROR: SENTINEL_ENV is not set."
+    echo "  Set it explicitly: 'production' for any deployed service, or"
+    echo "  'development' for local work against a local database."
+    echo "  It is not defaulted on purpose: development mode uses mock"
+    echo "  biosafety gates and runs the dev seed script."
+    exit 1
+fi
+
+echo "Environment : ${SENTINEL_ENV}"
 echo "Port        : ${PORT:-8000}"
 
 echo ""
@@ -47,7 +61,7 @@ alembic upgrade head
 echo "--- Migrations complete ---"
 echo ""
 
-if [ "${SENTINEL_ENV:-development}" = "development" ]; then
+if [ "${SENTINEL_ENV}" = "development" ]; then
     echo "--- Seeding development database ---"
     python /app/packages/tinsel-api/scripts/seed_dev.py || true
     echo ""
