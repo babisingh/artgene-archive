@@ -25,6 +25,7 @@ from httpx import ASGITransport, AsyncClient
 from sentinel_api.db.connection import get_db
 from sentinel_api.db.models import APIKey, Base, Organisation
 from sentinel_api.main import app
+from sqlalchemy import event
 from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -72,6 +73,16 @@ def anyio_backend() -> str:
 async def db_engine():
     """Create a fresh SQLite in-memory engine with all tables for each test."""
     engine = create_async_engine(TEST_DB_URL, echo=False)
+
+    # SQLite ignores foreign keys unless asked, per connection. Without this,
+    # every foreign key in the schema is untested here and fails only on
+    # PostgreSQL, which is the worst place to find out.
+    @event.listens_for(engine.sync_engine, "connect")
+    def _enforce_foreign_keys(dbapi_connection, _record):  # type: ignore[no-untyped-def]
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield engine

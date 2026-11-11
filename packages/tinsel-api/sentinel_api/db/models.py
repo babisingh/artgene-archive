@@ -22,9 +22,11 @@ from typing import Any
 
 from sqlalchemy import (
     BigInteger,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
@@ -94,8 +96,25 @@ class Organisation(Base):
 class Certificate(Base):
     __tablename__ = "certificates"
 
+    # The id is also a row in `records`, the shared accession namespace that
+    # certificates and catalogue records draw from. The CHECK keeps the AG-
+    # prefix reserved for this class, so a bare accession in a citation always
+    # says which kind of claim it is.
+    __table_args__ = (
+        CheckConstraint("id LIKE 'AG-%'", name="ck_certificates_id_prefix"),
+        # Declared with the names the migrations actually gave them. Without
+        # these, `alembic revision --autogenerate` proposes dropping all three,
+        # including the one that backs the dedup lookup in POST /register.
+        Index("ix_certificates_org_id", "org_id"),
+        Index("ix_certificates_sequence_hash", "sequence_hash"),
+        Index("ix_certificates_visibility", "visibility"),
+    )
+
     id: Mapped[str] = mapped_column(
-        String(20), primary_key=True, comment="AG-YYYY-NNNNNN registry ID"
+        String(20),
+        ForeignKey("records.id"),
+        primary_key=True,
+        comment="AG-YYYY-NNNNNN registry ID, also a row in records",
     )
     org_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False
@@ -249,6 +268,9 @@ class Pathway(Base):
 class APIKey(Base):
     __tablename__ = "api_keys"
 
+    # Every authenticated request looks a key up by hash.
+    __table_args__ = (Index("ix_api_keys_key_hash", "key_hash"),)
+
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
@@ -291,6 +313,12 @@ class FragmentKmerIndex(Base):
 
     __tablename__ = "fragment_kmer_index"
 
+    __table_args__ = (
+        Index("ix_fragment_kmer_hash", "kmer_hash"),
+        Index("ix_fragment_kmer_registry_id", "registry_id"),
+        Index("ix_fragment_kmer_org_id", "org_id"),
+    )
+
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
@@ -325,16 +353,21 @@ class SequenceDistribution(Base):
 
     __tablename__ = "sequence_distributions"
 
+    __table_args__ = (
+        Index("ix_seq_dist_sequence_id", "sequence_id"),
+        Index("ix_seq_dist_org_id", "org_id"),
+    )
+
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     sequence_id: Mapped[str] = mapped_column(
         String(20), ForeignKey("certificates.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        nullable=False,
     )
     org_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organisations.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        nullable=False,
     )
     recipient_name: Mapped[str] = mapped_column(String(255), nullable=False)
     recipient_org: Mapped[str] = mapped_column(String(255), nullable=False)

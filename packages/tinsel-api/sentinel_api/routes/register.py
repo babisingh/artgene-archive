@@ -36,6 +36,7 @@ from tinsel.sequence.fasta import normalise
 from tinsel_gates.pipeline import run_consequence_pipeline
 
 from sentinel_api.config import settings
+from sentinel_api.db.catalogue import Record
 from sentinel_api.db.connection import get_db
 from sentinel_api.db.models import (
     Certificate,
@@ -417,6 +418,12 @@ async def register_sequence(
 
         # Store the original_protein in watermark_metadata for fragment assembly
         # cross-checks (see _check_fragment_assembly_risk above).
+        # The shared accession namespace row comes first: certificates.id is a
+        # foreign key onto records.id, so inserting the certificate alone would
+        # violate it. Both go in the same transaction as the audit entry.
+        db.add(Record(id=registry_id, record_class="certificate"))
+        await db.flush()
+
         cert = Certificate(
             id=registry_id,
             org_id=org.id,
