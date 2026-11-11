@@ -202,6 +202,7 @@ def other_auth_headers() -> dict[str, str]:
 AGENT_RAW_API_KEY = "tinsel-test-agent-key-00000000"
 OPERATOR_RAW_API_KEY = "tinsel-test-operator-key-00000000"
 PLAIN_RAW_API_KEY = "tinsel-test-plain-key-00000000"
+ADMIN_RAW_API_KEY = "tinsel-test-admin-key-00000000"
 
 
 async def _add_scoped_key(factory, org_id, raw_key: str, scopes: list[str], label: str):
@@ -228,6 +229,7 @@ async def scoped_keys(db_engine, test_org):
     it is refused, which is the editorial control the design rests on.
     """
     from sentinel_api.scopes import (
+        ADMIN,
         CATALOGUE_DRAFT,
         CATALOGUE_PUBLISH,
         READ_EMBARGOED,
@@ -248,10 +250,16 @@ async def scoped_keys(db_engine, test_org):
     await _add_scoped_key(
         factory, test_org.id, PLAIN_RAW_API_KEY, [READ_PUBLIC], "public-read",
     )
+    # The enquiry queue holds contact details for named people, so reading it
+    # needs admin. The agent that creates the enquiries cannot read them.
+    await _add_scoped_key(
+        factory, test_org.id, ADMIN_RAW_API_KEY, [ADMIN], "admin",
+    )
     return {
         "agent": {"X-API-Key": AGENT_RAW_API_KEY},
         "operator": {"X-API-Key": OPERATOR_RAW_API_KEY},
         "plain": {"X-API-Key": PLAIN_RAW_API_KEY},
+        "admin": {"X-API-Key": ADMIN_RAW_API_KEY},
     }
 
 

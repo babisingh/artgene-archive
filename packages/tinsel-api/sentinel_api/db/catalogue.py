@@ -60,6 +60,18 @@ BIOSAFETY_CLASSES = ("none", "elevated", "restricted")
 GATE_FAMILIES = ("editorial", "biosafety", "license", "attribution", "integrity")
 GATE_OUTCOMES = ("pass", "fail", "warn", "skip", "advisory")
 TAKEDOWN_KINDS = ("license", "privacy", "biosafety", "accuracy", "other")
+#: How the archive knows what it knows about a licence. Deliberately distinct
+#: from hosting_decision, which is what the archive does about it. Only
+#: `unstated` and `ambiguous` are enquiry candidates: a licence that explicitly
+#: forbids redistribution is settled, and the authors have already answered.
+LICENSE_RESOLUTIONS = (
+    "stated_permissive",
+    "stated_restrictive",
+    "unstated",
+    "ambiguous",
+    "author_confirmed",
+    "author_declined",
+)
 ACCESSION_DATABASES = (
     "pdb", "genbank", "uniprot", "ena",
     "zenodo", "figshare", "supplementary", "other",
@@ -254,6 +266,19 @@ class CatalogueRecord(Base):
     hosting_decision: Mapped[str] = mapped_column(String(20), nullable=False)
     hosting_reason: Mapped[str] = mapped_column(Text, nullable=False)
     biosafety_class: Mapped[str] = mapped_column(String(20), nullable=False, default="none")
+    license_resolution: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="unstated"
+    )
+    citation_only: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment=(
+            "Set when authors object. The record keeps title, authors, DOI and "
+            "link, and sheds everything else, so declining costs them no credit "
+            "and costs the index no coverage."
+        ),
+    )
     ingest_run_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("ingest_runs.id"), nullable=True
     )
@@ -273,6 +298,7 @@ class CatalogueRecord(Base):
         _in("visibility", VISIBILITIES, "ck_catalogue_visibility"),
         _in("hosting_decision", HOSTING_DECISIONS, "ck_catalogue_hosting_decision"),
         _in("biosafety_class", BIOSAFETY_CLASSES, "ck_catalogue_biosafety_class"),
+        _in("license_resolution", LICENSE_RESOLUTIONS, "ck_catalogue_license_resolution"),
         CheckConstraint("id LIKE 'AGC-%'", name="ck_catalogue_id_prefix"),
     )
 

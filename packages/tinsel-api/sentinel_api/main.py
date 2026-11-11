@@ -23,6 +23,7 @@ from sentinel_api.routes import (
     catalogue,
     certificates,
     distributions,
+    enquiries,
     health,
     pathways,
     register,
@@ -120,6 +121,9 @@ app.include_router(
 )
 app.include_router(
     catalogue.router, prefix="/api/v1/catalogue", tags=["catalogue"]
+)
+app.include_router(
+    enquiries.router, prefix="/api/v1/enquiries", tags=["enquiries"]
 )
 app.include_router(pathways.router, prefix="/api/v1/pathways", tags=["pathways"])
 app.include_router(analyse.router, prefix="/api/v1", tags=["demo"])

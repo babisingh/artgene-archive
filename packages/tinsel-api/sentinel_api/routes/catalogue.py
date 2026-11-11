@@ -53,6 +53,7 @@ from sentinel_api.db.catalogue import (
 )
 from sentinel_api.db.connection import get_db
 from sentinel_api.dependencies import Principal, require_principal, require_scope
+from sentinel_api.enquiries import hosting_for, maybe_open_enquiry, resolution_for
 from sentinel_api.rate_limit import rate_limit_read, rate_limit_write
 from sentinel_api.scopes import (
     CATALOGUE_DRAFT,
@@ -163,6 +164,8 @@ class CatalogueOut(BaseModel):
     registry_id: str
     status: str
     visibility: str
+    license_resolution: str = "unstated"
+    citation_only: bool = False
     title: str
     molecule_type: str
     hosting_decision: str
@@ -204,42 +207,6 @@ def _attribution_gate(payload: CatalogueCreate) -> tuple[str, str]:
     if missing:
         return "fail", "Cannot credit the source without: " + ", ".join(missing)
     return "pass", "Authors, title, venue, date and link are all present."
-
-
-def _decide_hosting(
-    data_license: License | None, biosafety_class: str
-) -> tuple[str, str, str]:
-    """Return (hosting_decision, reason, licence gate outcome).
-
-    The database enforces this independently through a trigger on
-    sequence_blobs, so this is the explanation rather than the control.
-    """
-    if biosafety_class == "restricted":
-        return (
-            "withheld",
-            "Biosafety class restricted: sequence data is not stored, whatever "
-            "the licence permits.",
-            "advisory",
-        )
-    if data_license is None:
-        return (
-            "metadata_only",
-            "No data licence stated. An unstated licence is not a permissive "
-            "one, so accessions and checksums only.",
-            "advisory",
-        )
-    if not data_license.allows_redistribution:
-        return (
-            "metadata_only",
-            f"Licence {data_license.spdx_id} does not permit redistribution: "
-            "accessions and checksums only.",
-            "advisory",
-        )
-    return (
-        "hosted",
-        f"Licence {data_license.spdx_id} permits redistribution with attribution.",
-        "pass",
-    )
 
 
 async def _lookup_license(db: AsyncSession, spdx_id: str | None) -> License | None:
@@ -339,6 +306,8 @@ async def _to_out(
         registry_id=record.id,
         status=record.status,
         visibility=record.visibility,
+        license_resolution=record.license_resolution,
+        citation_only=record.citation_only,
         title=record.title,
         molecule_type=record.molecule_type,
         hosting_decision=record.hosting_decision,
@@ -405,9 +374,13 @@ async def create_catalogue_record(
     article_license = await _lookup_license(db, body.source.article_license)
     data_license = await _lookup_license(db, body.source.data_license)
 
-    hosting_decision, hosting_reason, license_outcome = _decide_hosting(
-        data_license, body.biosafety_class
+    resolution = resolution_for(data_license)
+    hosting_decision, hosting_reason = hosting_for(
+        resolution,
+        body.biosafety_class,
+        data_license.spdx_id if data_license else None,
     )
+    license_outcome = "pass" if hosting_decision == "hosted" else "advisory"
     attribution_outcome, attribution_detail = _attribution_gate(body)
 
     number = await allocate_sequence_number(db, CATALOGUE_SEQ_COUNTER)
@@ -456,9 +429,11 @@ async def create_catalogue_record(
         hosting_decision=hosting_decision,
         hosting_reason=hosting_reason,
         biosafety_class=body.biosafety_class,
+        license_resolution=resolution,
         ingest_run_id=body.ingest_run_id,
     )
     db.add(record)
+    await db.flush()
 
     db.add(
         DesignMetadata(
@@ -488,7 +463,21 @@ async def create_catalogue_record(
             )
         )
 
+    await db.flush()
+
+    # An unstated licence opens a question rather than closing one. Nothing is
+    # sent here: the enquiry is queued for a person to read and send.
+    enquiry = await maybe_open_enquiry(db, record)
+
     by = f"key:{principal.key_id}"
+    if enquiry is not None:
+        await _record_gate(
+            db, registry_id, "license", "enquiry",
+            "advisory",
+            f"Licence enquiry {enquiry.id} queued ({enquiry.reason}). "
+            "No message is sent by the archive.",
+            by,
+        )
     await _record_gate(
         db, registry_id, "attribution", "complete",
         attribution_outcome, attribution_detail, by,

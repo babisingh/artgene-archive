@@ -9,7 +9,6 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from tinsel.compliance import build_compliance_manifest
-from tinsel.crypto import ALGORITHM_WOTS, PQSigner
 from tinsel.registry import AnchorMap, CertificateStatus, WatermarkConfig
 from tinsel.synthesis_auth import build_synthesis_auth_document
 from tinsel.watermark.decoder import TINSELDecoder

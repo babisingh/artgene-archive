@@ -94,11 +94,30 @@ class TestCreate:
     async def test_unstated_licence_yields_metadata_only(
         self, client: AsyncClient, scoped_keys, licences
     ) -> None:
-        """UNSTATED is a real row with allows_redistribution false."""
+        """UNSTATED resolves as unstated, not as a restrictive licence.
+
+        The distinction matters: a restrictive licence is settled, because the
+        authors already answered. An unstated one is a question nobody has
+        asked, and only the second opens an enquiry.
+        """
         resp = await _create(client, scoped_keys["agent"])
         body = resp.json()
         assert body["hosting_decision"] == "metadata_only"
-        assert "UNSTATED does not permit redistribution" in body["hosting_reason"]
+        assert body["license_resolution"] == "unstated"
+        assert "not a permissive one" in body["hosting_reason"]
+
+    async def test_restrictive_licence_is_settled_and_asks_nobody(
+        self, client: AsyncClient, scoped_keys, licences
+    ) -> None:
+        """A licence that forbids redistribution opens no enquiry."""
+        resp = await _create(
+            client, scoped_keys["agent"], payload(data_license="CC-BY-NC-ND-4.0")
+        )
+        body = resp.json()
+        assert body["hosting_decision"] == "metadata_only"
+        assert body["license_resolution"] == "stated_restrictive"
+        assert "does not permit redistribution" in body["hosting_reason"]
+        assert not any(g["gate_key"] == "enquiry" for g in body["gates"])
 
     async def test_absent_licence_also_yields_metadata_only(
         self, client: AsyncClient, scoped_keys, licences

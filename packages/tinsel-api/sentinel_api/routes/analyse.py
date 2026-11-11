@@ -10,21 +10,19 @@ No authentication required — intended for the public demo page.
 from __future__ import annotations
 
 import logging
-import math
 from datetime import UTC, datetime
-from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
-from tinsel.fragment import Fragment, assemble, find_overlaps, parse_multi_fasta
+from tinsel.fragment import assemble, find_overlaps, parse_multi_fasta
 from tinsel.registry import HostOrganism
 from tinsel.sequence.fasta import normalise
-from tinsel.watermark.encoder import CODON_POOLS, _CODON_TO_AA
+from tinsel.watermark.encoder import _CODON_TO_AA, CODON_POOLS
 from tinsel.watermark.tinsel_encoder import TINSELEncoder
+from tinsel_gates.adapters.gate3.codon import _CODON_USAGE, _HOST_MAP
 
 from sentinel_api.config import settings
 from sentinel_api.rate_limit import rate_limit_demo
-from tinsel_gates.adapters.gate3.codon import _CODON_USAGE, _HOST_MAP
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

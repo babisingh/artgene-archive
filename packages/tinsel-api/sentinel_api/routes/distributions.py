@@ -14,16 +14,14 @@ import hmac
 import io
 import uuid
 from datetime import UTC, datetime
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from tinsel.registry import HostOrganism
 from tinsel.sequence.fasta import normalise
-from tinsel.watermark.encoder import CODON_POOLS
 from tinsel.watermark.tinsel_encoder import TINSELEncoder
 
 from sentinel_api.config import settings

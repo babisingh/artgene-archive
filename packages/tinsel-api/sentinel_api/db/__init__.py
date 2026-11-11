@@ -7,3 +7,4 @@ models.py for Base, which is a cycle.
 """
 
 from sentinel_api.db import catalogue as catalogue  # noqa: F401  registers tables
+from sentinel_api.db import enquiry as enquiry  # noqa: F401  registers tables

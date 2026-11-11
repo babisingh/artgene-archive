@@ -126,11 +126,17 @@ convention.
       data a license does not cover. `UNSTATED` seeded as non redistributable.
       Verified: sequence data under `UNSTATED` is refused, the same data under
       `CC-BY-4.0` is accepted, and a metadata-only row is accepted either way.
-- [ ] `license_enquiries` and `do_not_contact`, so an unstated license opens an
-      author enquiry instead of closing the question. Designed in
-      `ARCHITECTURE.md` section 8, not built. This is the next piece: every
-      record created so far lands as `metadata_only` with an unstated license,
-      which is exactly the queue the enquiry table is for.
+- [x] `license_enquiries` and `do_not_contact`, so an unstated license opens an
+      author enquiry instead of closing the question. Migration 013, with
+      `license_resolution` and `citation_only` on the record. An enquiry is
+      queued automatically on ingest, never for work classed elevated or
+      restricted, one per publication, one reminder at most. Declining sets
+      `citation_only` and adds the person to a suppression list keyed on ORCID
+      or a peppered HMAC of their address. Verified end to end on PostgreSQL.
+- [x] **No send path exists.** `tests/test_no_send_path.py` fails if any mail
+      library is imported or declared, if an SMTP call appears, or if a
+      provider send endpoint is referenced. The rule that no agent ever sends
+      an email is therefore structural rather than documented.
 - [x] `POST /api/v1/catalogue` and the draft to published state machine, with
       transitions listed rather than inferred, `withdrawn` terminal, and every
       transition recorded as a gate result. Publishing needs a different scope

@@ -50,7 +50,6 @@ async def health() -> dict:
     Returns HTTP 503 (not 200) when the database is unreachable so that
     Railway's health check marks the deployment as degraded rather than healthy.
     """
-    from fastapi import Response
     from fastapi.responses import JSONResponse
 
     db_status, vault_status = await _connectivity()
