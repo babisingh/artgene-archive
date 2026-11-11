@@ -161,6 +161,7 @@ class ESMFoldGate1Adapter(Gate1Adapter):
                 plddt_per_residue=None,
                 instability_index=ii,
                 sequence_length=sequence_length,
+                mock_fallback=True,
             )
 
         # ── ESMFold API call ─────────────────────────────────────────────

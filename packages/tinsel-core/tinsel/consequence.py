@@ -33,6 +33,12 @@ class Gate1Result(BaseModel):
     plddt_per_residue: list[float] | None = None   # per-residue pLDDT from ESMFold
     instability_index: float | None = None          # Guruprasad 1990; >40 = unstable
     sequence_length: int | None = None              # amino acid count
+    # True when no structure prediction actually ran and the deterministic
+    # mock supplied the numbers, which ESMFold Atlas forces above 400 AA. The
+    # mock returns pLDDT 87.3, comfortably above the 70.0 fail threshold, so
+    # without this flag a long protein receives a PASS from a gate that never
+    # ran. Callers must not treat such a result as a clean screen.
+    mock_fallback: bool = False
 
     @field_validator("plddt_mean")
     @classmethod
@@ -140,6 +146,26 @@ class Gate4Result(BaseModel):
     note: str | None = None             # explains demo vs production method
 
 
+class OrfScreenSummary(BaseModel):
+    """What was screened when the submission was a nucleotide sequence.
+
+    A genome, a plasmid or a promoter has no single protein product, so the
+    hazard is a protein it encodes somewhere, in any of six frames on either
+    strand. The gates are run over the open reading frames instead of over one
+    translation.
+
+    ``complete`` is the honest part: screening is bounded, and a report that
+    could not cover every reading frame must not read as a clean pass.
+    """
+
+    orfs_found: int
+    orfs_screened: int
+    min_residues: int
+    complete: bool
+    worst_orf: str | None = None
+    note: str | None = None
+
+
 class ConsequenceReport(BaseModel):
     """Aggregated output of the four-gate biosafety consequence pipeline."""
 
@@ -150,6 +176,9 @@ class ConsequenceReport(BaseModel):
     overall_status: GateStatus
     # Gates present in run_gates that were skipped because gate 1 failed.
     skipped_gates: list[int] = Field(default_factory=list)
+    # Present when the submission was a nucleotide sequence with no single
+    # reading frame, and the gates were run over its open reading frames.
+    orf_screen: OrfScreenSummary | None = None
     # Which gate numbers were requested for this run.
     run_gates: tuple[int, ...] = (1, 2, 3, 4)
     # "real" when production/development adapters ran; "mock" when test stubs ran.
