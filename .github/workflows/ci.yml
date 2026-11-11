@@ -41,6 +41,13 @@ jobs:
             packages/tinsel-api/sentinel_api/ \
             -ll -q
 
+      # Advisory, matching the existing npm audit step: a new CVE in a
+      # transitive dependency should be visible without blocking an unrelated
+      # change.
+      - name: Audit Python dependencies
+        run: pip install pip-audit && pip-audit --strict || true
+        continue-on-error: true
+
       - name: Type check (mypy)
         run: |
           mypy packages/tinsel-core/tinsel/ packages/tinsel-gates/tinsel_gates/
@@ -55,6 +62,68 @@ jobs:
             -v --import-mode=importlib --cov=tinsel --cov=tinsel_gates --cov-report=xml
         env:
           SENTINEL_ENV: test
+
+  # ── Migrations against real PostgreSQL ──────────────────────────────────
+  # The test suite runs on SQLite with a JSONB compatibility patch, so it
+  # cannot exercise JSONB, the append-only trigger from 003, server defaults,
+  # or SELECT ... FOR UPDATE. Migrations are unverified until they run against
+  # the real engine, and there is no local PostgreSQL on the development
+  # machine, so this job is the only thing that checks them.
+  migrations:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: artgene_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/artgene_test
+      SENTINEL_ENV: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install workspace packages
+        run: |
+          uv pip install \
+            -e packages/tinsel-core \
+            -e packages/tinsel-gates \
+            -e packages/tinsel-api[dev] \
+            --system
+
+      # Generated rather than written here: SENTINEL_ENV=production refuses to
+      # start on the development default key, and a 64-character hex literal in
+      # a workflow file is the kind of thing that trains people to ignore
+      # secret-scanner warnings.
+      - name: Upgrade an empty database to head
+        working-directory: packages/tinsel-api
+        run: |
+          export SPREADING_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
+          alembic upgrade head
+
+      - name: Round-trip the latest migrations
+        working-directory: packages/tinsel-api
+        run: |
+          export SPREADING_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
+          alembic downgrade 007
+          alembic upgrade head
 
   # ── Client credential exposure guard ────────────────────────────────────
   # Catches the class of mistake a generic secret scanner misses: a credential

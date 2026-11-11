@@ -30,11 +30,30 @@ positions (watermark bit capacity) in the protein sequence:
 from __future__ import annotations
 
 import hashlib
+import json
 from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
+
+# ---------------------------------------------------------------------------
+# Certificate hashing schemes
+# ---------------------------------------------------------------------------
+#
+# The scheme identifier is hashed along with the fields, for domain separation,
+# and is stored on the certificate so a hash issued under one scheme stays
+# verifiable after the default changes.
+#
+# "concat-v1" joined the field VALUES with no delimiter and no keys, so field
+# boundaries were ambiguous: {"owner_id": "ab", "ethics_code": "c"} and
+# {"owner_id": "a", "ethics_code": "bc"} both hash "abc" and collide. It was
+# also sensitive to dict insertion order. It is kept only to verify anything
+# issued before the change.
+
+CERT_HASH_SCHEME_V1 = "concat-v1"
+CERT_HASH_SCHEME_V2 = "artgene-cert-sha3-512-v2"
+CERT_HASH_SCHEME_DEFAULT = CERT_HASH_SCHEME_V2
 
 # ---------------------------------------------------------------------------
 # Enumerations
@@ -330,11 +349,45 @@ class HybridCertificate(BaseModel):
     pathway_id: str | None = None
     consequence_report: dict[str, Any] = Field(default_factory=dict)
     certificate_hash: str
+    #: Which canonicalisation produced certificate_hash. Stored so the digest
+    #: stays verifiable after the default scheme changes.
+    hash_scheme: str = CERT_HASH_SCHEME_DEFAULT
     status: CertificateStatus
     chi_squared: float | None = None
     tier: WatermarkTier
 
     @classmethod
-    def compute_hash(cls, fields: dict[str, Any]) -> str:
-        payload = "".join(str(v) for v in fields.values()).encode("utf-8")
-        return hashlib.sha3_512(payload).hexdigest()
+    def compute_hash(
+        cls,
+        fields: dict[str, Any],
+        scheme: str = CERT_HASH_SCHEME_DEFAULT,
+    ) -> str:
+        """Return the SHA3-512 hex digest of *fields* under *scheme*.
+
+        The default scheme serialises the fields as JSON with sorted keys and no
+        insignificant whitespace, prefixed by the scheme identifier. Including
+        the keys removes the field-boundary ambiguity of v1, sorting them makes
+        the digest independent of insertion order, and the prefix stops a digest
+        computed for one purpose being replayed as another.
+
+        Values are stringified first, so a caller passing a datetime and a
+        caller passing its isoformat produce the same digest. That matches how
+        routes/register.py builds the field dict.
+        """
+        if scheme == CERT_HASH_SCHEME_V2:
+            body = json.dumps(
+                {str(k): str(v) for k, v in fields.items()},
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            )
+            payload = f"{scheme}\n{body}"
+        elif scheme == CERT_HASH_SCHEME_V1:
+            # Reproduces the original defect exactly, for verification only.
+            payload = "".join(str(v) for v in fields.values())
+        else:
+            raise ValueError(
+                f"Unknown certificate hash scheme {scheme!r}. "
+                f"Known: {CERT_HASH_SCHEME_V2!r}, {CERT_HASH_SCHEME_V1!r}."
+            )
+        return hashlib.sha3_512(payload.encode("utf-8")).hexdigest()

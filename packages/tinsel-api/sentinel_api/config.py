@@ -86,7 +86,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     @model_validator(mode="after")
-    def _reject_insecure_production_key(self) -> "Settings":
+    def _reject_insecure_production_key(self) -> Settings:
         if self.sentinel_env == "production" and self.spreading_key == "aa" * 32:
             raise ValueError(
                 "SPREADING_KEY is still the insecure development default in production mode. "
@@ -96,7 +96,7 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
-    def _reject_dev_mode_against_remote_db(self) -> "Settings":
+    def _reject_dev_mode_against_remote_db(self) -> Settings:
         """Refuse to run in development mode against a database that is not local.
 
         SENTINEL_ENV defaults to "development" here, in start.sh and in the

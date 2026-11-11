@@ -20,6 +20,7 @@ import uuid
 os.environ.setdefault("SENTINEL_ENV", "test")
 
 import pytest
+import sentinel_api.routes.health as health_module
 from httpx import ASGITransport, AsyncClient
 from sentinel_api.db.connection import get_db
 from sentinel_api.db.models import APIKey, Base, Organisation
@@ -48,6 +49,9 @@ SQLiteTypeCompiler.visit_JSONB = _sqlite_visit_jsonb  # type: ignore[attr-define
 
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 RAW_API_KEY = "tinsel-test-api-key-00000000"
+# A second organisation, so tests can tell "may read this record" apart from
+# "may read its sequence". Both keys are test fixtures and never leave SQLite.
+OTHER_RAW_API_KEY = "tinsel-test-other-key-00000000"
 
 PROTEIN_OK = "HAEGTFTSDVSSYLEGQAAKEFIAWLVKGRCEGVLGDTFR" * 4
 PROTEIN_OK2 = "MKTIIALSYIFCLVFA" * 10  # second distinct protein for sequential ID tests
@@ -105,6 +109,35 @@ async def test_org(db_engine) -> Organisation:
 
 
 @pytest.fixture
+async def other_org(db_engine) -> Organisation:
+    """A second Organisation, used to exercise non-owner access paths."""
+    factory = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
+    org_id = uuid.uuid4()
+    key_hash = hashlib.sha3_256(OTHER_RAW_API_KEY.encode()).hexdigest()
+
+    async with factory() as session:
+        org = Organisation(
+            id=org_id,
+            name="Other Organisation",
+            api_key_hash=key_hash,
+            tier="standard",
+        )
+        session.add(org)
+        session.add(
+            APIKey(
+                id=uuid.uuid4(),
+                org_id=org_id,
+                key_prefix=OTHER_RAW_API_KEY[:8],
+                key_hash=key_hash,
+                label="other-test-key",
+            )
+        )
+        await session.commit()
+
+    return org
+
+
+@pytest.fixture
 async def client(db_engine, test_org) -> AsyncClient:
     """HTTPX async client wired to the FastAPI app with a SQLite DB override."""
     factory = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
@@ -119,13 +152,34 @@ async def client(db_engine, test_org) -> AsyncClient:
                 raise
 
     app.dependency_overrides[get_db] = _override_get_db
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
-        yield ac
-    app.dependency_overrides.clear()
+
+    # The health route deliberately does not use the get_db dependency: it has
+    # to report "degraded" and return 503 when the pool is unreachable, which
+    # it cannot do if acquiring a session is a precondition for the handler
+    # running at all. It therefore reaches for the module-level factory, which
+    # the dependency override above does not touch, so /health tried to open a
+    # real PostgreSQL connection during tests and answered 503. Point that
+    # module global at the SQLite factory for the duration of the test, leaving
+    # the production behaviour exactly as it is.
+    original_health_factory = health_module.async_session_factory
+    health_module.async_session_factory = factory
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            yield ac
+    finally:
+        health_module.async_session_factory = original_health_factory
+        app.dependency_overrides.clear()
 
 
 @pytest.fixture
 def auth_headers() -> dict[str, str]:
     return {"X-API-Key": RAW_API_KEY}
+
+
+@pytest.fixture
+def other_auth_headers() -> dict[str, str]:
+    """Headers for the second organisation: authenticated, but not the owner."""
+    return {"X-API-Key": OTHER_RAW_API_KEY}

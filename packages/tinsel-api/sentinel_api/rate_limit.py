@@ -15,6 +15,8 @@ from fastapi import Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from sentinel_api.config import settings
+
 
 def _key_func(request: Request) -> str:
     """Return X-API-Key for authenticated requests, remote IP otherwise."""
@@ -26,7 +28,14 @@ def _key_func(request: Request) -> str:
     return f"ip:{get_remote_address(request)}"
 
 
-limiter = Limiter(key_func=_key_func)
+# Disabled under SENTINEL_ENV=test. Every test shares one API key, so the
+# limiter counts the whole suite as a single client: the write tier allows 20
+# registrations per minute, and the suite was already close enough to that
+# ceiling that adding four tests started returning 429 from unrelated cases.
+# A limit that fails tests by arithmetic on the number of tests is a flake
+# generator, not a guard. A test that wants to exercise the limiter should set
+# limiter.enabled = True for its own duration.
+limiter = Limiter(key_func=_key_func, enabled=settings.sentinel_env != "test")
 
 # Convenience decorators for the three tiers.
 # Usage: @rate_limit_demo / @rate_limit_write / @rate_limit_read

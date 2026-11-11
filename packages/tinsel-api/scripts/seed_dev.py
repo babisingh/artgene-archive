@@ -25,11 +25,10 @@ import sys
 import uuid
 from urllib.parse import urlsplit
 
-from sqlalchemy import select
-
 from sentinel_api.config import settings
 from sentinel_api.db.connection import async_session_factory
 from sentinel_api.db.models import APIKey, Organisation
+from sqlalchemy import select
 
 ORG_NAME = "dev-org"
 

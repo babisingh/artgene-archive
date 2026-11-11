@@ -33,6 +33,9 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+# Single source of truth for the hashing scheme written onto new certificates.
+from tinsel.registry import CERT_HASH_SCHEME_DEFAULT
+
 
 class Base(DeclarativeBase):
     pass
@@ -117,6 +120,16 @@ class Certificate(Base):
     certificate_hash: Mapped[str] = mapped_column(
         String(128), nullable=False, comment="SHA3-512 hex"
     )
+    hash_scheme: Mapped[str] = mapped_column(
+        String(40),
+        nullable=False,
+        default=CERT_HASH_SCHEME_DEFAULT,
+        comment=(
+            "Canonicalisation that produced certificate_hash. Rows written "
+            "before migration 008 used 'concat-v1', whose field boundaries "
+            "were ambiguous; new rows use the versioned JSON scheme."
+        ),
+    )
     status: Mapped[str] = mapped_column(String(30), nullable=False)
     chi_squared: Mapped[float | None] = mapped_column(Float, nullable=True)
     tier: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -180,6 +193,32 @@ class RegistryAuditLog(AppendOnlyMixin, Base):
 # ---------------------------------------------------------------------------
 # pathways
 # ---------------------------------------------------------------------------
+
+class RegistryCounter(Base):
+    """Monotonic counters allocated under a row lock.
+
+    The audit sequence number used to be computed as ``count(*) + 1`` over
+    registry_audit_log, which is a read-then-write race: two concurrent
+    registrations compute the same number, and the unique constraint on
+    seq_num then fails one of them with a 500.
+
+    A PostgreSQL SEQUENCE would be the obvious fix but is the wrong tool here:
+    sequence values are not returned on rollback, so a failed transaction would
+    leave a gap, and the audit chain relies on seq_num being contiguous to be
+    auditable. A counter row incremented inside the transaction keeps
+    contiguity, and the ``FOR UPDATE`` lock serialises allocation and the
+    subsequent read of the chain head in one step.
+    """
+
+    __tablename__ = "registry_counters"
+
+    name: Mapped[str] = mapped_column(
+        String(40), primary_key=True, comment="Counter identifier, e.g. 'audit_seq_num'"
+    )
+    next_value: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=1, comment="Value the next caller receives"
+    )
+
 
 class Pathway(Base):
     __tablename__ = "pathways"

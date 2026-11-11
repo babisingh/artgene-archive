@@ -24,6 +24,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from tinsel.crypto import PQSigner
 from tinsel.registry import (
+    CERT_HASH_SCHEME_DEFAULT,
     CertificateStatus,
     HostOrganism,
     HybridCertificate,
@@ -36,7 +37,13 @@ from tinsel_gates.pipeline import run_consequence_pipeline
 
 from sentinel_api.config import settings
 from sentinel_api.db.connection import get_db
-from sentinel_api.db.models import Certificate, FragmentKmerIndex, Organisation, RegistryAuditLog
+from sentinel_api.db.models import (
+    Certificate,
+    FragmentKmerIndex,
+    Organisation,
+    RegistryAuditLog,
+    RegistryCounter,
+)
 from sentinel_api.dependencies import require_api_key
 from sentinel_api.rate_limit import rate_limit_write
 from sentinel_api.vault import get_vault_client
@@ -78,13 +85,49 @@ def _entry_hash(seq_num: int, prev_hash: str, cert_hash: str) -> str:
     return hashlib.sha3_256(payload).hexdigest()
 
 
-async def _next_seq_num(db: AsyncSession) -> int:
-    """Return the next sequential registry number (1-indexed)."""
+#: Name of the counter row that hands out audit sequence numbers.
+AUDIT_SEQ_COUNTER = "audit_seq_num"
+
+
+async def _allocate_seq_num(db: AsyncSession) -> int:
+    """Allocate the next audit sequence number, serialising concurrent callers.
+
+    Replaces a ``count(*) + 1`` over registry_audit_log, under which two
+    simultaneous registrations computed the same number and the unique
+    constraint failed one of them with a 500.
+
+    The ``FOR UPDATE`` lock is held until the transaction ends, so the caller is
+    the only one appending to the chain for that span. That makes the
+    _prev_entry_hash read below safe as well: without it, two transactions
+    could read the same chain head. On SQLite, used by the test suite, row
+    locking is a no-op because writes are already serialised at the database
+    level, so this code path cannot exercise contention there; the guarantee is
+    a PostgreSQL one.
+    """
     result = await db.execute(
-        select(func.count()).select_from(RegistryAuditLog)
+        select(RegistryCounter)
+        .where(RegistryCounter.name == AUDIT_SEQ_COUNTER)
+        .with_for_update()
     )
-    count = result.scalar_one()
-    return count + 1
+    counter = result.scalars().first()
+
+    if counter is None:
+        # First use on this database, or a schema built by metadata.create_all
+        # rather than by the migration that seeds the row. Start from whatever
+        # the log already contains so numbering stays contiguous.
+        highest = (
+            await db.execute(
+                select(func.coalesce(func.max(RegistryAuditLog.seq_num), 0))
+            )
+        ).scalar_one()
+        counter = RegistryCounter(name=AUDIT_SEQ_COUNTER, next_value=highest + 1)
+        db.add(counter)
+        await db.flush()
+
+    allocated: int = counter.next_value
+    counter.next_value = allocated + 1
+    await db.flush()
+    return allocated
 
 
 async def _prev_entry_hash(db: AsyncSession) -> str:
@@ -347,7 +390,7 @@ async def register_sequence(
         spreading_key = await vault.get_spreading_key(settings.spreading_key_id)
 
         now = datetime.now(UTC)
-        seq_num = await _next_seq_num(db)
+        seq_num = await _allocate_seq_num(db)
         year = now.year
         registry_id = f"AG-{year}-{seq_num:06d}"
 
@@ -389,6 +432,9 @@ async def register_sequence(
             lwe_commitment=lwe_com.model_dump(),
             consequence_report=report_dict,
             certificate_hash=cert_hash,
+            # Recorded explicitly rather than relying on the column default, so
+            # the row states which canonicalisation produced its digest.
+            hash_scheme=CERT_HASH_SCHEME_DEFAULT,
             status=(CertificateStatus.CERTIFIED_WITH_WARNINGS if _warn_only else CertificateStatus.CERTIFIED).value,
             tier="STANDARD",
             visibility=body.visibility,

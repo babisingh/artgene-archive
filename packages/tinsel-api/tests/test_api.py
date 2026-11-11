@@ -15,7 +15,7 @@ from __future__ import annotations
 import pytest
 from httpx import AsyncClient
 
-from tests.conftest import FASTA_OK, FASTA_OK2, FASTA_TOO_SHORT
+from tests.conftest import FASTA_OK, FASTA_OK2, FASTA_TOO_SHORT, PROTEIN_OK
 
 # ── Health ────────────────────────────────────────────────────────────────────
 
@@ -335,3 +335,179 @@ class TestDistributions:
     ) -> None:
         resp = await client.get(f"/api/v1/sequences/{registered_id}/distributions")
         assert resp.status_code in (401, 422)
+
+
+# ── Certificates — visibility and sequence disclosure ────────────────────────
+
+class TestCertificateVisibility:
+    """A published record is readable by anyone; its sequence is not.
+
+    These cover the split introduced when GET /certificates/{id} stopped
+    requiring ownership for the whole response. Before it, the public record
+    page only worked because the dashboard proxy lent it the owning
+    organisation's key, which made every authenticated endpoint reachable
+    anonymously.
+    """
+
+    async def _register(
+        self, client: AsyncClient, auth_headers: dict, fasta: str, visibility: str
+    ) -> str:
+        resp = await client.post(
+            "/api/v1/register",
+            json={
+                "fasta": fasta,
+                "owner_id": "OWNER_VIS",
+                "ethics_code": "ERC-VIS",
+                "host_organism": "HUMAN",
+                "visibility": visibility,
+            },
+            headers=auth_headers,
+        )
+        assert resp.status_code == 201, resp.text
+        return resp.json()["registry_id"]
+
+    async def test_owner_receives_the_sequence(
+        self, client: AsyncClient, auth_headers: dict
+    ) -> None:
+        registry_id = await self._register(client, auth_headers, FASTA_OK, "public")
+        resp = await client.get(
+            f"/api/v1/certificates/{registry_id}", headers=auth_headers
+        )
+        assert resp.status_code == 200
+        assert resp.json()["watermark_metadata"]["original_protein"] == PROTEIN_OK
+
+    async def test_non_owner_reads_public_record_without_the_sequence(
+        self, client: AsyncClient, auth_headers: dict, other_auth_headers: dict, other_org
+    ) -> None:
+        registry_id = await self._register(client, auth_headers, FASTA_OK, "public")
+        resp = await client.get(
+            f"/api/v1/certificates/{registry_id}", headers=other_auth_headers
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        # The record is readable: this is what the public registry page needs.
+        assert body["registry_id"] == registry_id
+        assert body["status"] == "CERTIFIED"
+        assert body["consequence_report"] is not None
+        # The sequence is not.
+        assert "original_protein" not in (body["watermark_metadata"] or {})
+
+    async def test_non_owner_cannot_see_an_embargoed_record(
+        self, client: AsyncClient, auth_headers: dict, other_auth_headers: dict, other_org
+    ) -> None:
+        registry_id = await self._register(
+            client, auth_headers, FASTA_OK2, "embargoed"
+        )
+        resp = await client.get(
+            f"/api/v1/certificates/{registry_id}", headers=other_auth_headers
+        )
+        # 404 rather than 403, so the response does not confirm it exists.
+        assert resp.status_code == 404
+
+    async def test_owner_can_see_its_own_embargoed_record(
+        self, client: AsyncClient, auth_headers: dict
+    ) -> None:
+        registry_id = await self._register(
+            client, auth_headers, FASTA_OK2, "embargoed"
+        )
+        resp = await client.get(
+            f"/api/v1/certificates/{registry_id}", headers=auth_headers
+        )
+        assert resp.status_code == 200
+        assert resp.json()["visibility"] == "embargoed"
+
+
+# ── Audit sequence allocation ─────────────────────────────────────────────────
+
+class TestAuditSequenceAllocation:
+    """Sequence numbers must be contiguous and must survive repeated deposits.
+
+    Contiguity is what makes the hash chain auditable: a gap is
+    indistinguishable from a removed entry. The previous count(*) + 1 approach
+    also raced, though SQLite cannot demonstrate that, since it serialises
+    writes at the database level. These tests pin the contiguity contract and
+    the lazy initialisation path used when the schema comes from
+    metadata.create_all rather than from the migration that seeds the counter.
+    """
+
+    async def test_first_allocation_starts_at_one(
+        self, client: AsyncClient, auth_headers: dict
+    ) -> None:
+        resp = await client.post(
+            "/api/v1/register",
+            json={
+                "fasta": FASTA_OK,
+                "owner_id": "OWNER_SEQ",
+                "ethics_code": "ERC-SEQ",
+                "host_organism": "HUMAN",
+            },
+            headers=auth_headers,
+        )
+        assert resp.status_code == 201, resp.text
+        # AG-<year>-000001 for the first entry in an empty registry.
+        assert resp.json()["registry_id"].endswith("-000001")
+
+    async def test_successive_registrations_are_contiguous(
+        self, client: AsyncClient, auth_headers: dict
+    ) -> None:
+        ids = []
+        for fasta in (FASTA_OK, FASTA_OK2):
+            resp = await client.post(
+                "/api/v1/register",
+                json={
+                    "fasta": fasta,
+                    "owner_id": "OWNER_SEQ",
+                    "ethics_code": "ERC-SEQ",
+                    "host_organism": "HUMAN",
+                },
+                headers=auth_headers,
+            )
+            assert resp.status_code == 201, resp.text
+            ids.append(resp.json()["registry_id"])
+
+        numbers = [int(i.rsplit("-", 1)[1]) for i in ids]
+        assert numbers == [1, 2], f"expected contiguous numbering, got {numbers}"
+
+    async def test_counter_row_is_created_lazily(
+        self, client: AsyncClient, auth_headers: dict, db_engine
+    ) -> None:
+        """A schema built by create_all has no seeded counter; allocation seeds it."""
+        from sentinel_api.db.models import RegistryCounter
+        from sentinel_api.routes.register import AUDIT_SEQ_COUNTER
+        from sqlalchemy import select as sa_select
+        from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+        factory = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
+        async with factory() as session:
+            before = (
+                await session.execute(
+                    sa_select(RegistryCounter).where(
+                        RegistryCounter.name == AUDIT_SEQ_COUNTER
+                    )
+                )
+            ).scalars().first()
+        assert before is None
+
+        resp = await client.post(
+            "/api/v1/register",
+            json={
+                "fasta": FASTA_OK,
+                "owner_id": "OWNER_SEQ",
+                "ethics_code": "ERC-SEQ",
+                "host_organism": "HUMAN",
+            },
+            headers=auth_headers,
+        )
+        assert resp.status_code == 201, resp.text
+
+        async with factory() as session:
+            after = (
+                await session.execute(
+                    sa_select(RegistryCounter).where(
+                        RegistryCounter.name == AUDIT_SEQ_COUNTER
+                    )
+                )
+            ).scalars().first()
+        assert after is not None
+        # One allocation consumed, so the next caller receives 2.
+        assert after.next_value == 2
