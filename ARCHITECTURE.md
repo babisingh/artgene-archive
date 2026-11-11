@@ -5,8 +5,8 @@ Status: proposed, 2026-11-12. Nothing in here is built yet.
 This document covers what the archive needs in order to hold records of
 AI designed sequences published by other groups, alongside the first party
 certificates it already issues, and to do so with a defensible security and
-licensing posture. It extends `context.md`, which covers the UI migration, and
-supersedes nothing in it.
+licensing posture. It replaces `context.md` and `MIGRATION.md`, which were
+working notes from the UI migration and have been removed.
 
 ## Decisions taken
 
@@ -61,8 +61,8 @@ What is broken or missing:
    There is a second, independent exposure of the same key. `lib/providers.tsx`
    read it from `process.env.NEXT_PUBLIC_API_KEY`, and Next inlines
    `NEXT_PUBLIC_*` variables into the client bundle at build time, so a key set
-   that way is readable by anyone who views source. `context.md` decision 3
-   records this as the intended design, so it is probably live in production.
+   that way is readable by anyone who views source. The UI migration notes
+   recorded this as the intended design, so it was probably live in production.
 
    Both are fixed on this branch. One consequence needs a backend change in the
    same phase: `get_certificate` returns 404 unless the caller's organisation
@@ -629,7 +629,7 @@ container, backups with a restore test, chain checkpoints.
 Done when: migrations apply cleanly to an empty Postgres in CI, the API role
 cannot `DELETE`, and a restore has been performed once from a real backup.
 
-**Phase 2, the catalogue schema.** Migration `008`: `records`, `licenses` seeded
+**Phase 2, the catalogue schema.** Migration `010` (`008` and `009` are now the hash scheme column and the counter table): `records`, `licenses` seeded
 with the common SPDX set, `sources`, `source_authors`, `catalogue_records`,
 `design_metadata`, `external_accessions`, `sequence_blobs` with the license
 trigger, `record_gate_results`, `ingest_runs`, `takedown_requests`, the

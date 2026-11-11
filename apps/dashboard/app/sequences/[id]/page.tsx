@@ -14,7 +14,6 @@ import {
   YAxis,
 } from "recharts";
 import { useApiKey } from "../../../lib/providers";
-import { MOCK_CERTIFICATE_DETAILS } from "../../../lib/mock-data";
 import { CertSeal } from "../../../components/design/CertSeal";
 import { CodonGrid } from "../../../components/design/CodonGrid";
 import type {
@@ -2395,7 +2394,6 @@ export default function CertificatePage({
 }) {
   const { id } = use(params);
   const { client, apiKey } = useApiKey();
-  const isDemoId = Boolean(id?.startsWith("AG-DEMO-"));
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
@@ -2424,45 +2422,13 @@ export default function CertificatePage({
 
   const { data: cert, isLoading, isError, error } = useQuery({
     queryKey: ["certificate", id],
-    queryFn: async () => {
-      if (apiKey) {
-        try {
-          return await client.getCertificate(id);
-        } catch (err) {
-          if (isDemoId) {
-            const mock = MOCK_CERTIFICATE_DETAILS.find((c) => c.registry_id === id);
-            if (mock) return mock;
-          }
-          throw err;
-        }
-      } else if (isDemoId) {
-        const mock = MOCK_CERTIFICATE_DETAILS.find((c) => c.registry_id === id);
-        if (mock) return mock;
-        throw new Error("Demo record not found");
-      } else {
-        throw new Error("No API key configured");
-      }
-    },
-    enabled: Boolean(id && (apiKey || isDemoId)),
+    // A published record needs no key here: the server-side proxy attaches a
+    // read-only one for allowlisted certificate reads, and the API withholds
+    // the sequence itself from anyone but the owning organisation. An embargoed
+    // record answers 404, which the error branch below explains.
+    queryFn: () => client.getCertificate(id),
+    enabled: Boolean(id),
   });
-
-  if (!apiKey && !isDemoId) {
-    return (
-      <div className="wrap" style={{ padding: "80px 0", textAlign: "center", color: "var(--ink-3)" }}>
-        <p>
-          No API key in this session. Unpublished records are operator only, so
-          viewing one needs a key in this tab&apos;s{" "}
-          <code>sessionStorage</code> under{" "}
-          <code>artgene_api_key</code>. A key must never be put in a build
-          variable: Next compiles those into the bundle it serves to every
-          visitor.
-        </p>
-        <Link href="/sequences" className="btn btn-ghost btn-sm" style={{ marginTop: 16, display: "inline-block" }}>
-          ← Back to sequences
-        </Link>
-      </div>
-    );
-  }
 
   if (isLoading) {
     return (
@@ -2478,6 +2444,15 @@ export default function CertificatePage({
         <p style={{ color: "var(--danger)", marginBottom: 16 }}>
           {error instanceof Error ? error.message : "Certificate not found"}
         </p>
+        {!apiKey && (
+          <p style={{ color: "var(--ink-3)", marginBottom: 16, fontSize: 13 }}>
+            Published records are readable by anyone. An unpublished one is
+            visible only to the organisation that deposited it, and needs an
+            operator key in this tab&apos;s <code>sessionStorage</code> under{" "}
+            <code>artgene_api_key</code>. Never put a key in a build variable:
+            Next compiles those into the bundle it serves to every visitor.
+          </p>
+        )}
         <Link href="/sequences" className="btn btn-ghost btn-sm">← Back to sequences</Link>
       </div>
     );
