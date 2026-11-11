@@ -72,9 +72,11 @@ convention.
       `GET /certificates/{id}` serves a published record to any authenticated
       caller and withholds `watermark_metadata.original_protein` from everyone
       but the owner. Embargoed records answer 404, not 403.
-- [ ] **Scoped API keys.** `api_keys` still has no `scopes`, `expires_at` or
-      `created_by`. Needed before the agent gets a key of its own, because
-      `catalogue:draft` is what stops it publishing. `ARCHITECTURE.md` section 3.
+- [x] **Scoped API keys.** `api_keys` carries `scopes`, `expires_at`,
+      `created_by` and `description`, keys expire, and `require_scope` refuses a
+      caller lacking a scope with 403 and the list of what is missing. Verified
+      end to end against PostgreSQL: the agent key stages and reviews, and its
+      publish attempt is refused with `['catalogue:publish']`.
 - [ ] **Database roles.** The API connects as the table owner, so it could drop
       the append-only trigger it relies on. Needs a role with no `DELETE` and
       `INSERT` only on `registry_audit_log`.
@@ -115,20 +117,31 @@ convention.
 
 ## Catalogue and ingest, Phase 2 and 3
 
-- [ ] `records`, `sources`, `source_authors`, `licenses`, `catalogue_records`,
+- [x] `records`, `sources`, `source_authors`, `licenses`, `catalogue_records`,
       `design_metadata`, `external_accessions`, `sequence_blobs`,
       `record_gate_results`, `ingest_runs`, `takedown_requests`, and the
-      `registry_entries` view. Migration 010.
-- [ ] License gate enforced by a database trigger, so no code path can store
+      `registry_entries` view. Migration 010, applied and round-tripped on
+      PostgreSQL 16 from base.
+- [x] License gate enforced by a database trigger, so no code path can store
       data a license does not cover. `UNSTATED` seeded as non redistributable.
+      Verified: sequence data under `UNSTATED` is refused, the same data under
+      `CC-BY-4.0` is accepted, and a metadata-only row is accepted either way.
 - [ ] `license_enquiries` and `do_not_contact`, so an unstated license opens an
-      author enquiry instead of closing the question.
-- [ ] `POST /api/v1/catalogue` and the draft to published state machine.
+      author enquiry instead of closing the question. Designed in
+      `ARCHITECTURE.md` section 8, not built. This is the next piece: every
+      record created so far lands as `metadata_only` with an unstated license,
+      which is exactly the queue the enquiry table is for.
+- [x] `POST /api/v1/catalogue` and the draft to published state machine, with
+      transitions listed rather than inferred, `withdrawn` terminal, and every
+      transition recorded as a gate result. Publishing needs a different scope
+      from drafting.
 - [ ] Nucleotide handling. `protein = sequence` for DNA means gate α runs
       ESMFold against a nucleotide string, and the 5,000 residue cap rejects any
       designed genome. This blocks the archive's headline subject.
-- [ ] Metadata only records, for the common case where a paper deposits nothing.
-- [ ] `restricted` state, so a sequence failing screening keeps its citation.
+- [x] Metadata only records, for the common case where a paper deposits
+      nothing: the hosting decision and its reason are recorded per record.
+- [x] `restricted` state, so a sequence failing screening keeps its citation.
+      A record classed `restricted` is `withheld` whatever its license permits.
 
 ## Dashboard
 

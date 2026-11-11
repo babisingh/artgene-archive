@@ -194,3 +194,95 @@ def auth_headers() -> dict[str, str]:
 def other_auth_headers() -> dict[str, str]:
     """Headers for the second organisation: authenticated, but not the owner."""
     return {"X-API-Key": OTHER_RAW_API_KEY}
+
+
+# ── Scoped keys and licence vocabulary for the catalogue routes ──────────────
+
+# Three callers, because the point of scopes is the difference between them.
+AGENT_RAW_API_KEY = "tinsel-test-agent-key-00000000"
+OPERATOR_RAW_API_KEY = "tinsel-test-operator-key-00000000"
+PLAIN_RAW_API_KEY = "tinsel-test-plain-key-00000000"
+
+
+async def _add_scoped_key(factory, org_id, raw_key: str, scopes: list[str], label: str):
+    """Insert an APIKey carrying *scopes* for *org_id*."""
+    async with factory() as session:
+        session.add(
+            APIKey(
+                id=uuid.uuid4(),
+                org_id=org_id,
+                key_prefix=raw_key[:8],
+                key_hash=hashlib.sha3_256(raw_key.encode()).hexdigest(),
+                label=label,
+                scopes=scopes,
+            )
+        )
+        await session.commit()
+
+
+@pytest.fixture
+async def scoped_keys(db_engine, test_org):
+    """Keys for the agent, an operator, and a caller with public read only.
+
+    The agent deliberately lacks catalogue:publish. Several tests assert that
+    it is refused, which is the editorial control the design rests on.
+    """
+    from sentinel_api.scopes import (
+        CATALOGUE_DRAFT,
+        CATALOGUE_PUBLISH,
+        READ_EMBARGOED,
+        READ_PUBLIC,
+        REGISTRY_DEPOSIT,
+    )
+
+    factory = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
+    await _add_scoped_key(
+        factory, test_org.id, AGENT_RAW_API_KEY,
+        [READ_PUBLIC, CATALOGUE_DRAFT], "genome-watch-agent",
+    )
+    await _add_scoped_key(
+        factory, test_org.id, OPERATOR_RAW_API_KEY,
+        [READ_PUBLIC, READ_EMBARGOED, CATALOGUE_DRAFT, CATALOGUE_PUBLISH, REGISTRY_DEPOSIT],
+        "operator",
+    )
+    await _add_scoped_key(
+        factory, test_org.id, PLAIN_RAW_API_KEY, [READ_PUBLIC], "public-read",
+    )
+    return {
+        "agent": {"X-API-Key": AGENT_RAW_API_KEY},
+        "operator": {"X-API-Key": OPERATOR_RAW_API_KEY},
+        "plain": {"X-API-Key": PLAIN_RAW_API_KEY},
+    }
+
+
+@pytest.fixture
+async def licences(db_engine):
+    """Seed the licences the catalogue tests reference.
+
+    Migration 010 seeds the full vocabulary, but tests build the schema with
+    metadata.create_all and never run migrations, so the rows have to be put
+    here. allows_redistribution is the column the hosting decision reads.
+    """
+    from sentinel_api.db.catalogue import License
+
+    factory = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
+    rows = [
+        ("CC-BY-4.0", "Creative Commons Attribution 4.0", True, True, True, True),
+        ("CC0-1.0", "Creative Commons Zero v1.0", True, True, True, False),
+        (
+            "CC-BY-NC-ND-4.0",
+            "CC Attribution-NonCommercial-NoDerivatives 4.0",
+            False, False, False, True,
+        ),
+        ("UNSTATED", "No licence stated", False, False, False, True),
+    ]
+    async with factory() as session:
+        for spdx, name, redis, deriv, comm, attr in rows:
+            session.add(
+                License(
+                    spdx_id=spdx, name=name, url=None,
+                    allows_redistribution=redis, allows_derivatives=deriv,
+                    allows_commercial=comm, requires_attribution=attr, notes=None,
+                )
+            )
+        await session.commit()

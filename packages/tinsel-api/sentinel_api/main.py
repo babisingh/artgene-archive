@@ -20,6 +20,7 @@ from sentinel_api.config import settings
 from sentinel_api.rate_limit import limiter
 from sentinel_api.routes import (
     analyse,
+    catalogue,
     certificates,
     distributions,
     health,
@@ -116,6 +117,9 @@ app.include_router(health.router, prefix="/api/v1", tags=["meta"])
 app.include_router(register.router, prefix="/api/v1", tags=["registration"])
 app.include_router(
     certificates.router, prefix="/api/v1/certificates", tags=["certificates"]
+)
+app.include_router(
+    catalogue.router, prefix="/api/v1/catalogue", tags=["catalogue"]
 )
 app.include_router(pathways.router, prefix="/api/v1/pathways", tags=["pathways"])
 app.include_router(analyse.router, prefix="/api/v1", tags=["demo"])

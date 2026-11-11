@@ -284,6 +284,20 @@ class APIKey(Base):
         String(64), nullable=False, comment="SHA3-256 hex of the full raw key"
     )
     label: Mapped[str] = mapped_column(String(100), nullable=False)
+    # What this key may do. Empty means it may do nothing on any scoped route,
+    # which is the fail-closed default: a key with no scopes cannot create a
+    # catalogue record, let alone publish one. JSONB rather than a PostgreSQL
+    # array so the SQLite test harness can hold it; see db/catalogue.py.
+    scopes: Mapped[list | None] = mapped_column(JSONB, nullable=False, default=list)
+    description: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, comment="Who or what holds this key, in words"
+    )
+    created_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Rotation: issue the replacement, overlap, then let this lapse",
+    )
     last_used_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

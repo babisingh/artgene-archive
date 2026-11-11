@@ -35,6 +35,11 @@ from tinsel.registry import (
 from tinsel.sequence.fasta import normalise
 from tinsel_gates.pipeline import run_consequence_pipeline
 
+from sentinel_api.accession import (
+    AUDIT_SEQ_COUNTER,
+    allocate_sequence_number,
+    format_accession,
+)
 from sentinel_api.config import settings
 from sentinel_api.db.catalogue import Record
 from sentinel_api.db.connection import get_db
@@ -43,7 +48,6 @@ from sentinel_api.db.models import (
     FragmentKmerIndex,
     Organisation,
     RegistryAuditLog,
-    RegistryCounter,
 )
 from sentinel_api.dependencies import require_api_key
 from sentinel_api.rate_limit import rate_limit_write
@@ -86,53 +90,23 @@ def _entry_hash(seq_num: int, prev_hash: str, cert_hash: str) -> str:
     return hashlib.sha3_256(payload).hexdigest()
 
 
-#: Name of the counter row that hands out audit sequence numbers.
-AUDIT_SEQ_COUNTER = "audit_seq_num"
-
-
-async def _allocate_seq_num(db: AsyncSession) -> int:
-    """Allocate the next audit sequence number, serialising concurrent callers.
-
-    Replaces a ``count(*) + 1`` over registry_audit_log, under which two
-    simultaneous registrations computed the same number and the unique
-    constraint failed one of them with a 500.
-
-    The ``FOR UPDATE`` lock is held until the transaction ends, so the caller is
-    the only one appending to the chain for that span. That makes the
-    _prev_entry_hash read below safe as well: without it, two transactions
-    could read the same chain head. On SQLite, used by the test suite, row
-    locking is a no-op because writes are already serialised at the database
-    level, so this code path cannot exercise contention there; the guarantee is
-    a PostgreSQL one.
-    """
-    result = await db.execute(
-        select(RegistryCounter)
-        .where(RegistryCounter.name == AUDIT_SEQ_COUNTER)
-        .with_for_update()
-    )
-    counter = result.scalars().first()
-
-    if counter is None:
-        # First use on this database, or a schema built by metadata.create_all
-        # rather than by the migration that seeds the row. Start from whatever
-        # the log already contains so numbering stays contiguous.
-        highest = (
-            await db.execute(
-                select(func.coalesce(func.max(RegistryAuditLog.seq_num), 0))
-            )
-        ).scalar_one()
-        counter = RegistryCounter(name=AUDIT_SEQ_COUNTER, next_value=highest + 1)
-        db.add(counter)
-        await db.flush()
-
-    allocated: int = counter.next_value
-    counter.next_value = allocated + 1
-    await db.flush()
-    return allocated
+async def _highest_audit_seq_plus_one(db: AsyncSession) -> int:
+    """Where a fresh counter should start so numbering stays contiguous."""
+    highest = (
+        await db.execute(
+            select(func.coalesce(func.max(RegistryAuditLog.seq_num), 0))
+        )
+    ).scalar_one()
+    return int(highest) + 1
 
 
 async def _prev_entry_hash(db: AsyncSession) -> str:
-    """Return the ``entry_hash_hex`` of the most-recent audit entry, or zeros."""
+    """Return the ``entry_hash_hex`` of the most recent audit entry, or zeros.
+
+    Safe to read only while the counter row lock from allocate_sequence_number
+    is held: without it two transactions could extend the chain from the same
+    previous hash.
+    """
     result = await db.execute(
         select(RegistryAuditLog.entry_hash_hex)
         .order_by(RegistryAuditLog.seq_num.desc())
@@ -391,9 +365,11 @@ async def register_sequence(
         spreading_key = await vault.get_spreading_key(settings.spreading_key_id)
 
         now = datetime.now(UTC)
-        seq_num = await _allocate_seq_num(db)
+        seq_num = await allocate_sequence_number(
+            db, AUDIT_SEQ_COUNTER, seed=lambda: _highest_audit_seq_plus_one(db)
+        )
         year = now.year
-        registry_id = f"AG-{year}-{seq_num:06d}"
+        registry_id = format_accession("AG", year, seq_num)
 
         # seq_hash already computed above as pre_hash
         seq_hash = pre_hash
