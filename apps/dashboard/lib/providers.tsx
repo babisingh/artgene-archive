@@ -48,13 +48,19 @@ function getQueryClient() {
 export function Providers({ children }: { children: ReactNode }) {
   const queryClient = getQueryClient();
 
+  // SECURITY: never read the key from a NEXT_PUBLIC_* variable. Next inlines
+  // those into the client bundle at build time, so the key would be readable by
+  // anyone who views source, which is worse than a cookie. The key lives in
+  // sessionStorage only, put there by an operator for the duration of a tab.
+  // Public pages need no key: the server-side proxy supplies a read-only one
+  // for the allowlisted public GET paths.
   const [apiKey, setApiKeyState] = useState<string>(() => {
-    if (typeof window === "undefined") return process.env.NEXT_PUBLIC_API_KEY ?? "";
-    return (
-      process.env.NEXT_PUBLIC_API_KEY ||
-      sessionStorage.getItem("artgene_api_key") ||
-      ""
-    );
+    if (typeof window === "undefined") return "";
+    try {
+      return sessionStorage.getItem("artgene_api_key") ?? "";
+    } catch {
+      return "";
+    }
   });
 
   function setApiKey(key: string) {

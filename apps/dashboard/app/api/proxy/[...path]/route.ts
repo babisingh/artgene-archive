@@ -1,10 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Both vars are server-side runtime env vars — set them in Railway.
-// API_URL  → tinsel-api service URL (e.g. https://tinsel-api.up.railway.app)
-// API_KEY  → shared API key injected into every proxied request
+// API_URL             -> tinsel-api service URL (e.g. https://tinsel-api.up.railway.app)
+// PUBLIC_READ_API_KEY -> a key carrying read:public and nothing else.
+//
+// SECURITY: this proxy runs on the server, so any key it attaches is available
+// to every anonymous visitor who can reach the route. It therefore attaches a
+// server-side key ONLY to the allowlisted public read paths below, and ONLY on
+// GET. Every other path and method must carry the caller's own key, which is
+// forwarded untouched. Before this allowlist existed the proxy attached the
+// server key to every request, including POST /register and
+// POST /certificates/{id}/revoke, which made both reachable anonymously.
 const API_URL = process.env.API_URL ?? "http://localhost:8000";
-const SERVER_API_KEY = process.env.API_KEY ?? "";
+const PUBLIC_READ_API_KEY =
+  process.env.PUBLIC_READ_API_KEY ?? process.env.API_KEY ?? "";
+
+// Paths, relative to /api/v1/, that the public registry pages need in order to
+// render for an anonymous visitor. Anything returning a full record (export,
+// synthesis-auth), anything under /sequences, and /health/detail are absent on
+// purpose: they expose raw sequence data or per-recipient provenance, so they
+// need the caller's own key.
+const PUBLIC_GET_PATHS: RegExp[] = [
+  /^health$/,
+  /^certificates$/,
+  /^certificates\/lookup$/,
+  /^certificates\/AGC?-\d{4}-\d{6}$/,
+  /^certificates\/AGC?-\d{4}-\d{6}\/compliance$/,
+  /^certificates\/AGC?-\d{4}-\d{6}\/compliance\/verify$/,
+];
+
+function isPublicGet(method: string, path: string): boolean {
+  if (method !== "GET") return false;
+  return PUBLIC_GET_PATHS.some((re) => re.test(path));
+}
 
 async function proxy(
   req: NextRequest,
@@ -12,14 +39,26 @@ async function proxy(
   method: string,
 ): Promise<NextResponse> {
   const { path } = await context.params;
-  const targetUrl = new URL(`${API_URL}/api/v1/${path.join("/")}`);
+  const joined = path.join("/");
+
+  // FastAPI's collection routes are declared with a trailing slash, so dropping
+  // it here would earn a 307 from upstream on every list call. Preserve
+  // whatever the caller sent.
+  const trailing = req.nextUrl.pathname.endsWith("/") ? "/" : "";
+  const targetUrl = new URL(`${API_URL}/api/v1/${joined}${trailing}`);
   targetUrl.search = req.nextUrl.search;
 
   const headers: Record<string, string> = {};
-  // Prefer a key explicitly provided by the browser; fall back to the
-  // server-side API_KEY so the app works without per-user keys.
-  const apiKey = req.headers.get("x-api-key") || SERVER_API_KEY;
-  if (apiKey) headers["x-api-key"] = apiKey;
+
+  // A key supplied by the caller is always forwarded: that is how an operator
+  // performs writes. The server key is a fallback for public reads only.
+  const callerKey = req.headers.get("x-api-key");
+  if (callerKey) {
+    headers["x-api-key"] = callerKey;
+  } else if (isPublicGet(method, joined) && PUBLIC_READ_API_KEY) {
+    headers["x-api-key"] = PUBLIC_READ_API_KEY;
+  }
+
   const ct = req.headers.get("content-type");
   if (ct) headers["content-type"] = ct;
 
