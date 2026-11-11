@@ -141,9 +141,20 @@ convention.
       transitions listed rather than inferred, `withdrawn` terminal, and every
       transition recorded as a gate result. Publishing needs a different scope
       from drafting.
-- [ ] Nucleotide handling. `protein = sequence` for DNA means gate α runs
-      ESMFold against a nucleotide string, and the 5,000 residue cap rejects any
-      designed genome. This blocks the archive's headline subject.
+- [x] Nucleotide handling. A coding sequence is translated and the gates see
+      the protein it encodes. A nucleotide sequence with no single product, a
+      genome, a plasmid, a promoter, is screened by running the protein gates
+      over its six-frame open reading frames, with the structural gate not run
+      at all rather than fed a string of bases. Any one failing frame fails the
+      submission. Limits are per submission kind now: 2,000 residues, 6,003
+      bases of coding sequence, 50,000 bases otherwise. Verified on PostgreSQL
+      with a 972 base construct carrying genes on both strands.
+- [x] **A partial screen cannot produce a clean certificate.** Two ways it
+      happens, both downgraded to `CERTIFIED_WITH_WARNINGS` with the reason in
+      the response: ESMFold Atlas refuses sequences over 400 residues and the
+      adapter substitutes a mock returning pLDDT 87.3, above the 70.0 fail
+      threshold, so every long protein was passing a gate that never ran; and
+      an ORF screen bounded at 24 frames leaves the rest unchecked.
 - [x] Metadata only records, for the common case where a paper deposits
       nothing: the hosting decision and its reason are recorded per record.
 - [x] `restricted` state, so a sequence failing screening keeps its citation.
