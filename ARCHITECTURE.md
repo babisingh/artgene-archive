@@ -680,8 +680,8 @@ alerting that pages a human.
    the key scopes with that in mind, which this document does, and deferring the
    rest.
 2. **The first AG-ID.** `01_glp1_pass.fasta` should be `AG-2026-000001`, a first
-   party certificate, deposited before any catalogue record exists. `tasks.md`
-   lists this as fatal for the paper.
+   party certificate, deposited before any catalogue record exists. `CHECKLIST.md`,
+   under Paper submission, lists this as the blocking item for the manuscript.
 3. **Preprint versioning.** A preprint that becomes a peer reviewed paper is the
    same work with a new DOI. Proposal: one `sources` row per version, linked, and
    one catalogue record that points at the newest, so the citation updates without

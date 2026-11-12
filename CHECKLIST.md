@@ -266,3 +266,28 @@ SENTINEL_ENV=production SPREADING_KEY=$(python -c "import secrets;print(secrets.
 # The guard that stops a credential reaching the browser
 python3 scripts/check_no_client_secrets.py
 ```
+
+## Paper submission
+
+Carried over from `tasks.md` on 2026-11-12, which was a peer-review fix
+tracker from 2026-05 whose own instruction was to delete each task as it was
+completed. Everything in it had been done except these four, all of which are
+manual edits to the manuscript rather than code, so the tracker was retired
+and the live items kept here.
+
+- [ ] **Obtain a live, verifiable AG-ID.** The gate values, the FASTA and the
+      paper text are ready; `packages/tinsel-demo/sequences/01_glp1_pass.fasta`
+      is the intended first deposit. Once the real accession exists, replace
+      every `AG-2026-000001` in the manuscript (Section 4.3 intro, and the
+      Figure 2 JSON `ag_id`) and in `apps/dashboard/app/showcase/page.tsx`
+      (`CERT_FIELDS`, `COMPLIANCE_DOCS`, `REG_FALLBACK`). It has to resolve on
+      the live registry on submission day, which makes it downstream of
+      `DEPLOY.md`.
+- [ ] **Renumber references [22] to [25]**, which are out of first-appearance
+      order: De Haro to [22], LinearFold to [23], WOTS+ Huelsing to [24],
+      Regev LWE to [25]. [26] onward are unaffected. Every in-text citation
+      needs updating to match.
+- [ ] **Embed the Figure 1 pipeline diagram** at 300 DPI or better. The
+      caption is currently a text placeholder.
+- [ ] **Fill in the Executive Order citation**, reference [29], which still
+      carries placeholder volume and page numbers.

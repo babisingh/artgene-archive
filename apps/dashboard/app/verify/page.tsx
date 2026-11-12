@@ -34,7 +34,10 @@ export default function VerifySourcePage() {
     return (
       <div className="max-w-2xl mx-auto py-10">
         <div className="card p-8 text-center text-amber-600 dark:text-amber-400 text-sm">
-          ⚠ No API key set — click <strong>Set API Key</strong> in the navigation bar.
+          ⚠ No API key set. Tracing a distribution copy back to its recipient
+          is restricted to the organisation that issued it, so this page needs an
+          operator key in this tab&apos;s <code>sessionStorage</code> under{" "}
+          <code>artgene_api_key</code>.
         </div>
       </div>
     );

@@ -575,8 +575,10 @@ async function apiFetch<T>(
     switch (res.status) {
       case 401:
         throw new Error(
-          'API key not recognised. Click "Set API Key" in the navigation bar ' +
-          "and enter a valid key for your organisation. " +
+          "API key missing or not recognised. Reading the public registry " +
+          "needs no key; registering, exporting and distributing do. An " +
+          "operator key lives in this tab's sessionStorage under " +
+          "artgene_api_key and is set by hand for the life of the tab. " +
           "If you have just created the key, wait a moment and try again."
         );
       case 403:

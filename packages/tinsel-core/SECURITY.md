@@ -4,7 +4,13 @@
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
-Email the security team at **security@artgene.example** with:
+Use GitHub's private vulnerability reporting on this repository, under
+Security, "Report a vulnerability". It needs no mailbox, it is private until
+the report is published, and it keeps the thread attached to the code.
+
+If you would rather use email, write to **security@genethropic.com**.
+
+Either way, please include:
 
 - Description of the vulnerability and affected component
 - Steps to reproduce (proof-of-concept code if applicable)

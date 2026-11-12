@@ -273,14 +273,24 @@ const columns = [
 // ---------------------------------------------------------------------------
 
 export default function SequencesPage() {
-  const { client, apiKey } = useApiKey();
+  const { client } = useApiKey();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [showRegister, setShowRegister] = useState(false);
 
+  // The registry list is public and needs no key. `enabled: Boolean(apiKey)`
+  // stood here from 00486be (2026-04-12), when the browser called the API
+  // directly and a keyless list really did earn a 401. de8f87f (2026-04-24)
+  // moved client calls behind the Next proxy route, which attaches a
+  // read-only key server-side for the allowlisted public GETs, `certificates`
+  // among them. The guard outlived its reason and was the only thing stopping
+  // an anonymous visitor from loading a registry the API already served them:
+  // the query never fired, so the page reported "No certificates found" over
+  // a populated database. Do not reinstate it to suppress a 401; a 401 here
+  // means the proxy allowlist or PUBLIC_READ_API_KEY is wrong, and hiding the
+  // page hides that.
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["certificates"],
     queryFn: () => client.listCertificates(100, 0),
-    enabled: Boolean(apiKey),
   });
 
   const table = useReactTable({
@@ -318,19 +328,6 @@ export default function SequencesPage() {
         {isLoading && (
           <div className="p-8 text-center text-slate-500 dark:text-slate-400">
             Loading certificates…
-          </div>
-        )}
-
-        {!apiKey && (
-          <div className="p-8 text-center space-y-2">
-            <div className="text-2xl">🔑</div>
-            <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
-              No API key set
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-              Click <strong>Set API Key</strong> in the navigation bar and enter your
-              organisation key to view the registry.
-            </p>
           </div>
         )}
 
