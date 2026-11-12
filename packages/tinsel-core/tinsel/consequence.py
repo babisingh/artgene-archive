@@ -16,6 +16,8 @@ Rule: Gate 1 runs first.  If it FAILs, gates 2, 3, 4 are skipped.
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field, field_validator
 
 from tinsel.models import GateStatus
@@ -67,30 +69,31 @@ class Gate2Result(BaseModel):
 
     status: GateStatus
     screening_method: str = "composition_heuristic_v1"  # always set by adapter
-    blast_hits: int = 0                           # k-mer motif hits (heuristic v1) or BLAST hits (Phase 3)
+    # k-mer motif hits (heuristic v1) or BLAST hits (Phase 3)
+    blast_hits: int = 0
     toxin_probability: float | None = None        # heuristic or ToxinPred2 score [0, 1]
     allergen_probability: float | None = None     # heuristic or AllerTop score [0, 1]
     message: str | None = None
     # Rich visualization fields
-    blast_top_hits: list[dict] | None = None        # top motif/BLAST matches with scores
+    blast_top_hits: list[dict[str, Any]] | None = None        # top motif/BLAST matches with scores
     gravy_score: float | None = None                # Kyte-Doolittle grand avg hydropathy
-    amino_acid_composition: dict | None = None      # {AA: fraction} for 20 amino acids
+    amino_acid_composition: dict[str, Any] | None = None      # {AA: fraction} for 20 amino acids
 
     # ── SecureDNA DOPRF screening ──────────────────────────────────────────
     secureDNA_checked: bool = False
     secureDNA_windows_screened: int = 0
-    secureDNA_hits: list[dict] = Field(default_factory=list)
+    secureDNA_hits: list[dict[str, Any]] = Field(default_factory=list)
     secureDNA_status: GateStatus | None = None
 
     # ── IBBIS commec HMM screening ─────────────────────────────────────────
     ibbis_checked: bool = False
     ibbis_families_screened: int = 0
-    ibbis_hits: list[dict] = Field(default_factory=list)
+    ibbis_hits: list[dict[str, Any]] = Field(default_factory=list)
     ibbis_status: GateStatus | None = None
 
     # ── Audit: which databases were actually queried ────────────────────────
     # Each entry: {name, version, method, windows_screened|families_screened, status, queried_at}
-    databases_queried: list[dict] = Field(default_factory=list)
+    databases_queried: list[dict[str, Any]] = Field(default_factory=list)
 
     @field_validator("toxin_probability", "allergen_probability")
     @classmethod
@@ -140,7 +143,7 @@ class Gate4Result(BaseModel):
     threshold_fail: float = 0.85        # cosine similarity ≥ this → FAIL
     threshold_warn: float = 0.70        # cosine similarity ≥ this → WARN
     max_similarity: float | None = None # highest cosine similarity across all references
-    top_hits: list[dict] = Field(default_factory=list)
+    top_hits: list[dict[str, Any]] = Field(default_factory=list)
     # Each hit: {family, organism, uniprot, similarity, threshold_fail, status}
     message: str | None = None
     note: str | None = None             # explains demo vs production method

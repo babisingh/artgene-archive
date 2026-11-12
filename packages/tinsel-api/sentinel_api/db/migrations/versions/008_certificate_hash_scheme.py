@@ -41,7 +41,9 @@ def upgrade() -> None:
         sa.Column("hash_scheme", sa.String(40), nullable=True),
     )
     op.execute(
-        f"UPDATE certificates SET hash_scheme = '{_V1}' WHERE hash_scheme IS NULL"
+        sa.text(
+            "UPDATE certificates SET hash_scheme = :scheme WHERE hash_scheme IS NULL"
+        ).bindparams(scheme=_V1)
     )
     op.alter_column(
         "certificates",

@@ -18,7 +18,6 @@ from typing import Any
 
 from pydantic import BaseModel
 
-
 # ---------------------------------------------------------------------------
 # Sub-models
 # ---------------------------------------------------------------------------
@@ -47,7 +46,7 @@ class RegulatoryPackage(BaseModel):
 class ScreeningRecord(BaseModel):
     gates_run: list[int]
     overall_status: str
-    databases_queried: list[dict]
+    databases_queried: list[dict[str, Any]]
     gate_mode: str
     fragment_assembly_checked: bool = True
 
@@ -111,14 +110,14 @@ class SynthesisAuthDocument(BaseModel):
 # Builder
 # ---------------------------------------------------------------------------
 
-def _gate_summary(report: dict) -> dict[str, str]:
+def _gate_summary(report: dict[str, Any]) -> dict[str, str]:
     return {
         f"gate_{n}": (report.get(f"gate{n}") or {}).get("status", "skip")
         for n in (1, 2, 3, 4)
     }
 
 
-def build_synthesis_auth_document(cert: dict) -> SynthesisAuthDocument:
+def build_synthesis_auth_document(cert: dict[str, Any]) -> SynthesisAuthDocument:
     """Build an ArtGene-SCD-1.0 Synthesis Clearance Document from a certificate data dict.
 
     ``cert`` must contain: registry_id, sequence_hash, certificate_hash,
@@ -126,9 +125,9 @@ def build_synthesis_auth_document(cert: dict) -> SynthesisAuthDocument:
     watermark_metadata.
     """
     status = cert["status"]
-    report: dict = cert.get("consequence_report") or {}
-    pk: dict = cert.get("wots_public_key") or {}
-    wm: dict = cert.get("watermark_metadata") or {}
+    report: dict[str, Any] = cert.get("consequence_report") or {}
+    pk: dict[str, Any] = cert.get("wots_public_key") or {}
+    wm: dict[str, Any] = cert.get("watermark_metadata") or {}
 
     revoked = status == "REVOKED"
     certified = status == "CERTIFIED"
@@ -164,7 +163,7 @@ def build_synthesis_auth_document(cert: dict) -> SynthesisAuthDocument:
     gs = _gate_summary(report)
     g2 = gs.get("gate_2", "skip")
     g4 = gs.get("gate_4", "skip")
-    databases: list[dict] = (report.get("gate2") or {}).get("databases_queried") or []
+    databases: list[dict[str, Any]] = (report.get("gate2") or {}).get("databases_queried") or []
 
     any_fail = any(v == "fail" for v in gs.values())
     any_warn = any(v == "warn" for v in gs.values())
@@ -187,7 +186,7 @@ def build_synthesis_auth_document(cert: dict) -> SynthesisAuthDocument:
         member_state_notification_required=any_fail,
     )
 
-    config: dict = wm.get("config") or {}
+    config: dict[str, Any] = wm.get("config") or {}
 
     return SynthesisAuthDocument(
         issued_at=datetime.now(UTC).isoformat(),

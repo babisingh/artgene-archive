@@ -17,10 +17,9 @@ import os
 import secrets
 import uuid
 
-from sqlalchemy import select
-
 from sentinel_api.db.connection import async_session_factory
 from sentinel_api.db.models import APIKey, Organisation
+from sqlalchemy import select
 
 ORG_NAME = "default"
 

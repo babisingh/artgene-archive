@@ -47,12 +47,14 @@ def upgrade() -> None:
     # continues contiguously on a populated database and starts at 1 on an
     # empty one.
     op.execute(
-        f"""
-        INSERT INTO registry_counters (name, next_value)
-        SELECT '{AUDIT_SEQ_COUNTER}',
-               COALESCE(MAX(seq_num), 0) + 1
-          FROM registry_audit_log
-        """
+        sa.text(
+            """
+            INSERT INTO registry_counters (name, next_value)
+            SELECT :counter_name,
+                   COALESCE(MAX(seq_num), 0) + 1
+              FROM registry_audit_log
+            """
+        ).bindparams(counter_name=AUDIT_SEQ_COUNTER)
     )
 
 

@@ -506,7 +506,11 @@ async def register_sequence(
             # Recorded explicitly rather than relying on the column default, so
             # the row states which canonicalisation produced its digest.
             hash_scheme=CERT_HASH_SCHEME_DEFAULT,
-            status=(CertificateStatus.CERTIFIED_WITH_WARNINGS if _warn_only else CertificateStatus.CERTIFIED).value,
+            status=(
+                CertificateStatus.CERTIFIED_WITH_WARNINGS
+                if _warn_only
+                else CertificateStatus.CERTIFIED
+            ).value,
             tier="STANDARD",
             visibility=body.visibility,
         )
@@ -548,7 +552,11 @@ async def register_sequence(
             },
         ) from exc
 
-    final_status = CertificateStatus.CERTIFIED_WITH_WARNINGS if _warn_only else CertificateStatus.CERTIFIED
+    final_status = (
+        CertificateStatus.CERTIFIED_WITH_WARNINGS
+        if _warn_only
+        else CertificateStatus.CERTIFIED
+    )
     return RegistrationResponse(
         status=final_status,
         registry_id=registry_id,

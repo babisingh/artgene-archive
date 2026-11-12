@@ -36,9 +36,9 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
 
-from tinsel.consequence import Gate2Result
 from tinsel.models import GateStatus
 
 logger = logging.getLogger(__name__)
@@ -68,7 +68,7 @@ def _doprf_token(window: str) -> str:
     return hashlib.sha3_256(window.upper().encode()).hexdigest()[:16]
 
 
-def _screen_doprf_mock(dna: str) -> tuple[list[dict], int]:
+def _screen_doprf_mock(dna: str) -> tuple[list[dict[str, Any]], int]:
     """Slide 30-bp windows over dna and check against demo hazard patterns.
 
     Returns (hits, windows_screened).
@@ -79,7 +79,7 @@ def _screen_doprf_mock(dna: str) -> tuple[list[dict], int]:
         return [], max(0, n)
 
     windows_screened = n - _WINDOW_SIZE + 1
-    hits: list[dict] = []
+    hits: list[dict[str, Any]] = []
 
     hazard_map = {m.upper(): desc for m, desc in _DEMO_HAZARD_30MERS}
 
@@ -97,7 +97,7 @@ def _screen_doprf_mock(dna: str) -> tuple[list[dict], int]:
 
     # Deduplicate: keep first hit per hazard label
     seen: set[str] = set()
-    deduped: list[dict] = []
+    deduped: list[dict[str, Any]] = []
     for h in hits:
         if h["hazard_label"] not in seen:
             seen.add(h["hazard_label"])
@@ -106,7 +106,7 @@ def _screen_doprf_mock(dna: str) -> tuple[list[dict], int]:
     return deduped, windows_screened
 
 
-async def run_secureDNA_screen(dna: str, mock: bool = True) -> dict:
+async def run_secureDNA_screen(dna: str, mock: bool = True) -> dict[str, Any]:
     """Run SecureDNA DOPRF screening and return structured result dict.
 
     Parameters
@@ -117,7 +117,7 @@ async def run_secureDNA_screen(dna: str, mock: bool = True) -> dict:
         If True, use the demo mock implementation.
         If False, call the real SecureDNA API (requires credentials).
     """
-    queried_at = datetime.now(timezone.utc).isoformat()
+    queried_at = datetime.now(UTC).isoformat()
 
     if mock:
         hits, windows_screened = _screen_doprf_mock(dna)

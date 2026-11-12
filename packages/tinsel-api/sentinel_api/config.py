@@ -90,7 +90,8 @@ class Settings(BaseSettings):
         if self.sentinel_env == "production" and self.spreading_key == "aa" * 32:
             raise ValueError(
                 "SPREADING_KEY is still the insecure development default in production mode. "
-                "Set SPREADING_KEY to a random 64-char hex string in your Railway/environment variables. "
+                "Set SPREADING_KEY to a random 64-char hex string in your "
+                "Railway/environment variables. "
                 "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
             )
         return self

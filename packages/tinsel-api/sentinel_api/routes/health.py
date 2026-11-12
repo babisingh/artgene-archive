@@ -13,6 +13,7 @@ Authenticated endpoint (/health/detail):
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from sentinel_api.config import settings
@@ -44,14 +45,16 @@ async def _connectivity() -> tuple[str, str]:
 
 
 @router.get("/health")
-async def health() -> dict:
+async def health() -> JSONResponse:
     """Public liveness probe — minimal response, no internal details.
 
     Returns HTTP 503 (not 200) when the database is unreachable so that
     Railway's health check marks the deployment as degraded rather than healthy.
-    """
-    from fastapi.responses import JSONResponse
 
+    The return type is JSONResponse rather than dict because the status code
+    carries the signal: a plain dict would always be served as 200, which is
+    the bug this endpoint exists to avoid.
+    """
     db_status, vault_status = await _connectivity()
     ok = db_status == "connected" and vault_status == "connected"
     # NOTE: env is intentionally omitted — it would reveal whether mock

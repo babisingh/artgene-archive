@@ -92,25 +92,6 @@ def _make_control_dna(protein: str, host: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Utility: codon diff
-# ---------------------------------------------------------------------------
-
-def _codon_diff(protein: str, control: str, watermarked: str) -> list[CodonDiff]:
-    diffs: list[CodonDiff] = []
-    for i, aa in enumerate(protein.upper()):
-        cc = control[i * 3 : i * 3 + 3]
-        wc = watermarked[i * 3 : i * 3 + 3]
-        if cc != wc:
-            diffs.append(CodonDiff(
-                position=i,
-                amino_acid=aa,
-                control_codon=cc,
-                watermarked_codon=wc,
-            ))
-    return diffs
-
-
-# ---------------------------------------------------------------------------
 # Utility: GC content
 # ---------------------------------------------------------------------------
 

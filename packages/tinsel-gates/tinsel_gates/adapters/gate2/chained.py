@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Any
 
 from tinsel.consequence import Gate2Result
 from tinsel.models import GateStatus
@@ -111,7 +112,7 @@ class ChainedGate2Adapter(Gate2Adapter):
             parts.append("IBBIS commec: SKIPPED (sequence < 50 AA)")
 
         # ── Aggregate databases_queried list ───────────────────────────────
-        databases_queried: list[dict] = []
+        databases_queried: list[dict[str, Any]] = []
         # Composition is always the first entry
         databases_queried.append({
             "name": "Composition Heuristic",

@@ -15,7 +15,28 @@ tinsel-demo = { workspace = true }
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+
+[tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
+
+# Three naming rules are suppressed rather than fixed, because the names are a
+# published wire contract and not an internal style choice. Each is listed with
+# the reason, so a future `ruff --fix` does not quietly break a consumer.
+[tool.ruff.lint.per-file-ignores]
+# N815: the four secureDNA_* fields of Gate2Result are pydantic model fields,
+# so the attribute name *is* the JSON key. Those keys are declared in the
+# TypeScript client (apps/dashboard/lib/api.ts), read by the record page
+# (apps/dashboard/app/sequences/[id]/page.tsx), and persisted inside the
+# certificates.consequence_report JSONB column of every certified record.
+# Renaming them would blank the SecureDNA panel with no error and orphan the
+# keys in existing rows, so it needs a data migration and a client release,
+# not a linter.
+"packages/tinsel-core/tinsel/consequence.py" = ["N815"]
+# N999/N802: the module and function are named after the SecureDNA screening
+# service itself. The module path appears in adapter imports and the function
+# name in the screening audit trail, so both follow the vendor's spelling
+# deliberately.
+"packages/tinsel-gates/tinsel_gates/adapters/gate2/secureDNA.py" = ["N999", "N802"]
 
 [tool.mypy]
 python_version = "3.12"

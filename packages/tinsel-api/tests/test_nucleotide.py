@@ -33,6 +33,7 @@ from tinsel_gates.adapters.gate2.mock import MockGate2Adapter
 from tinsel_gates.adapters.gate4.mock import MockGate4Adapter
 from tinsel_gates.nucleotide import run_nucleotide_pipeline
 
+
 def recode(dna: str) -> str:
     """Return a synonymous recoding of *dna*: same protein, different codons.
 

@@ -115,12 +115,22 @@ class TestRegister:
         """Two registrations with different sequences get different, incrementing IDs."""
         r1 = await client.post(
             "/api/v1/register",
-            json={"fasta": FASTA_OK, "owner_id": "OWNER_INC", "ethics_code": "ERC-002", "host_organism": "YEAST"},
+            json={
+                "fasta": FASTA_OK,
+                "owner_id": "OWNER_INC",
+                "ethics_code": "ERC-002",
+                "host_organism": "YEAST",
+            },
             headers=auth_headers,
         )
         r2 = await client.post(
             "/api/v1/register",
-            json={"fasta": FASTA_OK2, "owner_id": "OWNER_INC", "ethics_code": "ERC-002", "host_organism": "ECOLI"},
+            json={
+                "fasta": FASTA_OK2,
+                "owner_id": "OWNER_INC",
+                "ethics_code": "ERC-002",
+                "host_organism": "ECOLI",
+            },
             headers=auth_headers,
         )
         assert r1.status_code == 201
@@ -312,7 +322,11 @@ class TestDistributions:
         # Issue a copy and capture its DNA
         issue_resp = await client.post(
             f"/api/v1/sequences/{registered_id}/distributions",
-            json={"recipient_name": "Dr. Leak", "recipient_org": "Leaky Lab", "purpose": "validation"},
+            json={
+                "recipient_name": "Dr. Leak",
+                "recipient_org": "Leaky Lab",
+                "purpose": "validation",
+            },
             headers=auth_headers,
         )
         assert issue_resp.status_code == 201

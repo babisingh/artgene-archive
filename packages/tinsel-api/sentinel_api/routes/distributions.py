@@ -127,7 +127,10 @@ async def _get_own_cert(
     if cert is None:
         raise HTTPException(status_code=404, detail="Sequence not found.")
     if cert.org_id != org.id:
-        raise HTTPException(status_code=403, detail="This sequence belongs to a different organisation.")
+        raise HTTPException(
+            status_code=403,
+            detail="This sequence belongs to a different organisation.",
+        )
     return cert
 
 
@@ -348,9 +351,13 @@ async def verify_source(
             message="No distribution copies have been issued for this sequence.",
         )
 
+    # Only the signing key is needed here. Issuing a copy derives the
+    # fingerprint seed from the spreading key, but that seed is stored on the
+    # distribution row, so verification reads it back rather than deriving it
+    # again. Fetching the spreading key anyway would pull the system's most
+    # sensitive secret into memory on a path that has no use for it.
     vault = get_vault_client()
-    spreading_key = await vault.get_spreading_key(settings.spreading_key_id)
-    signing_key   = await vault.get_signing_key(settings.spreading_key_id)
+    signing_key = await vault.get_signing_key(settings.spreading_key_id)
 
     # Try to regenerate each fingerprinted copy and compare with the submitted DNA
     original_protein = _get_cert_protein(cert)

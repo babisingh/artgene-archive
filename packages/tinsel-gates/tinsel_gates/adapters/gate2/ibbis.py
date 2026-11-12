@@ -42,9 +42,9 @@ Replace _screen_hmm_mock() with a subprocess call to commec:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
 
-from tinsel.consequence import Gate2Result
 from tinsel.models import GateStatus
 
 logger = logging.getLogger(__name__)
@@ -59,7 +59,7 @@ _IBBIS_DB_VERSION = "2025-12-commec-mock"
 # A hit requires ANY signature to be present (substring match).
 # ---------------------------------------------------------------------------
 
-_DEMO_HMM_FAMILIES: list[dict] = [
+_DEMO_HMM_FAMILIES: list[dict[str, Any]] = [
     {
         "family_id": "DEMO-HMM-001",
         "family_name": "Cationic Antimicrobial Peptide Scaffold (demo)",
@@ -98,7 +98,7 @@ _DEMO_HMM_FAMILIES: list[dict] = [
 ]
 
 
-def _screen_hmm_mock(protein: str) -> tuple[list[dict], int, bool]:
+def _screen_hmm_mock(protein: str) -> tuple[list[dict[str, Any]], int, bool]:
     """Screen protein against demo HMM family profiles.
 
     Returns (hits, families_screened, length_sufficient).
@@ -113,7 +113,7 @@ def _screen_hmm_mock(protein: str) -> tuple[list[dict], int, bool]:
         )
         return [], 0, False
 
-    hits: list[dict] = []
+    hits: list[dict[str, Any]] = []
     for family in _DEMO_HMM_FAMILIES:
         for sig in family["signatures"]:
             if sig in seq:
@@ -130,7 +130,7 @@ def _screen_hmm_mock(protein: str) -> tuple[list[dict], int, bool]:
     return hits, len(_DEMO_HMM_FAMILIES), True
 
 
-async def run_ibbis_screen(protein: str, mock: bool = True) -> dict:
+async def run_ibbis_screen(protein: str, mock: bool = True) -> dict[str, Any]:
     """Run IBBIS commec HMM screening and return structured result dict.
 
     Parameters
@@ -141,7 +141,7 @@ async def run_ibbis_screen(protein: str, mock: bool = True) -> dict:
         If True, use the demo mock implementation.
         If False, call the real commec binary (requires installation).
     """
-    queried_at = datetime.now(timezone.utc).isoformat()
+    queried_at = datetime.now(UTC).isoformat()
 
     if mock:
         hits, families_screened, length_sufficient = _screen_hmm_mock(protein)

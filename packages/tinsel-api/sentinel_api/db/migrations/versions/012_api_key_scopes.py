@@ -55,19 +55,23 @@ def upgrade() -> None:
     # contiguous, and from 1 on an empty archive. The id suffix is the last
     # hyphen-separated group of an AGC-YYYY-NNNNNN accession.
     op.execute(
-        f"""
-        INSERT INTO registry_counters (name, next_value)
-        SELECT '{CATALOGUE_SEQ_COUNTER}',
-               COALESCE(MAX(CAST(split_part(id, '-', 3) AS BIGINT)), 0) + 1
-          FROM catalogue_records
-        ON CONFLICT (name) DO NOTHING
-        """
+        sa.text(
+            """
+            INSERT INTO registry_counters (name, next_value)
+            SELECT :counter_name,
+                   COALESCE(MAX(CAST(split_part(id, '-', 3) AS BIGINT)), 0) + 1
+              FROM catalogue_records
+            ON CONFLICT (name) DO NOTHING
+            """
+        ).bindparams(counter_name=CATALOGUE_SEQ_COUNTER)
     )
 
 
 def downgrade() -> None:
     op.execute(
-        f"DELETE FROM registry_counters WHERE name = '{CATALOGUE_SEQ_COUNTER}'"
+        sa.text(
+            "DELETE FROM registry_counters WHERE name = :counter_name"
+        ).bindparams(counter_name=CATALOGUE_SEQ_COUNTER)
     )
     op.drop_column("api_keys", "expires_at")
     op.drop_column("api_keys", "created_by")
