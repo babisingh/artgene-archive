@@ -84,11 +84,11 @@ export default function HomePage() {
             <p className="lede" style={{ maxWidth: 620, margin: "0 0 36px" }}>
               Generative models now produce proteins, genes and regulatory elements faster than the
               scientific community can catalogue. ArtGene Archive is the first dedicated registry
-              for AI-designed biological sequences — providing watermarking, biosafety certification,
+              for AI-designed biological sequences, providing watermarking, biosafety certification,
               and an auditable chain of custody from model to bench to publication,
-              while sepearting naturally occuring sequences from the ones created by
+              while separating naturally occurring sequences from the ones created by
               humans in collaboration with AI.
-              Art(ificial)-gene Archive only store sequences that pass multiple biosecurity screening gates (See demo).
+              Art(ificial)-gene Archive only stores sequences that pass multiple biosecurity screening gates (See demo).
 
             </p>
             <div className="flex gap-12 hero-cta" style={{ alignItems: "center", flexWrap: "wrap" }}>
