@@ -22,12 +22,19 @@ jobs:
 
       - name: Install workspace packages
         run: |
+          # mypy and bandit are named here rather than in a package extra
+          # because they check the workspace as a whole, not one package.
+          # mypy was missing until 2026-11-12, so the type check step exited
+          # 127 ("command not found") on every run it had ever made. A step
+          # that fails before it runs reports the same red as a step that
+          # found something, which is how 49 type errors accumulated unseen.
           uv pip install \
             -e packages/tinsel-core[test] \
             -e packages/tinsel-gates[test] \
             -e packages/tinsel-api[dev] \
             aiosqlite \
             bandit \
+            mypy \
             --system
 
       - name: Lint (ruff)

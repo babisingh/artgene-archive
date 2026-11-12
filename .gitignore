@@ -55,3 +55,9 @@ Thumbs.db
 *.key
 
 # TBD
+
+# Playwright run artifacts. `npx playwright test` writes these on every run,
+# including on failure, so without this a local e2e run leaves the tree dirty.
+test-results/
+playwright-report/
+blob-report/
