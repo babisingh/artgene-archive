@@ -106,7 +106,7 @@ def _screen_doprf_mock(dna: str) -> tuple[list[dict[str, Any]], int]:
     return deduped, windows_screened
 
 
-async def run_secureDNA_screen(dna: str, mock: bool = True) -> dict[str, Any]:
+async def run_secure_dna_screen(dna: str, mock: bool = True) -> dict[str, Any]:
     """Run SecureDNA DOPRF screening and return structured result dict.
 
     Parameters

@@ -34,12 +34,10 @@ select = ["E", "F", "I", "N", "W", "UP"]
 # keys in existing rows, so it needs a data migration and a client release,
 # not a linter.
 "packages/tinsel-core/tinsel/consequence.py" = ["N815"]
-# N999/N802: the module and function are named after the SecureDNA screening
-# service. Unlike the fields above these are internal only: the stored audit
-# trail records the literal strings "SecureDNA DOPRF" and "doprf_30mer_mock"
-# as values, never the Python identifiers, so renaming them touches no data
-# and no client. Suppressed only because a rename belongs in its own commit.
-"packages/tinsel-gates/tinsel_gates/adapters/gate2/secureDNA.py" = ["N999", "N802"]
+# N999/N802 are gone: the module is now secure_dna.py and the function
+# run_secure_dna_screen. They were internal identifiers, so the rename touched
+# no stored data and no client. The audit trail still records the vendor's own
+# spelling, "SecureDNA DOPRF", because that is a value and not an identifier.
 
 [tool.mypy]
 python_version = "3.12"

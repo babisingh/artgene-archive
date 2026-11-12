@@ -32,7 +32,7 @@ from tinsel.models import GateStatus
 from tinsel_gates.adapters.base import Gate2Adapter
 from tinsel_gates.adapters.gate2.composition import CompositionGate2Adapter
 from tinsel_gates.adapters.gate2.ibbis import run_ibbis_screen
-from tinsel_gates.adapters.gate2.secureDNA import run_secureDNA_screen
+from tinsel_gates.adapters.gate2.secure_dna import run_secure_dna_screen
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ class ChainedGate2Adapter(Gate2Adapter):
     async def run(self, dna: str, protein: str) -> Gate2Result:
         # ── Run all three layers concurrently ─────────────────────────────
         composition_task = asyncio.create_task(self._composition.run(dna, protein))
-        sdna_task = asyncio.create_task(run_secureDNA_screen(dna, mock=self._mock_external))
+        sdna_task = asyncio.create_task(run_secure_dna_screen(dna, mock=self._mock_external))
         ibbis_task = asyncio.create_task(run_ibbis_screen(protein, mock=self._mock_external))
 
         raw_results = await asyncio.gather(
