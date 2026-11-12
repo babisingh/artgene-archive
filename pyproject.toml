@@ -19,25 +19,19 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
 
-# Three naming rules are suppressed rather than fixed. Only the first is a
-# published wire contract; the other two are internal and suppressed only to
-# keep this cleanup from turning into a rename. Each is listed with its reason
-# so a future `ruff --fix` does not quietly break a consumer. See
-# RENAME_PLAN.md for how to retire all three.
-[tool.ruff.lint.per-file-ignores]
-# N815: the four secureDNA_* fields of Gate2Result are pydantic model fields,
-# so the attribute name *is* the JSON key. Those keys are declared in the
-# TypeScript client (apps/dashboard/lib/api.ts), read by the record page
-# (apps/dashboard/app/sequences/[id]/page.tsx), and persisted inside the
-# certificates.consequence_report JSONB column of every certified record.
-# Renaming them would blank the SecureDNA panel with no error and orphan the
-# keys in existing rows, so it needs a data migration and a client release,
-# not a linter.
-"packages/tinsel-core/tinsel/consequence.py" = ["N815"]
-# N999/N802 are gone: the module is now secure_dna.py and the function
-# run_secure_dna_screen. They were internal identifiers, so the rename touched
-# no stored data and no client. The audit trail still records the vendor's own
-# spelling, "SecureDNA DOPRF", because that is a value and not an identifier.
+# No per-file ignores. The three naming suppressions that lived here are gone:
+# N999 and N802 with the module and function rename to secure_dna.py and
+# run_secure_dna_screen, and N815 with migration 014, which renamed the four
+# stored secureDNA_* keys so the Python fields, the JSONB and the TypeScript
+# client all say secure_dna_*. See RENAME_PLAN.md.
+#
+# `Gate2Result` is a pydantic model, so an attribute name there is also a
+# published JSON key: routes/certificates.py serves consequence_report
+# straight out of the column. Renaming one needs a migration and a dashboard
+# release, so it is not something to let `ruff --fix` decide.
+# test_api.py::TestStoredKeySpelling asserts the stored spelling, so a rename
+# that skips the data now fails a test rather than blanking a panel in
+# production.
 
 [tool.mypy]
 python_version = "3.12"

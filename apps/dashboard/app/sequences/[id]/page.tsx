@@ -303,9 +303,9 @@ function DbStatusPill({ db }: { db: DatabaseQueried }) {
 // ---------------------------------------------------------------------------
 
 function SecureDNAPanel({ gate2 }: { gate2: Gate2Result }) {
-  if (!gate2.secureDNA_checked) return null;
-  const status = gate2.secureDNA_status;
-  const hits = gate2.secureDNA_hits ?? [];
+  if (!gate2.secure_dna_checked) return null;
+  const status = gate2.secure_dna_status;
+  const hits = gate2.secure_dna_hits ?? [];
 
   return (
     <div className="space-y-2">
@@ -314,7 +314,7 @@ function SecureDNAPanel({ gate2 }: { gate2: Gate2Result }) {
           SecureDNA DOPRF
         </h4>
         <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-          <span>{gate2.secureDNA_windows_screened} × 30-bp windows</span>
+          <span>{gate2.secure_dna_windows_screened} × 30-bp windows</span>
           {status && <StatusBadge status={status} />}
         </div>
       </div>
@@ -335,7 +335,7 @@ function SecureDNAPanel({ gate2 }: { gate2: Gate2Result }) {
         </div>
       ) : (
         <p className="text-xs text-emerald-600 dark:text-emerald-400">
-          No hazardous 30-mer windows detected across {gate2.secureDNA_windows_screened} windows
+          No hazardous 30-mer windows detected across {gate2.secure_dna_windows_screened} windows
         </p>
       )}
 

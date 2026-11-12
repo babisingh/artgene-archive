@@ -80,10 +80,15 @@ class Gate2Result(BaseModel):
     amino_acid_composition: dict[str, Any] | None = None      # {AA: fraction} for 20 amino acids
 
     # ── SecureDNA DOPRF screening ──────────────────────────────────────────
-    secureDNA_checked: bool = False
-    secureDNA_windows_screened: int = 0
-    secureDNA_hits: list[dict[str, Any]] = Field(default_factory=list)
-    secureDNA_status: GateStatus | None = None
+    # These were spelled secureDNA_* until 2026-11-12. The attribute name is
+    # the JSON key here, and routes/certificates.py serves consequence_report
+    # straight out of the JSONB column, so migration 014 renames the stored
+    # keys to match and the dashboard reads the new spelling. See
+    # RENAME_PLAN.md.
+    secure_dna_checked: bool = False
+    secure_dna_windows_screened: int = 0
+    secure_dna_hits: list[dict[str, Any]] = Field(default_factory=list)
+    secure_dna_status: GateStatus | None = None
 
     # ── IBBIS commec HMM screening ─────────────────────────────────────────
     ibbis_checked: bool = False

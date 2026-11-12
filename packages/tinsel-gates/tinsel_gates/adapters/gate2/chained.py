@@ -144,10 +144,10 @@ class ChainedGate2Adapter(Gate2Adapter):
             gravy_score=comp_result.gravy_score,
             amino_acid_composition=comp_result.amino_acid_composition,
             # SecureDNA fields
-            secureDNA_checked=sdna_result["checked"],
-            secureDNA_windows_screened=sdna_result.get("windows_screened", 0),
-            secureDNA_hits=sdna_result.get("hits", []),
-            secureDNA_status=sdna_status,
+            secure_dna_checked=sdna_result["checked"],
+            secure_dna_windows_screened=sdna_result.get("windows_screened", 0),
+            secure_dna_hits=sdna_result.get("hits", []),
+            secure_dna_status=sdna_status,
             # IBBIS fields
             ibbis_checked=ibbis_result["checked"],
             ibbis_families_screened=ibbis_result.get("families_screened", 0),

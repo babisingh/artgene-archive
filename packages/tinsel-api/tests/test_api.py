@@ -525,3 +525,81 @@ class TestAuditSequenceAllocation:
         assert after is not None
         # One allocation consumed, so the next caller receives 2.
         assert after.next_value == 2
+
+
+# ── The stored key spelling is a published contract ───────────────────────────
+
+class TestStoredKeySpelling:
+    """`Gate2Result` field names are JSON keys, so a rename is a data migration.
+
+    `routes/certificates.py` serves `certificates.consequence_report` straight
+    out of the JSONB column without re-serialising it, so whatever
+    `model_dump()` wrote is exactly what the dashboard receives. That makes
+    these attribute names part of the public interface, not a style choice.
+
+    Nothing asserted this before, which is why the four `secureDNA_*` fields
+    could only be protected with a `ruff` suppression. These tests replace the
+    suppression: rename a field without migrating the data and the contract
+    breaks here, loudly, instead of silently blanking a panel in production.
+    """
+
+    EXPECTED_GATE2_KEYS = {
+        "secure_dna_checked",
+        "secure_dna_windows_screened",
+        "secure_dna_hits",
+        "secure_dna_status",
+    }
+
+    async def _deposit(self, client: AsyncClient, auth_headers: dict) -> str:
+        resp = await client.post(
+            "/api/v1/register",
+            json={
+                "fasta": FASTA_OK,
+                "owner_id": "OWNER_KEYS",
+                "ethics_code": "ERC-KEYS",
+                "host_organism": "ECOLI",
+            },
+            headers=auth_headers,
+        )
+        assert resp.status_code == 201, resp.text
+        return str(resp.json()["registry_id"])
+
+    async def test_stored_gate2_uses_snake_case_secure_dna_keys(
+        self, client: AsyncClient, auth_headers: dict
+    ) -> None:
+        registry_id = await self._deposit(client, auth_headers)
+
+        resp = await client.get(
+            f"/api/v1/certificates/{registry_id}", headers=auth_headers
+        )
+        assert resp.status_code == 200, resp.text
+        gate2 = (resp.json()["consequence_report"] or {}).get("gate2") or {}
+        assert gate2, "gate 2 did not run, so this test proves nothing"
+
+        missing = self.EXPECTED_GATE2_KEYS - set(gate2)
+        assert not missing, (
+            f"gate2 is missing {sorted(missing)}. If these were renamed in "
+            "Gate2Result, the stored keys and the TypeScript client in "
+            "apps/dashboard/lib/api.ts need renaming too, via a migration. "
+            "See RENAME_PLAN.md."
+        )
+
+    async def test_old_camel_case_keys_are_gone(
+        self, client: AsyncClient, auth_headers: dict
+    ) -> None:
+        """The pre-014 spelling must not come back alongside the new one.
+
+        Guards the failure mode where a field is renamed but an alias or a
+        compatibility shim keeps emitting both, which quietly doubles the
+        stored payload and leaves two sources of truth.
+        """
+        registry_id = await self._deposit(client, auth_headers)
+
+        resp = await client.get(
+            f"/api/v1/certificates/{registry_id}", headers=auth_headers
+        )
+        assert resp.status_code == 200, resp.text
+        gate2 = (resp.json()["consequence_report"] or {}).get("gate2") or {}
+
+        stale = {k for k in gate2 if k.startswith("secureDNA")}
+        assert not stale, f"pre-migration-014 keys are still being written: {sorted(stale)}"
