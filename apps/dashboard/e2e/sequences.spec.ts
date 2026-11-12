@@ -7,7 +7,15 @@
 
 import { test, expect, type Page } from "@playwright/test";
 
-const API = "http://localhost:8000/api/v1";
+// The browser never calls the backend directly. lib/api.ts sends client-side
+// requests to the Next proxy route at /api/proxy, which resolves the backend
+// URL server-side and attaches a credential only on allowlisted public GETs.
+//
+// These mocks addressed http://localhost:8000/api/v1 until 2026-11-12, which
+// is where the client used to call before the proxy existed. Nothing matched
+// them any more, so all 16 tests ran against whatever the page did unmocked.
+// A glob keeps them matching whichever origin the page is served from.
+const API = "**/api/proxy";
 
 // ---------------------------------------------------------------------------
 // Fixture: mock API responses
@@ -101,7 +109,15 @@ async function mockAllRoutes(page: Page) {
   await page.route(`${API}/health`, (route) =>
     route.fulfill({ json: MOCK_HEALTH })
   );
-  await page.route(`${API}/certificates/**`, (route) => {
+  // No slash before the wildcard, because three different shapes reach this
+  // route and one pattern has to cover all of them. Measured against the
+  // running build, not read off the source:
+  //   lib/api.ts asks for `certificates/?limit=100&offset=0`,
+  //   Next 308-redirects that to `certificates?limit=100&offset=0`,
+  //   and the detail page asks for `certificates/AG-2026-000001`.
+  // A `/certificates/**` pattern requires the slash, so it would miss the
+  // post-redirect form entirely.
+  await page.route(`${API}/certificates**`, (route) => {
     const url = route.request().url();
     if (url.includes("AG-2026-000001")) {
       return route.fulfill({ json: MOCK_CERT_DETAIL });
