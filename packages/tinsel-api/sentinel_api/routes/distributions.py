@@ -14,16 +14,14 @@ import hmac
 import io
 import uuid
 from datetime import UTC, datetime
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from tinsel.registry import HostOrganism
 from tinsel.sequence.fasta import normalise
-from tinsel.watermark.encoder import CODON_POOLS
 from tinsel.watermark.tinsel_encoder import TINSELEncoder
 
 from sentinel_api.config import settings
@@ -129,7 +127,10 @@ async def _get_own_cert(
     if cert is None:
         raise HTTPException(status_code=404, detail="Sequence not found.")
     if cert.org_id != org.id:
-        raise HTTPException(status_code=403, detail="This sequence belongs to a different organisation.")
+        raise HTTPException(
+            status_code=403,
+            detail="This sequence belongs to a different organisation.",
+        )
     return cert
 
 
@@ -350,9 +351,13 @@ async def verify_source(
             message="No distribution copies have been issued for this sequence.",
         )
 
+    # Only the signing key is needed here. Issuing a copy derives the
+    # fingerprint seed from the spreading key, but that seed is stored on the
+    # distribution row, so verification reads it back rather than deriving it
+    # again. Fetching the spreading key anyway would pull the system's most
+    # sensitive secret into memory on a path that has no use for it.
     vault = get_vault_client()
-    spreading_key = await vault.get_spreading_key(settings.spreading_key_id)
-    signing_key   = await vault.get_signing_key(settings.spreading_key_id)
+    signing_key = await vault.get_signing_key(settings.spreading_key_id)
 
     # Try to regenerate each fingerprinted copy and compare with the submitted DNA
     original_protein = _get_cert_protein(cert)

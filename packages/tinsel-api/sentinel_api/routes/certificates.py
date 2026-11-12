@@ -9,7 +9,6 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from tinsel.compliance import build_compliance_manifest
-from tinsel.crypto import ALGORITHM_WOTS, PQSigner
 from tinsel.registry import AnchorMap, CertificateStatus, WatermarkConfig
 from tinsel.synthesis_auth import build_synthesis_auth_document
 from tinsel.watermark.decoder import TINSELDecoder
@@ -67,15 +66,38 @@ async def get_certificate(
     db: AsyncSession = Depends(get_db),
     org: Organisation = Depends(require_api_key),
 ) -> dict:
-    """Fetch a single certificate by registry ID (e.g. AG-2027-000001)."""
+    """Fetch a single certificate by registry ID (e.g. AG-2027-000001).
+
+    A published certificate is readable by any authenticated caller, because a
+    registry nobody can read is not a registry. An embargoed one is visible only
+    to the organisation that owns it, and answers 404 otherwise rather than 403,
+    so the response does not confirm that the record exists.
+
+    The sequence itself is the exception. It lives in
+    ``watermark_metadata.original_protein`` and is returned only to the owner.
+    Everything else in that object, the carrier indices and the signature, is
+    what the record page renders, and discloses nothing about the sequence.
+
+    This split exists because the two questions were previously conflated: the
+    endpoint required ownership for the whole response, so the public record
+    page only worked because the dashboard proxy was lending it the owning
+    organisation's API key.
+    """
     result = await db.execute(
         select(Certificate).where(Certificate.id == registry_id)
     )
     cert = result.scalars().first()
-    # Return 404 for both not-found and wrong-org to avoid confirming existence
-    # of certificates belonging to other organisations.
-    if cert is None or cert.org_id != org.id:
+
+    is_owner = cert is not None and cert.org_id == org.id
+    if cert is None or not (is_owner or cert.visibility == "public"):
         raise HTTPException(status_code=404, detail=f"Certificate '{registry_id}' not found")
+
+    # Withhold the sequence from everyone but the owner, while keeping the
+    # watermark fields the UI needs. Copy before mutating: cert.watermark_metadata
+    # is the attribute the ORM is tracking.
+    watermark = dict(cert.watermark_metadata or {}) or None
+    if watermark is not None and not is_owner:
+        watermark.pop("original_protein", None)
 
     pk_dict = cert.wots_public_key or {}
     return {
@@ -88,9 +110,10 @@ async def get_certificate(
         "ethics_code": cert.ethics_code,
         "sequence_type": cert.sequence_type,
         "host_organism": cert.host_organism,
+        "visibility": cert.visibility,
         "timestamp": cert.timestamp.isoformat(),
         "certificate_hash": cert.certificate_hash,
-        "watermark_metadata": cert.watermark_metadata,
+        "watermark_metadata": watermark,
         "consequence_report": cert.consequence_report,
         "pq_algorithm": pk_dict.get("algorithm_id", "stub_zero_v1"),
         "pq_is_stub": pk_dict.get("is_stub", True),
@@ -207,6 +230,7 @@ async def export_certificate(
         "host_organism": cert.host_organism,
         "timestamp": cert.timestamp.isoformat(),
         "certificate_hash": cert.certificate_hash,
+        "hash_scheme": cert.hash_scheme,
         "watermark_metadata": cert.watermark_metadata,
         "consequence_report": cert.consequence_report,
         "pq_signature": {

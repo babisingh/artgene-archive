@@ -81,11 +81,13 @@ export interface Gate2Result {
   blast_top_hits: BlastHit[] | null;
   gravy_score: number | null;
   amino_acid_composition: Record<string, number> | null;
-  // SecureDNA DOPRF results
-  secureDNA_checked: boolean;
-  secureDNA_windows_screened: number;
-  secureDNA_hits: SecureDNAHit[];
-  secureDNA_status: GateStatus | null;
+  // SecureDNA DOPRF results. Spelled secureDNA_* until 2026-11-12; migration
+  // 014 renamed the stored keys, so a record written before that migration
+  // ran will leave these undefined rather than wrong.
+  secure_dna_checked: boolean;
+  secure_dna_windows_screened: number;
+  secure_dna_hits: SecureDNAHit[];
+  secure_dna_status: GateStatus | null;
   // IBBIS commec HMM results
   ibbis_checked: boolean;
   ibbis_families_screened: number;

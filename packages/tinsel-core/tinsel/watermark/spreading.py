@@ -120,4 +120,7 @@ class SpreadingCodeGenerator:
             Shape ``(n,)``, dtype uint8, spread/de-spread result.
         """
         code = self.generate(len(bits), label)
-        return np.bitwise_xor(bits, code).astype(np.uint8)
+        # ndarray.astype is typed as returning Any, so the dtype is restated
+        # here rather than letting an untyped value escape a typed signature.
+        spread: np.ndarray = np.bitwise_xor(bits, code).astype(np.uint8)
+        return spread

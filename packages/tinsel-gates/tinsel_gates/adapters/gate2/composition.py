@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import logging
 import math
+from typing import Any
 
 from tinsel.consequence import Gate2Result
 from tinsel.models import GateStatus
@@ -145,14 +146,14 @@ def _allergen_probability(seq: str, gravy: float) -> float:
     return round(min(1.0, max(0.0, _sigmoid(raw, midpoint=0.8, steepness=3.0))), 4)
 
 
-def _screen_toxin_kmers(seq: str) -> list[dict]:
+def _screen_toxin_kmers(seq: str) -> list[dict[str, Any]]:
     """Screen sequence against known toxin 9-mer motifs.
 
     Searches for exact or near-exact (1-mismatch) matches.  Returns a list
     of hit dicts: {motif, description, position, mismatches, score}.
     """
     k = 9
-    hits: list[dict] = []
+    hits: list[dict[str, Any]] = []
     for i in range(len(seq) - k + 1):
         window = seq[i : i + k]
         for motif, description in _TOXIN_KMERS:
@@ -167,7 +168,7 @@ def _screen_toxin_kmers(seq: str) -> list[dict]:
                     "score": score,
                 })
     # Deduplicate by motif, keeping highest-scoring hit
-    seen: dict[str, dict] = {}
+    seen: dict[str, dict[str, Any]] = {}
     for h in hits:
         if h["motif"] not in seen or h["score"] > seen[h["motif"]]["score"]:
             seen[h["motif"]] = h

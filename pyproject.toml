@@ -15,7 +15,23 @@ tinsel-demo = { workspace = true }
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+
+[tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
+
+# No per-file ignores. The three naming suppressions that lived here are gone:
+# N999 and N802 with the module and function rename to secure_dna.py and
+# run_secure_dna_screen, and N815 with migration 014, which renamed the four
+# stored secureDNA_* keys so the Python fields, the JSONB and the TypeScript
+# client all say secure_dna_*. See RENAME_PLAN.md.
+#
+# `Gate2Result` is a pydantic model, so an attribute name there is also a
+# published JSON key: routes/certificates.py serves consequence_report
+# straight out of the column. Renaming one needs a migration and a dashboard
+# release, so it is not something to let `ruff --fix` decide.
+# test_api.py::TestStoredKeySpelling asserts the stored spelling, so a rename
+# that skips the data now fails a test rather than blanking a panel in
+# production.
 
 [tool.mypy]
 python_version = "3.12"

@@ -8,18 +8,43 @@ uvicorn sentinel_api.main:app --reload        # local dev
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from mangum import Mangum
 from slowapi.errors import RateLimitExceeded
 
 from sentinel_api.config import settings
 from sentinel_api.rate_limit import limiter
-from sentinel_api.routes import analyse, certificates, distributions, health, pathways, register, structure
+from sentinel_api.routes import (
+    analyse,
+    catalogue,
+    certificates,
+    distributions,
+    enquiries,
+    health,
+    pathways,
+    register,
+    structure,
+)
 
 logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Run startup diagnostics, then hand control to the server.
+
+    Replaces @app.on_event("startup"), which FastAPI deprecated and which
+    emitted a DeprecationWarning on every run. _log_startup_diagnostics is
+    defined further down the module; the name resolves when this runs, not
+    when it is defined.
+    """
+    await _log_startup_diagnostics()
+    yield
+
 
 app = FastAPI(
     title="ArtGene Archive API",
@@ -29,6 +54,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # Attach the slowapi limiter state and install the rate-limit error handler.
@@ -93,6 +119,12 @@ app.include_router(register.router, prefix="/api/v1", tags=["registration"])
 app.include_router(
     certificates.router, prefix="/api/v1/certificates", tags=["certificates"]
 )
+app.include_router(
+    catalogue.router, prefix="/api/v1/catalogue", tags=["catalogue"]
+)
+app.include_router(
+    enquiries.router, prefix="/api/v1/enquiries", tags=["enquiries"]
+)
 app.include_router(pathways.router, prefix="/api/v1/pathways", tags=["pathways"])
 app.include_router(analyse.router, prefix="/api/v1", tags=["demo"])
 app.include_router(structure.router, prefix="/api/v1", tags=["demo"])
@@ -100,10 +132,10 @@ app.include_router(distributions.router, prefix="/api/v1", tags=["provenance"])
 
 # ── Startup diagnostics ───────────────────────────────────────────────────
 
-@app.on_event("startup")
-async def _startup_diagnostics() -> None:
+async def _log_startup_diagnostics() -> None:
     """Log DB + vault connectivity on startup so Railway logs show the state immediately."""
     from sqlalchemy import text
+
     from sentinel_api.db.connection import async_session_factory
     from sentinel_api.vault import get_vault_client
 
@@ -121,7 +153,8 @@ async def _startup_diagnostics() -> None:
     except Exception as exc:
         vault_status = f"DISCONNECTED ({type(exc).__name__}: {exc})"
 
-    level = logging.WARNING if "DISCONNECTED" in db_status or "DISCONNECTED" in vault_status else logging.INFO
+    degraded = "DISCONNECTED" in db_status or "DISCONNECTED" in vault_status
+    level = logging.WARNING if degraded else logging.INFO
     logger.log(
         level,
         "Startup — env=%s  db=%s  vault=%s",
@@ -131,5 +164,7 @@ async def _startup_diagnostics() -> None:
     )
 
 
-# ── AWS Lambda adapter ────────────────────────────────────────────────────
-handler = Mangum(app, lifespan="on")
+# Nothing follows: the service runs under uvicorn via scripts/start.sh. The
+# Mangum AWS Lambda adapter that used to be constructed here was never used by
+# the Railway deployment, and implied a second deployment target that does not
+# exist.

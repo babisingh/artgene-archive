@@ -45,6 +45,12 @@ Thumbs.db
 
 # Secrets
 .env
+# Next.js reads .env.local and .env.<mode>.local automatically, so they are
+# where a dashboard credential naturally ends up. Only `.env` was ignored,
+# which meant PUBLIC_READ_API_KEY in apps/dashboard/.env.local was one
+# `git add -A` from being committed.
+.env.local
+.env.*.local
 *.pem
 *.key
 

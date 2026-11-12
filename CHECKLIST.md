@@ -1,0 +1,268 @@
+# ArtGene Archive: product readiness
+
+Status at 2026-11-12. Checked items have evidence named beside them. Unchecked
+items are not done, and a few are called out as deliberately deferred rather
+than forgotten.
+
+Companion documents: `ARCHITECTURE.md` for the design and the phase plan,
+`DEPLOY.md` for the runbook that restores and ships the service.
+
+## What this is, in one paragraph
+
+A registry of AI designed protein and nucleic acid sequences, holding two kinds
+of record that are never conflated. An `AG-` certificate says a depositor
+registered a sequence they made, accepted an ethics declaration, passed the
+biosafety gates, and the registry signed the result. An `AGC-` catalogue record
+says a published paper reported AI generated sequences that were built and
+tested, and the archive read it and recorded what it found, with attribution and
+a license decision. The second kind is fed daily by the Genome Watch agent.
+
+## The daily loop, end to end
+
+1. **06:47 Europe/Madrid.** The Genome Watch agent wakes in its own private
+   repository, reads `AGENT_INSTRUCTIONS.md` and `state/seen.json`, and looks
+   back two days.
+2. **Pass one** gathers candidates from arXiv, bioRxiv, medRxiv, PubMed and the
+   Nature, Science and Cell families.
+3. **Pass two** opens each candidate and answers seven gates in writing:
+   generated, novel, built and tested, worked, read in the original, pushes a
+   boundary, safety. Gates 1 to 6 must all pass. At most one item per day, and
+   most days none.
+4. The agent writes a draft, stages any deposited sequences into
+   `staging/<date>-<slug>/` with a manifest, validates with
+   `tools/check_draft.py`, commits, and opens one private issue.
+5. **A person reads it.** Babita edits the draft and pastes it into the Genome
+   Watch section of her Substack herself. Nothing is ever published or emailed
+   on her behalf; there is no send path in the code.
+6. Once the catalogue ingest exists, a reviewed draft is replayed into this
+   archive as an `AGC-` record in `draft` status, using a key scoped to
+   `catalogue:draft`. Only a person can move it to `published`.
+
+The agent cannot publish, in either system. That is a permission, not a
+convention.
+
+## Security
+
+- [x] **Dashboard proxy no longer lends its key to anonymous callers.** It
+      attaches a server key only to an allowlist of public GET paths, and
+      forwards a caller key untouched otherwise. Write paths previously
+      inherited that key; the specifics stay out of this file until the fixed
+      build is deployed, and are in the branch history for a reviewer.
+- [x] **No key is read on the client.** `NEXT_PUBLIC_API_KEY` is gone from
+      `providers.tsx` and from the record page copy that told operators to set
+      it. Next inlines such variables into the bundle at build time.
+- [x] **Verified no key is currently public.** Every script chunk referenced by
+      six pages of the live site was downloaded and scanned; the bundle holds
+      the variable as a runtime property read, which proves it was never set at
+      build time. Full git history across all branches holds no committed
+      `.env` and no production key.
+- [x] **Regression guard in CI.** `scripts/check_no_client_secrets.py`, four
+      checks, run standalone and again inside the dashboard build where the
+      build environment is visible. Tested against a fixture reproducing both
+      original defects.
+- [x] **Development mode cannot reach a real database.** `SENTINEL_ENV`
+      defaulted to `development`, which runs mock biosafety gates and seeded an
+      organisation whose key was a constant in this public repository. The
+      settings validator now refuses development against a non-local database,
+      verified across ten `DATABASE_URL` shapes, and `start.sh` refuses to boot
+      with the variable unset.
+- [x] **No credential constant in the repository.** `seed_dev.py` generates a
+      key or takes `ARTGENE_DEV_API_KEY`, and refuses to run outside local
+      development.
+- [x] **Published records readable without a key; sequences are not.**
+      `GET /certificates/{id}` serves a published record to any authenticated
+      caller and withholds `watermark_metadata.original_protein` from everyone
+      but the owner. Embargoed records answer 404, not 403.
+- [x] **Scoped API keys.** `api_keys` carries `scopes`, `expires_at`,
+      `created_by` and `description`, keys expire, and `require_scope` refuses a
+      caller lacking a scope with 403 and the list of what is missing. Verified
+      end to end against PostgreSQL: the agent key stages and reviews, and its
+      publish attempt is refused with `['catalogue:publish']`.
+- [ ] **Database roles.** The API connects as the table owner, so it could drop
+      the append-only trigger it relies on. Needs a role with no `DELETE` and
+      `INSERT` only on `registry_audit_log`.
+- [ ] **Security headers.** No HSTS, CSP, `X-Content-Type-Options` or
+      `Referrer-Policy` on either service.
+- [ ] **`/docs` and `/redoc` gated in production.** Currently public.
+- [ ] **GitHub secret scanning and push protection.** Free for public repos, and
+      a settings toggle only you can flip. It catches committed secrets, which
+      the script above deliberately does not try to.
+- [ ] **Rotate `ARTGENE_API_KEY`** on restore. The value never leaked, but the
+      proxy made its authority public while the service was up.
+
+## Data integrity
+
+- [x] **Certificate hashing is unambiguous.** The old scheme joined field values
+      with no delimiter, so `{"owner_id": "ab", "ethics_code": "c"}` and
+      `{"owner_id": "a", "ethics_code": "bc"}` collide. That collision is now a
+      passing test, with a pinned digest vector. Migration 008 records the
+      scheme per row and backfills old rows as `concat-v1`.
+- [x] **Accession numbers cannot race.** `count(*) + 1` replaced by a counter row
+      under `SELECT ... FOR UPDATE`, which also makes the chain head read safe.
+      A PostgreSQL sequence would be wrong here: values are consumed on
+      rollback, and the chain needs contiguous numbers to be auditable.
+- [x] **The append-only trigger is real.** Verified against PostgreSQL 16 for the
+      first time: `UPDATE` and `DELETE` on `registry_audit_log` both raise.
+- [x] **Migrations apply and round-trip.** All nine run on an empty PostgreSQL
+      16, `downgrade 007` then `upgrade head` succeeds, and the counter reseeded
+      correctly from an existing audit row.
+- [x] **The public registry shows only real records.** The fallback that
+      displayed ten fabricated `AG-DEMO-*` certificates attributed to ETH
+      Zürich, the Broad Institute, Institut Pasteur, GSK Vaccines, Kyoto
+      University, the Wyss Institute, UCSF, MIT and the Arc Institute, one of
+      them revoked, is removed. An empty registry now says it is empty.
+- [ ] **External chain checkpoints.** The chain is hash chained and trigger
+      protected, but anyone with owner rights can drop a trigger. Publishing the
+      chain head daily somewhere the API cannot write turns a promise into
+      something checkable.
+
+## Catalogue and ingest, Phase 2 and 3
+
+- [x] `records`, `sources`, `source_authors`, `licenses`, `catalogue_records`,
+      `design_metadata`, `external_accessions`, `sequence_blobs`,
+      `record_gate_results`, `ingest_runs`, `takedown_requests`, and the
+      `registry_entries` view. Migration 010, applied and round-tripped on
+      PostgreSQL 16 from base.
+- [x] License gate enforced by a database trigger, so no code path can store
+      data a license does not cover. `UNSTATED` seeded as non redistributable.
+      Verified: sequence data under `UNSTATED` is refused, the same data under
+      `CC-BY-4.0` is accepted, and a metadata-only row is accepted either way.
+- [x] `license_enquiries` and `do_not_contact`, so an unstated license opens an
+      author enquiry instead of closing the question. Migration 013, with
+      `license_resolution` and `citation_only` on the record. An enquiry is
+      queued automatically on ingest, never for work classed elevated or
+      restricted, one per publication, one reminder at most. Declining sets
+      `citation_only` and adds the person to a suppression list keyed on ORCID
+      or a peppered HMAC of their address. Verified end to end on PostgreSQL.
+- [x] **No send path exists.** `tests/test_no_send_path.py` fails if any mail
+      library is imported or declared, if an SMTP call appears, or if a
+      provider send endpoint is referenced. The rule that no agent ever sends
+      an email is therefore structural rather than documented.
+- [x] `POST /api/v1/catalogue` and the draft to published state machine, with
+      transitions listed rather than inferred, `withdrawn` terminal, and every
+      transition recorded as a gate result. Publishing needs a different scope
+      from drafting.
+- [x] Nucleotide handling. A coding sequence is translated and the gates see
+      the protein it encodes. A nucleotide sequence with no single product, a
+      genome, a plasmid, a promoter, is screened by running the protein gates
+      over its six-frame open reading frames, with the structural gate not run
+      at all rather than fed a string of bases. Any one failing frame fails the
+      submission. Limits are per submission kind now: 2,000 residues, 6,003
+      bases of coding sequence, 50,000 bases otherwise. Verified on PostgreSQL
+      with a 972 base construct carrying genes on both strands.
+- [x] **A partial screen cannot produce a clean certificate.** Two ways it
+      happens, both downgraded to `CERTIFIED_WITH_WARNINGS` with the reason in
+      the response: ESMFold Atlas refuses sequences over 400 residues and the
+      adapter substitutes a mock returning pLDDT 87.3, above the 70.0 fail
+      threshold, so every long protein was passing a gate that never ran; and
+      an ORF screen bounded at 24 frames leaves the rest unchecked.
+- [x] Metadata only records, for the common case where a paper deposits
+      nothing: the hosting decision and its reason are recorded per record.
+- [x] `restricted` state, so a sequence failing screening keeps its citation.
+      A record classed `restricted` is `withheld` whatever its license permits.
+
+## Dashboard
+
+- [x] Mock certificate fixtures removed, along with both fallbacks.
+- [x] Record page works without a key for published records.
+- [ ] Wire the fields the deposit form already collects and discards: sequence
+      name, molecule type, generating model, design method, institution,
+      abstract. The record page renders empty states for all of them.
+- [ ] A key entry control. Deposits from the browser now need an operator key
+      in `sessionStorage` and there is no UI to put one there, so deposits are
+      currently a CLI action. That is arguably correct, and `DEPLOY.md` uses
+      curl, but it should be a decision rather than an accident.
+
+## CI
+
+- [x] Migrations run against a real PostgreSQL 16 service container, and the
+      last two are round-tripped.
+- [x] `pip-audit` added, advisory, matching the existing `npm audit` step.
+- [x] Client credential guard job.
+- [x] Health tests fixed. They failed on `main` because `/health` reaches for
+      the module-level session factory rather than the `get_db` dependency,
+      deliberately, so that it can answer 503 when the pool is unreachable.
+- [x] Rate limiter disabled under `SENTINEL_ENV=test`. Every test shares one key,
+      so the write tier counted the whole suite as one client and the suite was
+      one test away from flaking.
+- [x] **Lint, type and security jobs are green.** `ruff` 41 findings, `mypy` 49
+      errors and `bandit` 4 findings, all cleared in one pass. Two were real
+      defects rather than style: `_codon_diff` in `routes/analyse.py` constructed
+      `CodonDiff` with field names the model does not have, so every call would
+      have raised a pydantic `ValidationError` (it had no callers,
+      `_codon_diff_pair` superseded it, so it was deleted); and `verify_source`
+      fetched the spreading key from the vault and never used it, since the
+      fingerprint seed is stored on the distribution row and read back.
+      Verified: ruff, bandit and mypy clean on all three packages, 233 tests
+      passing unchanged, dashboard type-check and build green, and the
+      migrations round-tripped on PostgreSQL 16 including the 008 backfill
+      against a pre-existing certificate row.
+- [x] **Three naming rules suppressed in `pyproject.toml`, with reasons.** An
+      earlier note here said `ruff --fix` would rename `A_seed` in
+      `LWECommitmentData`; the real exposure was different and larger. The four
+      `secureDNA_*` fields of `Gate2Result` are pydantic fields, so each
+      attribute name *is* a JSON key, and those keys are declared in
+      `apps/dashboard/lib/api.ts`, read by the record page, and persisted inside
+      the `certificates.consequence_report` JSONB of every certified record.
+      Renaming them would blank the SecureDNA panel with no error and orphan the
+      keys in existing rows: a data migration and a client release, not a linter.
+      `N999`/`N802` on `adapters/gate2/secureDNA.py` follow the vendor's own
+      spelling.
+- [x] **Migration SQL uses bound parameters.** Bandit's four `B608` findings
+      were all in migrations 008, 009 and 012, which interpolated module
+      constants with f-strings. No injection path existed, but they now use
+      `sa.text(...).bindparams(...)`.
+
+## Operations
+
+- [ ] Restore the API. See `DEPLOY.md`. It has been down since roughly
+      2026-07 and the registry has never held a record.
+- [ ] Backups with a tested restore. An archive whose restore has never been
+      run is not an archive.
+- [ ] Uptime check that pages a person. `/health` already returns 503 when the
+      database is unreachable, so nothing new is needed on the service side.
+      This outage lasted months unnoticed.
+- [ ] Managed PostgreSQL with point in time recovery, `ARCHITECTURE.md` phase 6.
+
+## Licensing and privacy
+
+- [x] License policy settled: host only what the license permits, record the
+      decision per record, treat unstated as non redistributable.
+- [ ] Privacy notice, and a documented Article 6(1)(f) balancing test for
+      holding author names, ORCIDs and affiliations.
+- [ ] Attribution component on the record page: author list, title, source link,
+      license name with link, and whether anything was modified. This is both the
+      CC-BY requirement and what makes the attribution gate testable.
+- [ ] Collection license stated, separately from per record licenses.
+
+## Running it locally
+
+```bash
+# Python 3.12 workspace and the test suite, SQLite, no services needed
+uv venv --python 3.12 .venv
+uv pip install --python .venv/bin/python -e "packages/tinsel-core[test]" \
+  -e "packages/tinsel-gates[test]" -e "packages/tinsel-api[dev]" aiosqlite
+SENTINEL_ENV=test .venv/bin/python -m pytest packages/ -q --import-mode=importlib
+```
+
+```bash
+# A local PostgreSQL for migration work. Unix sockets are disabled because the
+# scratch path exceeds the 103 byte sockaddr limit, and LC_ALL is set because
+# the macOS postmaster goes multithreaded without a locale.
+export LC_ALL=C LANG=C
+PGBIN=/opt/homebrew/opt/postgresql@16/bin
+$PGBIN/pg_ctl -D "$PGDATA" -l "$PGDATA/server.log" start
+```
+
+```bash
+# Apply every migration to that instance
+cd packages/tinsel-api
+DATABASE_URL=postgresql://postgres@127.0.0.1:5433/artgene_test \
+SENTINEL_ENV=production SPREADING_KEY=$(python -c "import secrets;print(secrets.token_hex(32))") \
+  ../../.venv/bin/alembic upgrade head
+```
+
+```bash
+# The guard that stops a credential reaching the browser
+python3 scripts/check_no_client_secrets.py
+```

@@ -29,8 +29,7 @@ available in the Docker container and any pip-installed deployment.  Ed25519 fro
 from __future__ import annotations
 
 import hashlib
-import hmac as _hmac
-import os
+from typing import Any
 
 from tinsel.crypto import wots as _wots
 
@@ -64,7 +63,7 @@ class PQSigner:
 
     def sign_certificate(
         self, registry_id: str, cert_hash_hex: str
-    ) -> tuple[dict, dict]:
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Generate a keypair and sign the certificate hash.
 
         Parameters
@@ -103,8 +102,8 @@ class PQSigner:
         self,
         registry_id: str,
         cert_hash_hex: str,
-        pk_dict: dict,
-        sig_dict: dict,
+        pk_dict: dict[str, Any],
+        sig_dict: dict[str, Any],
     ) -> tuple[bool, str]:
         """Verify a WOTS+ certificate signature.
 

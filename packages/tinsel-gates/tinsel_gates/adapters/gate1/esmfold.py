@@ -21,12 +21,9 @@ Thresholds (same as mock):
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import math
 
 import httpx
-
 from tinsel.consequence import Gate1Result
 from tinsel.models import GateStatus
 
@@ -161,6 +158,7 @@ class ESMFoldGate1Adapter(Gate1Adapter):
                 plddt_per_residue=None,
                 instability_index=ii,
                 sequence_length=sequence_length,
+                mock_fallback=True,
             )
 
         # ── ESMFold API call ─────────────────────────────────────────────
@@ -174,7 +172,7 @@ class ESMFoldGate1Adapter(Gate1Adapter):
                 )
                 response.raise_for_status()
                 pdb_text = response.text
-        except (httpx.HTTPError, asyncio.TimeoutError, Exception) as exc:
+        except (TimeoutError, httpx.HTTPError, Exception) as exc:
             logger.warning("ESMFold API call failed: %s; using mock", exc)
 
         # ── API fallback ─────────────────────────────────────────────────

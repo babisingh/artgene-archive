@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "tinsel-api"
 version = "1.0.0"
-description = "FastAPI + Mangum Lambda handler for the ArtGene / TINSEL platform"
+description = "FastAPI service for the ArtGene Archive / TINSEL platform"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 dependencies = [
@@ -13,7 +13,6 @@ dependencies = [
     "tinsel-gates>=1.0.0",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.29",
-    "mangum>=0.17",
     "asyncpg>=0.29",
     "sqlalchemy[asyncio]>=2.0",
     "alembic>=1.13",

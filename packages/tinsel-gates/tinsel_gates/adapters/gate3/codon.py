@@ -319,10 +319,14 @@ def _hgt_score(gc: float, cai: float, host: str) -> tuple[float, list[str]]:
     extreme_gc_penalty = 0.0
     if gc < 0.30:
         extreme_gc_penalty = 20.0
-        risk_factors.append(f"Extremely low GC content ({gc*100:.1f}%) — AT-rich foreign DNA signature")
+        risk_factors.append(
+            f"Extremely low GC content ({gc*100:.1f}%) — AT-rich foreign DNA signature"
+        )
     elif gc > 0.70:
         extreme_gc_penalty = 20.0
-        risk_factors.append(f"Extremely high GC content ({gc*100:.1f}%) — GC-biased foreign DNA signature")
+        risk_factors.append(
+            f"Extremely high GC content ({gc*100:.1f}%) — GC-biased foreign DNA signature"
+        )
 
     if gc_deviation > 1.5:
         risk_factors.append(
@@ -336,7 +340,9 @@ def _hgt_score(gc: float, cai: float, host: str) -> tuple[float, list[str]]:
             f"with host translational machinery"
         )
     elif cai < 0.7:
-        risk_factors.append(f"Moderate CAI ({cai:.3f}) — suboptimal codon adaptation to host {host}")
+        risk_factors.append(
+            f"Moderate CAI ({cai:.3f}) — suboptimal codon adaptation to host {host}"
+        )
 
     score = min(100.0, gc_score * 0.35 + cai_score * 0.45 + extreme_gc_penalty * 0.20)
     return round(score, 2), risk_factors
@@ -382,7 +388,10 @@ class CodonGate3Adapter(Gate3Adapter):
                 pathogen_hits=0,
                 hgt_score=None,
                 escape_probability=None,
-                message="No DNA sequence provided — codon and HGT analysis skipped (protein-only submission)",
+                message=(
+                    "No DNA sequence provided — codon and HGT analysis skipped "
+                    "(protein-only submission)"
+                ),
                 gc_content=None,
                 codon_adaptation_index=None,
                 hgt_risk_factors=None,

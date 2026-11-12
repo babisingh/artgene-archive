@@ -35,14 +35,13 @@ Or run a local ESM-2 server and point ESM2_ENDPOINT at it.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from typing import Any
 
 from tinsel.consequence import Gate4Result
 from tinsel.models import GateStatus
 
 from tinsel_gates.adapters.base import Gate4Adapter
 from tinsel_gates.adapters.gate4.reference_db import (
-    FINGERPRINT_DIM,
     screen_protein,
 )
 
@@ -134,7 +133,7 @@ class FunctionalEmbeddingGate4Adapter(Gate4Adapter):
         )
         status: GateStatus = result["status"]
         max_sim: float = result["max_similarity"]
-        top_hits: list[dict] = result["top_hits"]
+        top_hits: list[dict[str, Any]] = result["top_hits"]
 
         if status == GateStatus.FAIL:
             worst = top_hits[0]
@@ -177,11 +176,9 @@ class FunctionalEmbeddingGate4Adapter(Gate4Adapter):
 
     async def _run_esm2(self, protein: str) -> Gate4Result:
         """ESM-2 production path via Hugging Face Inference API."""
-        import math
 
         from tinsel_gates.adapters.gate4.reference_db import (
             REFERENCE_FAMILIES,
-            _compute_fingerprint,
             _cosine,
         )
 
@@ -194,7 +191,7 @@ class FunctionalEmbeddingGate4Adapter(Gate4Adapter):
             return await self._run_composition(protein)
 
         # Compute reference ESM-2 embeddings on-the-fly (would normally be pre-cached)
-        hits: list[dict] = []
+        hits: list[dict[str, Any]] = []
         for ref in REFERENCE_FAMILIES:
             ref_emb = await _get_esm2_embedding(
                 ref["sequence"], self._esm2_endpoint, self._esm2_api_key
@@ -243,5 +240,8 @@ class FunctionalEmbeddingGate4Adapter(Gate4Adapter):
             max_similarity=max_sim,
             top_hits=hits,
             message=msg,
-            note=f"ESM-2 650M mean-pooled embeddings ({dim}-D). Threshold: FAIL ≥ {self._threshold_fail}.",
+            note=(
+                f"ESM-2 650M mean-pooled embeddings ({dim}-D). "
+                f"Threshold: FAIL ≥ {self._threshold_fail}."
+            ),
         )

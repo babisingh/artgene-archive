@@ -50,7 +50,7 @@ class ComplianceManifest(BaseModel):
     run_gates: list[int]
     skipped_gates: list[int]
     gate_summary: dict[str, str]
-    databases_queried: list[dict] = Field(default_factory=list)
+    databases_queried: list[dict[str, Any]] = Field(default_factory=list)
     wots_algorithm: str
     wots_is_stub: bool
     framework_attestations: list[FrameworkAttestation]
@@ -61,7 +61,7 @@ class ComplianceManifest(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _gate_summary(report: dict) -> dict[str, str]:
+def _gate_summary(report: dict[str, Any]) -> dict[str, str]:
     return {
         f"gate_{n}": (report.get(f"gate{n}") or {}).get("status", "skip")
         for n in (1, 2, 3, 4)
@@ -73,7 +73,7 @@ def _gate_summary(report: dict) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 def build_compliance_manifest(
-    cert: dict,
+    cert: dict[str, Any],
     frameworks: list[str] | None = None,
 ) -> ComplianceManifest:
     """Build a ComplianceManifest from a certificate data dict.
@@ -85,11 +85,11 @@ def build_compliance_manifest(
     if frameworks is None:
         frameworks = ["US_DURC", "EU_DUAL_USE"]
 
-    report: dict = cert.get("consequence_report") or {}
-    pk: dict = cert.get("wots_public_key") or {}
+    report: dict[str, Any] = cert.get("consequence_report") or {}
+    pk: dict[str, Any] = cert.get("wots_public_key") or {}
 
     gs = _gate_summary(report)
-    databases: list[dict] = (report.get("gate2") or {}).get("databases_queried") or []
+    databases: list[dict[str, Any]] = (report.get("gate2") or {}).get("databases_queried") or []
 
     attestations: list[FrameworkAttestation] = []
     if "US_DURC" in frameworks:
@@ -124,9 +124,9 @@ def build_compliance_manifest(
 # ---------------------------------------------------------------------------
 
 def _render_us_durc(
-    cert: dict,
+    cert: dict[str, Any],
     gs: dict[str, str],
-    databases: list[dict],
+    databases: list[dict[str, Any]],
 ) -> FrameworkAttestation:
     status = cert["status"]
     g2 = gs.get("gate_2", "skip")
@@ -166,7 +166,7 @@ def _render_us_durc(
 
 
 def _render_eu_dual_use(
-    cert: dict,
+    cert: dict[str, Any],
     gs: dict[str, str],
 ) -> FrameworkAttestation:
     status = cert["status"]

@@ -23,7 +23,9 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from tinsel.crypto import PQSigner
+from tinsel.models import SequenceType
 from tinsel.registry import (
+    CERT_HASH_SCHEME_DEFAULT,
     CertificateStatus,
     HostOrganism,
     HybridCertificate,
@@ -32,16 +34,43 @@ from tinsel.registry import (
     WOTSSignature,
 )
 from tinsel.sequence.fasta import normalise
+from tinsel.sequence.translate import analyse as analyse_nucleotide
+from tinsel.sequence.translate import six_frame_orfs, to_dna
+from tinsel_gates.nucleotide import run_nucleotide_pipeline
 from tinsel_gates.pipeline import run_consequence_pipeline
 
+from sentinel_api.accession import (
+    AUDIT_SEQ_COUNTER,
+    allocate_sequence_number,
+    format_accession,
+)
 from sentinel_api.config import settings
+from sentinel_api.db.catalogue import Record
 from sentinel_api.db.connection import get_db
-from sentinel_api.db.models import Certificate, FragmentKmerIndex, Organisation, RegistryAuditLog
+from sentinel_api.db.models import (
+    Certificate,
+    FragmentKmerIndex,
+    Organisation,
+    RegistryAuditLog,
+)
 from sentinel_api.dependencies import require_api_key
 from sentinel_api.rate_limit import rate_limit_write
 from sentinel_api.vault import get_vault_client
 
 router = APIRouter()
+
+# Length limits by what is actually being screened, rather than one cap over
+# everything. The old single 5,000 "AA" limit was applied to nucleotides too,
+# which is both the wrong unit and the wrong number.
+#: Longest protein accepted. Above ESMFold Atlas's 400 residue ceiling the
+#: structural gate falls back to a mock, which the response now says.
+MAX_PROTEIN_RESIDUES = 2_000
+#: Longest coding sequence: three bases per residue, plus a stop codon.
+MAX_CDS_NUCLEOTIDES = MAX_PROTEIN_RESIDUES * 3 + 3
+#: Longest non-coding submission. Genome scale on purpose: a designed phage
+#: genome is roughly forty thousand bases, and refusing to look at one was the
+#: previous behaviour.
+MAX_NUCLEOTIDES = 50_000
 
 
 # ---------------------------------------------------------------------------
@@ -78,17 +107,23 @@ def _entry_hash(seq_num: int, prev_hash: str, cert_hash: str) -> str:
     return hashlib.sha3_256(payload).hexdigest()
 
 
-async def _next_seq_num(db: AsyncSession) -> int:
-    """Return the next sequential registry number (1-indexed)."""
-    result = await db.execute(
-        select(func.count()).select_from(RegistryAuditLog)
-    )
-    count = result.scalar_one()
-    return count + 1
+async def _highest_audit_seq_plus_one(db: AsyncSession) -> int:
+    """Where a fresh counter should start so numbering stays contiguous."""
+    highest = (
+        await db.execute(
+            select(func.coalesce(func.max(RegistryAuditLog.seq_num), 0))
+        )
+    ).scalar_one()
+    return int(highest) + 1
 
 
 async def _prev_entry_hash(db: AsyncSession) -> str:
-    """Return the ``entry_hash_hex`` of the most-recent audit entry, or zeros."""
+    """Return the ``entry_hash_hex`` of the most recent audit entry, or zeros.
+
+    Safe to read only while the counter row lock from allocate_sequence_number
+    is held: without it two transactions could extend the chain from the same
+    previous hash.
+    """
     result = await db.execute(
         select(RegistryAuditLog.entry_hash_hex)
         .order_by(RegistryAuditLog.seq_num.desc())
@@ -240,23 +275,54 @@ async def register_sequence(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    # For protein-only encoding use the sequence directly;
-    # for DNA/RNA sequences we use the sequence as the "protein" placeholder
-    # until a translator is wired (Phase 7).
-    protein = sequence
+    # ── Step 1b: What is this, and how can it be screened? ────────────────
+    # The pipeline has always documented that its `dna` argument must translate
+    # to its `protein` argument. This route used to pass the nucleotide string
+    # as both, so gate alpha ran a structure predictor over a string of A, C, G
+    # and T and returned a confidence score for a protein that does not exist.
+    #
+    # Three cases now, and none of them involves inventing a protein:
+    #   protein     the submission is a protein; all four gates apply
+    #   cds         a single clean reading frame; translate, then all four
+    #   nucleotide  no single product, so the protein gates run over the six
+    #               frame reading frames and gate alpha is not run at all
+    #
+    # `sequence` stays as submitted throughout, and is what gets hashed for
+    # deduplication: two coding sequences for the same protein are different
+    # objects, because the TINSEL watermark lives in the codon choices.
+    orfs: list = []
+    if seq_type is SequenceType.PROTEIN:
+        screen_mode = "protein"
+        gate_protein = sequence
+        coding_dna = ""
+        limit, units, measured = MAX_PROTEIN_RESIDUES, "residues", len(sequence)
+    else:
+        coding_dna = to_dna(sequence)
+        analysis = analyse_nucleotide(sequence)
+        if analysis.is_cds:
+            screen_mode = "cds"
+            gate_protein = analysis.protein or ""
+            limit, units, measured = MAX_CDS_NUCLEOTIDES, "bases", len(coding_dna)
+        else:
+            screen_mode = "nucleotide"
+            # No single protein product. The longest reading frame stands in
+            # for the record wherever one protein is needed, which is the k-mer
+            # index and the fragment assembly cross-check, so that index stays
+            # homogeneous instead of mixing peptides and bases.
+            orfs = six_frame_orfs(coding_dna)
+            gate_protein = orfs[0].protein if orfs else ""
+            limit, units, measured = MAX_NUCLEOTIDES, "bases", len(coding_dna)
 
-    # ── Step 1b: Length cap ───────────────────────────────────────────────
-    _MAX_AA = 5000
-    if len(protein) > _MAX_AA:
+    if measured > limit:
         raise HTTPException(
             status_code=422,
             detail={
                 "code": "SEQUENCE_TOO_LONG",
                 "message": (
-                    f"Sequence length {len(protein):,} AA exceeds the maximum of "
-                    f"{_MAX_AA:,} AA. Trim your sequence or contact support for "
-                    "bulk registration options."
+                    f"Sequence length {measured:,} {units} exceeds the maximum "
+                    f"of {limit:,} {units} for a {screen_mode} submission."
                 ),
+                "screen_mode": screen_mode,
             },
         )
 
@@ -265,7 +331,12 @@ async def register_sequence(
     # Raises HTTP 422 (FRAGMENT_ASSEMBLY_RISK) without revealing which
     # archived sequence caused the match.
     try:
-        await _check_fragment_assembly_risk(db, protein, settings.sentinel_env)
+        # Skipped when a nucleotide submission encodes nothing long enough to
+        # be a gene: there is no peptide to cross-check against the index.
+        if gate_protein:
+            await _check_fragment_assembly_risk(
+                db, gate_protein, settings.sentinel_env
+            )
     except HTTPException:
         raise
     except Exception as exc:
@@ -288,12 +359,19 @@ async def register_sequence(
     import logging as _logging
     _reg_log = _logging.getLogger(__name__)
     try:
-        report = await run_consequence_pipeline(
-            protein=protein,
-            dna=sequence if seq_type.value == "dna" else "",
-            env=settings.sentinel_env,
-            host_organism=body.host_organism.value,
-        )
+        if screen_mode == "nucleotide":
+            report = await run_nucleotide_pipeline(
+                coding_dna,
+                env=settings.sentinel_env,
+                host_organism=body.host_organism.value,
+            )
+        else:
+            report = await run_consequence_pipeline(
+                protein=gate_protein,
+                dna=coding_dna,
+                env=settings.sentinel_env,
+                host_organism=body.host_organism.value,
+            )
     except Exception as exc:
         _reg_log.exception("Consequence pipeline raised an unexpected error: %s", exc)
         raise HTTPException(
@@ -317,12 +395,29 @@ async def register_sequence(
         )
     _warn_only = report.overall_status == GateStatus.WARN
 
+    # A certificate must not read as a clean screen when a gate did not run.
+    # Two ways that happens: ESMFold Atlas refuses sequences over 400 residues
+    # and the adapter substitutes a mock returning pLDDT 87.3, comfortably
+    # above the 70.0 fail threshold; and a nucleotide submission with more
+    # reading frames than the screen covers is only partly checked.
+    partial_screen: str | None = None
+    if report.gate1 is not None and report.gate1.mock_fallback:
+        partial_screen = (
+            "the structural gate did not run, because this sequence is longer "
+            "than the structure predictor accepts, so its confidence figures "
+            "are placeholders."
+        )
+    elif report.orf_screen is not None and not report.orf_screen.complete:
+        partial_screen = report.orf_screen.note
+    if partial_screen:
+        _warn_only = True
+
     # ── Step 2b: Deduplication check ─────────────────────────────────────
     # Hash matches TINSELEncoder.sequence_hash(): SHA3-256 of uppercased protein.
     # We check before watermarking so a duplicate is rejected before spending
     # vault + ESMFold resources.  Do NOT reveal the existing registry_id in the
     # error — that would disclose another organisation's registered sequence.
-    pre_hash = hashlib.sha3_256(protein.upper().encode()).hexdigest()
+    pre_hash = hashlib.sha3_256(sequence.upper().encode()).hexdigest()
     dup_result = await db.execute(
         select(Certificate.id).where(Certificate.sequence_hash == pre_hash).limit(1)
     )
@@ -347,9 +442,11 @@ async def register_sequence(
         spreading_key = await vault.get_spreading_key(settings.spreading_key_id)
 
         now = datetime.now(UTC)
-        seq_num = await _next_seq_num(db)
+        seq_num = await allocate_sequence_number(
+            db, AUDIT_SEQ_COUNTER, seed=lambda: _highest_audit_seq_plus_one(db)
+        )
         year = now.year
-        registry_id = f"AG-{year}-{seq_num:06d}"
+        registry_id = format_accession("AG", year, seq_num)
 
         # seq_hash already computed above as pre_hash
         seq_hash = pre_hash
@@ -374,6 +471,12 @@ async def register_sequence(
 
         # Store the original_protein in watermark_metadata for fragment assembly
         # cross-checks (see _check_fragment_assembly_risk above).
+        # The shared accession namespace row comes first: certificates.id is a
+        # foreign key onto records.id, so inserting the certificate alone would
+        # violate it. Both go in the same transaction as the audit entry.
+        db.add(Record(id=registry_id, record_class="certificate"))
+        await db.flush()
+
         cert = Certificate(
             id=registry_id,
             org_id=org.id,
@@ -383,13 +486,31 @@ async def register_sequence(
             sequence_type=seq_type.value,
             host_organism=body.host_organism.value,
             timestamp=now,
-            watermark_metadata={"original_protein": protein},
+            watermark_metadata={
+                # The gates and the fragment cross-check reason about a
+                # protein, so that is what `original_protein` holds: the
+                # submission for a protein, its translation for a coding
+                # sequence, its longest reading frame otherwise. The submission
+                # is kept beside it, because for a nucleotide deposit that is
+                # the actual deposited object.
+                "original_protein": gate_protein,
+                "submitted_sequence": sequence,
+                "submitted_type": seq_type.value,
+                "screen_mode": screen_mode,
+            },
             wots_public_key=wots_pub.model_dump(),
             wots_signature=wots_sig.model_dump(),
             lwe_commitment=lwe_com.model_dump(),
             consequence_report=report_dict,
             certificate_hash=cert_hash,
-            status=(CertificateStatus.CERTIFIED_WITH_WARNINGS if _warn_only else CertificateStatus.CERTIFIED).value,
+            # Recorded explicitly rather than relying on the column default, so
+            # the row states which canonicalisation produced its digest.
+            hash_scheme=CERT_HASH_SCHEME_DEFAULT,
+            status=(
+                CertificateStatus.CERTIFIED_WITH_WARNINGS
+                if _warn_only
+                else CertificateStatus.CERTIFIED
+            ).value,
             tier="STANDARD",
             visibility=body.visibility,
         )
@@ -409,7 +530,7 @@ async def register_sequence(
         )
         db.add(log_entry)
 
-        _add_kmer_index_rows(db, registry_id, org.id, protein)
+        _add_kmer_index_rows(db, registry_id, org.id, gate_protein)
 
         await db.commit()
 
@@ -431,14 +552,24 @@ async def register_sequence(
             },
         ) from exc
 
-    final_status = CertificateStatus.CERTIFIED_WITH_WARNINGS if _warn_only else CertificateStatus.CERTIFIED
+    final_status = (
+        CertificateStatus.CERTIFIED_WITH_WARNINGS
+        if _warn_only
+        else CertificateStatus.CERTIFIED
+    )
     return RegistrationResponse(
         status=final_status,
         registry_id=registry_id,
         consequence_report=report_dict,
         message=(
-            f"Sequence certified with warnings — {registry_id} (manual biosafety review recommended)"
-            if _warn_only else
-            f"Sequence certified — {registry_id}"
+            (
+                f"Sequence certified with warnings, {registry_id}: "
+                f"{partial_screen} Manual biosafety review recommended."
+                if partial_screen
+                else f"Sequence certified with warnings, {registry_id}. "
+                "Manual biosafety review recommended."
+            )
+            if _warn_only
+            else f"Sequence certified, {registry_id}"
         ),
     )

@@ -22,9 +22,11 @@ from typing import Any
 
 from sqlalchemy import (
     BigInteger,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
@@ -32,6 +34,9 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+# Single source of truth for the hashing scheme written onto new certificates.
+from tinsel.registry import CERT_HASH_SCHEME_DEFAULT
 
 
 class Base(DeclarativeBase):
@@ -91,8 +96,25 @@ class Organisation(Base):
 class Certificate(Base):
     __tablename__ = "certificates"
 
+    # The id is also a row in `records`, the shared accession namespace that
+    # certificates and catalogue records draw from. The CHECK keeps the AG-
+    # prefix reserved for this class, so a bare accession in a citation always
+    # says which kind of claim it is.
+    __table_args__ = (
+        CheckConstraint("id LIKE 'AG-%'", name="ck_certificates_id_prefix"),
+        # Declared with the names the migrations actually gave them. Without
+        # these, `alembic revision --autogenerate` proposes dropping all three,
+        # including the one that backs the dedup lookup in POST /register.
+        Index("ix_certificates_org_id", "org_id"),
+        Index("ix_certificates_sequence_hash", "sequence_hash"),
+        Index("ix_certificates_visibility", "visibility"),
+    )
+
     id: Mapped[str] = mapped_column(
-        String(20), primary_key=True, comment="AG-YYYY-NNNNNN registry ID"
+        String(20),
+        ForeignKey("records.id"),
+        primary_key=True,
+        comment="AG-YYYY-NNNNNN registry ID, also a row in records",
     )
     org_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organisations.id"), nullable=False
@@ -116,6 +138,16 @@ class Certificate(Base):
     consequence_report: Mapped[dict] = mapped_column(JSONB, nullable=False)
     certificate_hash: Mapped[str] = mapped_column(
         String(128), nullable=False, comment="SHA3-512 hex"
+    )
+    hash_scheme: Mapped[str] = mapped_column(
+        String(40),
+        nullable=False,
+        default=CERT_HASH_SCHEME_DEFAULT,
+        comment=(
+            "Canonicalisation that produced certificate_hash. Rows written "
+            "before migration 008 used 'concat-v1', whose field boundaries "
+            "were ambiguous; new rows use the versioned JSON scheme."
+        ),
     )
     status: Mapped[str] = mapped_column(String(30), nullable=False)
     chi_squared: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -181,6 +213,32 @@ class RegistryAuditLog(AppendOnlyMixin, Base):
 # pathways
 # ---------------------------------------------------------------------------
 
+class RegistryCounter(Base):
+    """Monotonic counters allocated under a row lock.
+
+    The audit sequence number used to be computed as ``count(*) + 1`` over
+    registry_audit_log, which is a read-then-write race: two concurrent
+    registrations compute the same number, and the unique constraint on
+    seq_num then fails one of them with a 500.
+
+    A PostgreSQL SEQUENCE would be the obvious fix but is the wrong tool here:
+    sequence values are not returned on rollback, so a failed transaction would
+    leave a gap, and the audit chain relies on seq_num being contiguous to be
+    auditable. A counter row incremented inside the transaction keeps
+    contiguity, and the ``FOR UPDATE`` lock serialises allocation and the
+    subsequent read of the chain head in one step.
+    """
+
+    __tablename__ = "registry_counters"
+
+    name: Mapped[str] = mapped_column(
+        String(40), primary_key=True, comment="Counter identifier, e.g. 'audit_seq_num'"
+    )
+    next_value: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=1, comment="Value the next caller receives"
+    )
+
+
 class Pathway(Base):
     __tablename__ = "pathways"
 
@@ -210,6 +268,9 @@ class Pathway(Base):
 class APIKey(Base):
     __tablename__ = "api_keys"
 
+    # Every authenticated request looks a key up by hash.
+    __table_args__ = (Index("ix_api_keys_key_hash", "key_hash"),)
+
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
@@ -223,6 +284,20 @@ class APIKey(Base):
         String(64), nullable=False, comment="SHA3-256 hex of the full raw key"
     )
     label: Mapped[str] = mapped_column(String(100), nullable=False)
+    # What this key may do. Empty means it may do nothing on any scoped route,
+    # which is the fail-closed default: a key with no scopes cannot create a
+    # catalogue record, let alone publish one. JSONB rather than a PostgreSQL
+    # array so the SQLite test harness can hold it; see db/catalogue.py.
+    scopes: Mapped[list | None] = mapped_column(JSONB, nullable=False, default=list)
+    description: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, comment="Who or what holds this key, in words"
+    )
+    created_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Rotation: issue the replacement, overlap, then let this lapse",
+    )
     last_used_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -251,6 +326,12 @@ class FragmentKmerIndex(Base):
     """
 
     __tablename__ = "fragment_kmer_index"
+
+    __table_args__ = (
+        Index("ix_fragment_kmer_hash", "kmer_hash"),
+        Index("ix_fragment_kmer_registry_id", "registry_id"),
+        Index("ix_fragment_kmer_org_id", "org_id"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -286,16 +367,21 @@ class SequenceDistribution(Base):
 
     __tablename__ = "sequence_distributions"
 
+    __table_args__ = (
+        Index("ix_seq_dist_sequence_id", "sequence_id"),
+        Index("ix_seq_dist_org_id", "org_id"),
+    )
+
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     sequence_id: Mapped[str] = mapped_column(
         String(20), ForeignKey("certificates.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        nullable=False,
     )
     org_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organisations.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        nullable=False,
     )
     recipient_name: Mapped[str] = mapped_column(String(255), nullable=False)
     recipient_org: Mapped[str] = mapped_column(String(255), nullable=False)

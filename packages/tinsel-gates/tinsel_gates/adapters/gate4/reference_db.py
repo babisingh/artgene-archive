@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import math
 from functools import lru_cache
+from typing import Any
 
 _AA = "ACDEFGHIKLMNPQRSTVWY"
 _AA_INDEX = {aa: i for i, aa in enumerate(_AA)}
@@ -56,7 +57,7 @@ FINGERPRINT_DIM = len(_AA) + len(_DIPEPTIDES)  # 420
 # All sequences are in the public domain via UniProt CC0 licence.
 # ---------------------------------------------------------------------------
 
-REFERENCE_FAMILIES: list[dict] = [
+REFERENCE_FAMILIES: list[dict[str, Any]] = [
     {
         "family": "Ricin A-chain (RIP type II)",
         "organism": "Ricinus communis (castor bean)",
@@ -187,12 +188,12 @@ def _cosine(a: list[float], b: list[float]) -> float:
 # ---------------------------------------------------------------------------
 
 @lru_cache(maxsize=1)
-def get_reference_embeddings() -> list[dict]:
+def get_reference_embeddings() -> list[dict[str, Any]]:
     """Return list of dicts: family metadata + pre-computed fingerprint vector.
 
     Result is cached after first call (module-level singleton).
     """
-    out: list[dict] = []
+    out: list[dict[str, Any]] = []
     for fam in REFERENCE_FAMILIES:
         fp = _compute_fingerprint(fam["sequence"])
         out.append({**fam, "fingerprint": fp})
@@ -203,7 +204,7 @@ def screen_protein(
     protein: str,
     threshold_fail: float = 0.85,
     threshold_warn: float = 0.70,
-) -> dict:
+) -> dict[str, Any]:
     """Screen a protein against all reference dangerous families.
 
     Returns a result dict containing:
@@ -213,7 +214,7 @@ def screen_protein(
     query_fp = _compute_fingerprint(protein)
     refs = get_reference_embeddings()
 
-    hits: list[dict] = []
+    hits: list[dict[str, Any]] = []
     for ref in refs:
         sim = _cosine(query_fp, ref["fingerprint"])
         sim_status = (

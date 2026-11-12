@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { useApiKey } from "../../lib/providers";
 import type { CertificateSummary, CertificateStatus } from "../../lib/api";
-import { MOCK_CERTIFICATES } from "../../lib/mock-data";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -169,10 +168,15 @@ export default function RegistryPage() {
     });
   }
 
-  // Fall back to demo records when the live database is empty OR unreachable.
-  const isMock = !isLoading && (isError || totalItems === 0);
-  const displayItems = isMock ? applyFilter(MOCK_CERTIFICATES) : applyFilter(data?.items ?? []);
-  const displayTotal = isMock ? MOCK_CERTIFICATES.length : totalItems;
+  // This page shows what is in the registry, and nothing else. It used to fall
+  // back to fabricated AG-DEMO-* records whenever the API was unreachable or the
+  // registry was empty, which meant a public page attributed deposits, a
+  // biosafety review and a revoked certificate to real named institutions. A
+  // registry that invents records cannot be cited, whatever the banner says.
+  // Demonstration content belongs on /demo and /showcase, which are labelled.
+  const displayItems = applyFilter(data?.items ?? []);
+  const displayTotal = totalItems;
+  const isEmptyRegistry = !isLoading && !isError && totalItems === 0;
 
   return (
     <div className="route">
@@ -238,8 +242,8 @@ export default function RegistryPage() {
         </div>
       </section>
 
-      {/* ── Demo data banner ────────────────────────────────────────────── */}
-      {isMock && (
+      {/* ── Registry state banner ───────────────────────────────────────── */}
+      {(isError || isEmptyRegistry) && (
         <section className="wrap" style={{ paddingBottom: 16 }}>
           <div
             style={{
@@ -254,7 +258,9 @@ export default function RegistryPage() {
               textTransform: "uppercase",
             }}
           >
-            {isError ? "Live registry unreachable — showing demo data. AG-DEMO-* records are illustrative only." : "Demo data — AG-DEMO-* records are illustrative only. Deposit a real sequence to populate the live registry."}
+            {isError
+              ? "Registry unavailable. The archive could not be reached, so no records can be shown."
+              : "The registry holds no records yet. Deposited sequences will appear here."}
           </div>
         </section>
       )}
@@ -355,10 +361,8 @@ export default function RegistryPage() {
         </div>
       </section>
 
-      {/* Error state is suppressed when mock data is shown in its place */}
-
       {/* ── Table ───────────────────────────────────────────────────────── */}
-      {(!isError || isMock) && (
+      {!isError && (
         <section className="wrap" style={{ padding: "0 0 40px" }}>
           <div
             style={{
@@ -401,7 +405,9 @@ export default function RegistryPage() {
                         textTransform: "uppercase",
                       }}
                     >
-                      No records match.
+                      {isEmptyRegistry
+                        ? "The registry is empty."
+                        : "No records match."}
                     </td>
                   </tr>
                 ) : (

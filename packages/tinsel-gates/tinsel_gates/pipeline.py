@@ -66,7 +66,10 @@ def _build_gate1(env: str) -> Gate1Adapter:
 
 def _build_gate2(env: str) -> Gate2Adapter:
     if env in _REAL_ENVS:
-        logger.debug("Gate 2: using ChainedGate2Adapter (composition + SecureDNA + IBBIS, env=%s)", env)
+        logger.debug(
+            "Gate 2: using ChainedGate2Adapter (composition + SecureDNA + IBBIS, env=%s)",
+            env,
+        )
         return ChainedGate2Adapter(use_mock_external=True)
     logger.debug("Gate 2: using MockGate2Adapter (env=%s)", env)
     return MockGate2Adapter()
@@ -84,7 +87,10 @@ def _build_gate3(env: str, host_organism: str = "ECOLI") -> Gate3Adapter:
 
 def _build_gate4(env: str) -> Gate4Adapter:
     if env in _REAL_ENVS:
-        logger.debug("Gate 4: using FunctionalEmbeddingGate4Adapter (composition_fingerprint, env=%s)", env)
+        logger.debug(
+            "Gate 4: using FunctionalEmbeddingGate4Adapter (composition_fingerprint, env=%s)",
+            env,
+        )
         return FunctionalEmbeddingGate4Adapter(use_esm2=False)
     logger.debug("Gate 4: using MockGate4Adapter (env=%s)", env)
     return MockGate4Adapter()

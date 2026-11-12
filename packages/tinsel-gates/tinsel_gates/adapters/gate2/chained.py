@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Any
 
 from tinsel.consequence import Gate2Result
 from tinsel.models import GateStatus
@@ -31,7 +32,7 @@ from tinsel.models import GateStatus
 from tinsel_gates.adapters.base import Gate2Adapter
 from tinsel_gates.adapters.gate2.composition import CompositionGate2Adapter
 from tinsel_gates.adapters.gate2.ibbis import run_ibbis_screen
-from tinsel_gates.adapters.gate2.secureDNA import run_secureDNA_screen
+from tinsel_gates.adapters.gate2.secure_dna import run_secure_dna_screen
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,7 @@ class ChainedGate2Adapter(Gate2Adapter):
     async def run(self, dna: str, protein: str) -> Gate2Result:
         # ── Run all three layers concurrently ─────────────────────────────
         composition_task = asyncio.create_task(self._composition.run(dna, protein))
-        sdna_task = asyncio.create_task(run_secureDNA_screen(dna, mock=self._mock_external))
+        sdna_task = asyncio.create_task(run_secure_dna_screen(dna, mock=self._mock_external))
         ibbis_task = asyncio.create_task(run_ibbis_screen(protein, mock=self._mock_external))
 
         raw_results = await asyncio.gather(
@@ -111,7 +112,7 @@ class ChainedGate2Adapter(Gate2Adapter):
             parts.append("IBBIS commec: SKIPPED (sequence < 50 AA)")
 
         # ── Aggregate databases_queried list ───────────────────────────────
-        databases_queried: list[dict] = []
+        databases_queried: list[dict[str, Any]] = []
         # Composition is always the first entry
         databases_queried.append({
             "name": "Composition Heuristic",
@@ -143,10 +144,10 @@ class ChainedGate2Adapter(Gate2Adapter):
             gravy_score=comp_result.gravy_score,
             amino_acid_composition=comp_result.amino_acid_composition,
             # SecureDNA fields
-            secureDNA_checked=sdna_result["checked"],
-            secureDNA_windows_screened=sdna_result.get("windows_screened", 0),
-            secureDNA_hits=sdna_result.get("hits", []),
-            secureDNA_status=sdna_status,
+            secure_dna_checked=sdna_result["checked"],
+            secure_dna_windows_screened=sdna_result.get("windows_screened", 0),
+            secure_dna_hits=sdna_result.get("hits", []),
+            secure_dna_status=sdna_status,
             # IBBIS fields
             ibbis_checked=ibbis_result["checked"],
             ibbis_families_screened=ibbis_result.get("families_screened", 0),

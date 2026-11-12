@@ -15,14 +15,11 @@ ESMFold is limited to ≤ 400 AA; longer sequences return fallback=True.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
-
-from sentinel_api.rate_limit import rate_limit_demo
 from tinsel_gates.adapters.gate1.esmfold import (
     ESMFOLD_MAX_LENGTH,
     ESMFOLD_TIMEOUT_S,
@@ -30,6 +27,8 @@ from tinsel_gates.adapters.gate1.esmfold import (
     _compute_instability_index,
     _parse_plddt_from_pdb,
 )
+
+from sentinel_api.rate_limit import rate_limit_demo
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -101,7 +100,7 @@ async def analyse_structure(request: Request, body: StructureRequest) -> Structu
             )
             response.raise_for_status()
             pdb_text = response.text
-    except (httpx.HTTPError, asyncio.TimeoutError) as exc:
+    except (TimeoutError, httpx.HTTPError) as exc:
         error_msg = str(exc)
         logger.warning("ESMFold API failed for /analyse/structure: %s", exc)
     except Exception as exc:  # noqa: BLE001
