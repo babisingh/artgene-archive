@@ -19,9 +19,11 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
 
-# Three naming rules are suppressed rather than fixed, because the names are a
-# published wire contract and not an internal style choice. Each is listed with
-# the reason, so a future `ruff --fix` does not quietly break a consumer.
+# Three naming rules are suppressed rather than fixed. Only the first is a
+# published wire contract; the other two are internal and suppressed only to
+# keep this cleanup from turning into a rename. Each is listed with its reason
+# so a future `ruff --fix` does not quietly break a consumer. See
+# RENAME_PLAN.md for how to retire all three.
 [tool.ruff.lint.per-file-ignores]
 # N815: the four secureDNA_* fields of Gate2Result are pydantic model fields,
 # so the attribute name *is* the JSON key. Those keys are declared in the
@@ -33,9 +35,10 @@ select = ["E", "F", "I", "N", "W", "UP"]
 # not a linter.
 "packages/tinsel-core/tinsel/consequence.py" = ["N815"]
 # N999/N802: the module and function are named after the SecureDNA screening
-# service itself. The module path appears in adapter imports and the function
-# name in the screening audit trail, so both follow the vendor's spelling
-# deliberately.
+# service. Unlike the fields above these are internal only: the stored audit
+# trail records the literal strings "SecureDNA DOPRF" and "doprf_30mer_mock"
+# as values, never the Python identifiers, so renaming them touches no data
+# and no client. Suppressed only because a rename belongs in its own commit.
 "packages/tinsel-gates/tinsel_gates/adapters/gate2/secureDNA.py" = ["N999", "N802"]
 
 [tool.mypy]
