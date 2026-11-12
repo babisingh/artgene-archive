@@ -38,7 +38,14 @@ export function SiteHeader() {
     retry: false,
   });
 
-  const count = data?.count ?? null;
+  // `count` is this page's length, and the query above asks for one row, so
+  // reading it here always produced "1 SEQUENCES" no matter how many records
+  // the registry held. `total` is the figure actually wanted.
+  //
+  // Falling back to null rather than to `count` is deliberate: against an API
+  // that predates `total`, the badge renders nothing at all. An absent number
+  // is honest, where the old one was confidently wrong.
+  const count = data?.total ?? null;
 
   return (
     <>
@@ -73,7 +80,7 @@ export function SiteHeader() {
           <div className="nav-meta">
             <span className="dot" aria-hidden />
             <span>
-              LIVE · {count !== null ? count.toLocaleString() : "—"} SEQUENCES
+              LIVE{count !== null ? ` · ${count.toLocaleString()} SEQUENCES` : ""}
             </span>
           </div>
 
@@ -91,7 +98,7 @@ export function SiteHeader() {
         </div>
       </header>
 
-      {/* Mobile nav drawer — rendered outside header so it covers full viewport */}
+      {/* Mobile nav drawer, rendered outside header so it covers full viewport */}
       <div className={`nav-drawer${mobileOpen ? " open" : ""}`} aria-label="Mobile navigation" aria-hidden={!mobileOpen}>
         {navItems.map(({ href, label, accent }) => (
           <Link
@@ -112,7 +119,7 @@ export function SiteHeader() {
         ))}
         <div className="nav-drawer-meta">
           <span className="dot" aria-hidden />
-          <span>LIVE · {count !== null ? count.toLocaleString() : "—"} SEQUENCES</span>
+          <span>LIVE{count !== null ? ` · ${count.toLocaleString()} SEQUENCES` : ""}</span>
         </div>
       </div>
     </>
