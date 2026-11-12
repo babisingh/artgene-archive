@@ -184,11 +184,33 @@ convention.
 - [x] Rate limiter disabled under `SENTINEL_ENV=test`. Every test shares one key,
       so the write tier counted the whole suite as one client and the suite was
       one test away from flaking.
-- [ ] **CI is still red on `main` for two pre-existing reasons.** `ruff` reports
-      60 errors and `mypy` 49, none in any file touched so far. Not mass-fixed on
-      purpose: `ruff --fix` would apply `N815` and rename `A_seed` in
-      `LWECommitmentData`, which is serialised into every certificate. This wants
-      its own careful pass.
+- [x] **Lint, type and security jobs are green.** `ruff` 41 findings, `mypy` 49
+      errors and `bandit` 4 findings, all cleared in one pass. Two were real
+      defects rather than style: `_codon_diff` in `routes/analyse.py` constructed
+      `CodonDiff` with field names the model does not have, so every call would
+      have raised a pydantic `ValidationError` (it had no callers,
+      `_codon_diff_pair` superseded it, so it was deleted); and `verify_source`
+      fetched the spreading key from the vault and never used it, since the
+      fingerprint seed is stored on the distribution row and read back.
+      Verified: ruff, bandit and mypy clean on all three packages, 233 tests
+      passing unchanged, dashboard type-check and build green, and the
+      migrations round-tripped on PostgreSQL 16 including the 008 backfill
+      against a pre-existing certificate row.
+- [x] **Three naming rules suppressed in `pyproject.toml`, with reasons.** An
+      earlier note here said `ruff --fix` would rename `A_seed` in
+      `LWECommitmentData`; the real exposure was different and larger. The four
+      `secureDNA_*` fields of `Gate2Result` are pydantic fields, so each
+      attribute name *is* a JSON key, and those keys are declared in
+      `apps/dashboard/lib/api.ts`, read by the record page, and persisted inside
+      the `certificates.consequence_report` JSONB of every certified record.
+      Renaming them would blank the SecureDNA panel with no error and orphan the
+      keys in existing rows: a data migration and a client release, not a linter.
+      `N999`/`N802` on `adapters/gate2/secureDNA.py` follow the vendor's own
+      spelling.
+- [x] **Migration SQL uses bound parameters.** Bandit's four `B608` findings
+      were all in migrations 008, 009 and 012, which interpolated module
+      constants with f-strings. No injection path existed, but they now use
+      `sa.text(...).bindparams(...)`.
 
 ## Operations
 
