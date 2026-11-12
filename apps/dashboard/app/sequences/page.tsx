@@ -405,7 +405,7 @@ export default function SequencesPage() {
 
             {data && (
               <div className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-700">
-                {data.count} certificate{data.count !== 1 ? "s" : ""}
+                {(data.total ?? data.count)} certificate{(data.total ?? data.count) !== 1 ? "s" : ""}
               </div>
             )}
           </>

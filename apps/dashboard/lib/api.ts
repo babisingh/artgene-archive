@@ -211,7 +211,14 @@ export interface Certificate extends CertificateSummary {
 
 export interface CertificateListResponse {
   items: CertificateSummary[];
+  /** Size of THIS page. Not the registry total: ask for limit=1 and it is 1. */
   count: number;
+  /**
+   * Every record visible to this caller, ignoring limit and offset. Optional
+   * because a server older than 2026-11-13 does not send it, and the dashboard
+   * can be deployed ahead of the API. Fall back to `count` when it is absent.
+   */
+  total?: number;
   offset: number;
   limit: number;
 }

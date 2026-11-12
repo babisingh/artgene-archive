@@ -130,20 +130,25 @@ async def list_certificates(
     """List certificates for the authenticated organisation (paginated)."""
     # Only return certs owned by this org OR public certs from any org.
     # Embargoed certs from other orgs are hidden entirely.
-    from sqlalchemy import or_
+    from sqlalchemy import func, or_
+
+    # Bound once and reused for both queries, so the page and the total can
+    # never be computed under different visibility rules.
+    visible = or_(
+        Certificate.org_id == org.id,
+        Certificate.visibility == "public",
+    )
     result = await db.execute(
         select(Certificate)
-        .where(
-            or_(
-                Certificate.org_id == org.id,
-                Certificate.visibility == "public",
-            )
-        )
+        .where(visible)
         .order_by(Certificate.created_at.desc())
         .limit(limit)
         .offset(offset)
     )
     certs = result.scalars().all()
+    total = await db.scalar(
+        select(func.count()).select_from(Certificate).where(visible)
+    )
     return {
         "items": [
             {
@@ -158,7 +163,13 @@ async def list_certificates(
             }
             for c in certs
         ],
+        # `count` is the size of this page, which is all it has ever been.
+        # That makes it useless as a registry total: ask for limit=1 and it
+        # answers 1, whatever the registry holds. The site header did exactly
+        # that and so displayed "1 SEQUENCES" beside a table listing two.
+        # `total` is the real figure under the same visibility filter.
         "count": len(certs),
+        "total": total,
         "offset": offset,
         "limit": limit,
     }
