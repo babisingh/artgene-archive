@@ -45,8 +45,9 @@ convention.
 
 - [x] **Dashboard proxy no longer lends its key to anonymous callers.** It
       attaches a server key only to an allowlist of public GET paths, and
-      forwards a caller key untouched otherwise. Was reachable by anyone for
-      `POST /register` and `POST /certificates/{id}/revoke`.
+      forwards a caller key untouched otherwise. Write paths previously
+      inherited that key; the specifics stay out of this file until the fixed
+      build is deployed, and are in the branch history for a reviewer.
 - [x] **No key is read on the client.** `NEXT_PUBLIC_API_KEY` is gone from
       `providers.tsx` and from the record page copy that told operators to set
       it. Next inlines such variables into the bundle at build time.

@@ -48,60 +48,72 @@ with the one time invariant documented, and only `register.py` signs.
 
 What is broken or missing:
 
-1. **The dashboard proxy defeats authentication.** In
-   `apps/dashboard/app/api/proxy/[...path]/route.ts` the server substitutes its
-   own API key whenever the caller sends none, for every path and every method.
-   `POST /register`, `POST /certificates/{id}/revoke` and
-   `GET /certificates/{id}` are therefore reachable anonymously with the default
-   organisation's credentials. `GET /certificates/{id}` returns
-   `watermark_metadata`, which holds `original_protein`, so raw sequences and
-   embargoed records are world readable. This is the most serious issue in the
-   codebase.
+1. **Credential handling in the dashboard, now fixed.** Two independent
+   weaknesses in how the dashboard handled its API key were found and corrected
+   on this branch: the server-side proxy attached a credential too broadly, and
+   the client could read one from a build-time variable. Both are closed here,
+   and `scripts/check_no_client_secrets.py` runs in CI as a regression guard, so
+   either class of mistake now fails the build rather than reaching a
+   deployment.
 
-   There is a second, independent exposure of the same key. `lib/providers.tsx`
-   read it from `process.env.NEXT_PUBLIC_API_KEY`, and Next inlines
-   `NEXT_PUBLIC_*` variables into the client bundle at build time, so a key set
-   that way is readable by anyone who views source. The UI migration notes
-   recorded this as the intended design, so it was probably live in production.
+   The specifics are deliberately not written out while the fixed build has yet
+   to reach production. They are in the commit history on this branch for a
+   reviewer, and the guard script documents the shape of both by testing for
+   them. Once the fixed dashboard and API are deployed, this entry can be
+   expanded into the full post mortem it deserves.
 
-   Both are fixed on this branch. One consequence needs a backend change in the
-   same phase: `get_certificate` returns 404 unless the caller's organisation
-   owns the record, so the public record page only ever worked because of the
-   bypass. That endpoint conflates "may know this record exists" with "may read
-   its sequence". It should serve a published record to any caller while
-   restricting `watermark_metadata` to the owning organisation.
+   One related change belongs in the same phase and is a design fault rather
+   than a weakness: `get_certificate` returns 404 unless the caller's
+   organisation owns the record, which conflates "may know this record exists"
+   with "may read its sequence". A published record should be visible to any
+   caller, with `watermark_metadata` restricted to the owning organisation.
 2. **The API service is down.** `artgene-archive.org` serves the dashboard, but
    every proxied call returns 500 and `/registry` renders its error state. See
-   section 8, Phase 0, for the diagnosis and the checklist.
-3. **No home for catalogue metadata.** The deposit endpoint accepts `fasta`,
-   `owner_id`, `ethics_code`, `host_organism` and `visibility`. There is no DOI,
-   author, license, model, assay or accession field anywhere in the schema. The
-   deposit form already collects three of these and discards them.
-4. **Nothing represents a license.** Redistribution of third party data is
-   currently an undocumented judgement call rather than a recorded decision.
-5. **A failing sequence leaves no record.** `register.py` returns `FAILED` and
-   writes nothing. Correct for a registry, wrong for a catalogue, where the paper
-   exists whether or not the archive likes the sequence.
-6. **Nucleotide handling is a placeholder.** `protein = sequence` for DNA, so
-   gate α runs ESMFold against a nucleotide string, and input is capped at 5,000
-   residues. No designed genome can be deposited.
-7. **One shared, unscoped, non expiring API key**, seeded by script, with no
-   rotation path and no per caller identity in the audit trail.
-8. **`_next_seq_num` uses `count(*) + 1`.** Two concurrent registrations compute
-   the same sequence number. The unique constraint on `seq_num` means one fails
-   with a 500 rather than corrupting the chain, so this is a correctness and
-   availability bug rather than an integrity one, but it should not survive
-   contact with concurrent traffic.
-9. **`HybridCertificate.compute_hash` concatenates field values without
-   delimiters**: `"".join(str(v) for v in fields.values())`. Field boundaries are
-   ambiguous, so distinct field sets can hash identically. For a certificate hash
-   this is a genuine integrity weakness.
-10. **No database role separation.** The API connects as the table owner, which
-    can drop the append only trigger that protects the audit log.
+   `DEPLOY.md` for the diagnosis and the ordered runbook. This is the only item
+   here that still blocks everything else, and it is the one thing on this list
+   that code on this branch cannot fix by itself.
+3. **No home for catalogue metadata.** *Fixed, migration 010.* The deposit
+   endpoint accepted five fields and had nowhere to put a DOI, an author, a
+   licence, a model, an assay or an accession. The catalogue schema adds all of
+   them, as typed tables rather than a JSON blob.
+4. **Nothing represents a license.** *Fixed, migrations 010 and 013.*
+   Redistribution is now a recorded decision, with `license_resolution`
+   separated from `hosting_decision`, enforced by a database trigger rather
+   than by application code, and `UNSTATED` seeded as non permissive.
+5. **A failing sequence leaves no record.** *Fixed.* A `restricted` state keeps
+   the citation when screening withholds the sequence, which is right for a
+   catalogue: the paper exists whether or not the archive likes the sequence.
+6. **Nucleotide handling is a placeholder.** *Fixed.* Nucleotide submissions are
+   classified and routed rather than run through the protein gates as a string,
+   with six frame ORF screening where there is no single reading frame, and a
+   screen that cannot complete degrades to a warning instead of a pass.
+7. **One shared, unscoped, non expiring API key.** *Fixed, migration 012.* Keys
+   now carry explicit scopes, a description and an optional expiry, and the
+   deposit agent holds a key that cannot publish.
+8. **`_next_seq_num` used `count(*) + 1`.** *Fixed, migration 009.* Sequence
+   numbers are allocated from a counter row under `SELECT ... FOR UPDATE`, so
+   concurrent registrations no longer compute the same number. Contiguity is
+   what makes the hash chain auditable: a gap is indistinguishable from a
+   removed entry.
+9. **`HybridCertificate.compute_hash` concatenated field values without
+   delimiters.** *Fixed, migration 008.* Ambiguous field boundaries meant
+   distinct field sets could hash identically, which for a certificate hash is
+   a genuine integrity weakness. Hashing is now versioned by scheme id with
+   domain separation, and existing rows are backfilled with the original scheme
+   so their digests stay verifiable.
+10. **No database role separation.** *Outstanding.* The API connects as the
+    table owner, which can drop the append only trigger that protects the audit
+    log. Tracked in `CHECKLIST.md`.
 
-One piece of good luck: the registry holds zero records and has never issued a
-live AG-ID. Restructuring now costs nothing. In three months it would cost a
-migration of signed, cited objects.
+Most of this list is now marked fixed because this branch fixed it. The entries
+are kept rather than deleted: a registry asks to be trusted, and the useful
+evidence for that is a legible record of what was wrong and when it was put
+right, not a clean page.
+
+One piece of good luck runs through all of it: the registry holds zero records
+and has never issued a live AG-ID, so restructuring costs nothing today. Once a
+paper cites an AG-ID the same changes would mean migrating signed, cited
+objects.
 
 ## 3. Identity and access
 
