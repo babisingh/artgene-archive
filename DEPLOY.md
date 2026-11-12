@@ -113,8 +113,8 @@ institutions used to appear here whenever the API was unreachable.
 
 `packages/tinsel-demo/sequences/01_glp1_pass.fasta` should become
 `AG-2026-000001`: a first-party certificate on your own sequence, deposited
-before any catalogue record exists. `tasks.md` lists obtaining a live
-verifiable AG-ID as fatal for the paper.
+before any catalogue record exists. `CHECKLIST.md`, under Paper submission, lists obtaining a
+live verifiable AG-ID as the blocking item for the manuscript.
 
 ```bash
 curl -s -X POST https://<api-host>/api/v1/register \
@@ -135,7 +135,7 @@ JSON
 then that the record resolves at `https://artgene-archive.org/sequences/AG-2026-000001`
 in a browser with no API key, since published records are now publicly readable.
 
-Afterwards, `tasks.md` requires replacing every placeholder `AG-2026-000001` in
+Afterwards, `CHECKLIST.md` requires replacing every placeholder `AG-2026-000001` in
 the paper and the showcase page with the real value, and regenerating the
 certificate hash in Figure 2. That hash will differ from any earlier draft of
 the figure, because the hashing scheme changed: the old one joined field values
