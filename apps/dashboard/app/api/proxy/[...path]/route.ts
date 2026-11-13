@@ -14,18 +14,19 @@ const API_URL = process.env.API_URL ?? "http://localhost:8000";
 const PUBLIC_READ_API_KEY =
   process.env.PUBLIC_READ_API_KEY ?? process.env.API_KEY ?? "";
 
-// Paths, relative to /api/v1/, that the public registry pages need in order to
-// render for an anonymous visitor. Anything returning a full record (export,
-// synthesis-auth), anything under /sequences, and /health/detail are absent on
-// purpose: they expose raw sequence data or per-recipient provenance, so they
-// need the caller's own key.
+// Paths, relative to /api/v1/, that the public catalogue pages need in order to
+// render for an anonymous visitor: the list and one record by accession.
+//
+// Everything else is absent on purpose. /health/detail reports the environment
+// the API runs in. The catalogue POST routes draft and publish records, and
+// /submissions/outbox holds drafted letters with submitters' addresses in them,
+// so each needs the caller's own key. POST /submissions is open by design and
+// needs no key at all, so it is not listed here either: this allowlist only
+// decides which GETs get the server's read key attached.
 const PUBLIC_GET_PATHS: RegExp[] = [
   /^health$/,
-  /^certificates$/,
-  /^certificates\/lookup$/,
-  /^certificates\/AGC?-\d{4}-\d{6}$/,
-  /^certificates\/AGC?-\d{4}-\d{6}\/compliance$/,
-  /^certificates\/AGC?-\d{4}-\d{6}\/compliance\/verify$/,
+  /^catalogue$/,
+  /^catalogue\/AGC?-\d{4}-\d{6}$/,
 ];
 
 function isPublicGet(method: string, path: string): boolean {

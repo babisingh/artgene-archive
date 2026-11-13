@@ -6,8 +6,12 @@ import { SiteFooter } from "../components/design/SiteFooter";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ArtGene Archive",
-  description: "Cryptographic provenance and biosafety certification for synthetic gene sequences.",
+  title: {
+    default: "ArtGene Archive",
+    template: "%s | ArtGene Archive",
+  },
+  description:
+    "A public catalogue of AI-designed biological sequences, published and unpublished, each screened for biosafety before it is listed.",
 };
 
 export const viewport = {
@@ -22,16 +26,17 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&family=Newsreader:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap"
           rel="stylesheet"
         />
       </head>
       <body className="app">
         <Providers>
+          <a className="skip-link" href="#main">
+            Skip to content
+          </a>
           <SiteHeader />
-          <main className="flex-1">
-            {children}
-          </main>
+          <main id="main">{children}</main>
           <SiteFooter />
         </Providers>
       </body>

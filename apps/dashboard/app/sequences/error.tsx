@@ -1,30 +1,23 @@
 "use client";
 
-import { useEffect } from "react";
+import Link from "next/link";
 
-export default function SequencesError({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
-  useEffect(() => {
-    console.error("Sequences page error:", error);
-  }, [error]);
-
+export default function Error({ reset }: { error: Error; reset: () => void }) {
   return (
-    <div className="card p-10 text-center space-y-4">
-      <div className="text-4xl">⚠️</div>
-      <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-        Failed to load sequences
-      </h2>
-      <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-        {error.message}
+    <div className="wrap page">
+      <h1 className="h2">This page could not be loaded</h1>
+      <p className="muted">
+        Something went wrong while reading the catalogue. You can try again, or
+        go back to the archive.
       </p>
-      <button onClick={reset} className="btn-primary mx-auto">
-        Try again
-      </button>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <button type="button" className="btn btn-primary" onClick={reset}>
+          Try again
+        </button>
+        <Link href="/" className="btn btn-ghost">
+          Home
+        </Link>
+      </div>
     </div>
   );
 }
