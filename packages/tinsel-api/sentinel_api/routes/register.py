@@ -20,10 +20,9 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from tinsel.crypto import PQSigner
-from tinsel.models import SequenceType
 from tinsel.registry import (
     CERT_HASH_SCHEME_DEFAULT,
     CertificateStatus,
@@ -33,11 +32,6 @@ from tinsel.registry import (
     WOTSPublicKey,
     WOTSSignature,
 )
-from tinsel.sequence.fasta import normalise
-from tinsel.sequence.translate import analyse as analyse_nucleotide
-from tinsel.sequence.translate import six_frame_orfs, to_dna
-from tinsel_gates.nucleotide import run_nucleotide_pipeline
-from tinsel_gates.pipeline import run_consequence_pipeline
 
 from sentinel_api.accession import (
     AUDIT_SEQ_COUNTER,
@@ -49,29 +43,29 @@ from sentinel_api.db.catalogue import Record
 from sentinel_api.db.connection import get_db
 from sentinel_api.db.models import (
     Certificate,
-    FragmentKmerIndex,
     Organisation,
     RegistryAuditLog,
 )
 from sentinel_api.dependencies import require_api_key
+from sentinel_api.ledger import entry_hash as _entry_hash
+from sentinel_api.ledger import highest_audit_seq_plus_one as _highest_audit_seq_plus_one
+from sentinel_api.ledger import prev_entry_hash as _prev_entry_hash
 from sentinel_api.rate_limit import rate_limit_write
+from sentinel_api.screening import (
+    ScreeningInputError,
+    fragment_assembly_risk,
+    partial_screen_note,
+    prepare,
+    run_pipeline,
+)
+from sentinel_api.screening import add_kmer_index_rows as _add_kmer_index_rows
 from sentinel_api.vault import get_vault_client
 
 router = APIRouter()
 
-# Length limits by what is actually being screened, rather than one cap over
-# everything. The old single 5,000 "AA" limit was applied to nucleotides too,
-# which is both the wrong unit and the wrong number.
-#: Longest protein accepted. Above ESMFold Atlas's 400 residue ceiling the
-#: structural gate falls back to a mock, which the response now says.
-MAX_PROTEIN_RESIDUES = 2_000
-#: Longest coding sequence: three bases per residue, plus a stop codon.
-MAX_CDS_NUCLEOTIDES = MAX_PROTEIN_RESIDUES * 3 + 3
-#: Longest non-coding submission. Genome scale on purpose: a designed phage
-#: genome is roughly forty thousand bases, and refusing to look at one was the
-#: previous behaviour.
-MAX_NUCLEOTIDES = 50_000
-
+# Length limits, sequence classification and the gates themselves live in
+# sentinel_api.screening, shared with /submissions, so the two routes can
+# never screen the same sequence differently.
 
 # ---------------------------------------------------------------------------
 # Request / Response schemas
@@ -101,145 +95,31 @@ class RegistrationResponse(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _entry_hash(seq_num: int, prev_hash: str, cert_hash: str) -> str:
-    """SHA3-256 of the audit log entry fields (hash-chained append-only log)."""
-    payload = f"{seq_num}|{prev_hash}|{cert_hash}".encode()
-    return hashlib.sha3_256(payload).hexdigest()
-
-
-async def _highest_audit_seq_plus_one(db: AsyncSession) -> int:
-    """Where a fresh counter should start so numbering stays contiguous."""
-    highest = (
-        await db.execute(
-            select(func.coalesce(func.max(RegistryAuditLog.seq_num), 0))
-        )
-    ).scalar_one()
-    return int(highest) + 1
-
-
-async def _prev_entry_hash(db: AsyncSession) -> str:
-    """Return the ``entry_hash_hex`` of the most recent audit entry, or zeros.
-
-    Safe to read only while the counter row lock from allocate_sequence_number
-    is held: without it two transactions could extend the chain from the same
-    previous hash.
-    """
-    result = await db.execute(
-        select(RegistryAuditLog.entry_hash_hex)
-        .order_by(RegistryAuditLog.seq_num.desc())
-        .limit(1)
-    )
-    row = result.scalar_one_or_none()
-    return row if row is not None else "0" * 64
-
-
 # ---------------------------------------------------------------------------
 # Fragment assembly risk helpers
 # ---------------------------------------------------------------------------
 
-_KMER_SIZE = 20
-_KMER_STEP = 3      # stride — balances index size vs detection sensitivity
-_KMER_MAX_LEN = 1_500   # only index sequences ≤ 1,500 AA (synthesis-scale fragments)
-
-
-def _kmer_hashes(sequence: str) -> set[str]:
-    """SHA3-256 hashes of all overlapping 20-mers (step=3) in *sequence*."""
-    seq = sequence.upper()
-    result: set[str] = set()
-    for i in range(0, len(seq) - _KMER_SIZE + 1, _KMER_STEP):
-        result.add(hashlib.sha3_256(seq[i : i + _KMER_SIZE].encode()).hexdigest())
-    return result
-
-
 async def _check_fragment_assembly_risk(
     db: AsyncSession, sequence: str, env: str
 ) -> None:
-    """Raise HTTP 422 if *sequence* + any archived sequence assembles into a dangerous product.
+    """Raise HTTP 422 if *sequence* and an archived sequence assemble into a hazard.
 
-    Only checks sequences ≤ _KMER_MAX_LEN AA (longer sequences are not synthesis fragments).
-    The error message never reveals which archived sequence was involved.
+    The check lives in sentinel_api.screening. This route has always answered
+    it with a 422, so it still does, and the message never reveals which
+    archived sequence was involved.
     """
-    if len(sequence) > _KMER_MAX_LEN:
-        return
-
-    hashes = _kmer_hashes(sequence)
-    if not hashes:
-        return
-
-    match_result = await db.execute(
-        select(FragmentKmerIndex.registry_id)
-        .where(FragmentKmerIndex.kmer_hash.in_(list(hashes)))
-        .distinct()
-        .limit(10)
-    )
-    matching_ids = [row[0] for row in match_result.fetchall()]
-    if not matching_ids:
-        return
-
-    from tinsel.fragment import Fragment, assemble, find_overlaps
-    from tinsel.models import GateStatus
-
-    for registry_id in matching_ids:
-        cert_res = await db.execute(
-            select(Certificate).where(Certificate.id == registry_id)
+    if await fragment_assembly_risk(db, sequence, env):
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "FRAGMENT_ASSEMBLY_RISK",
+                "message": (
+                    "Your sequence, when combined with a sequence already in "
+                    "the archive, assembles into a product that fails biosafety "
+                    "screening. Registration rejected."
+                ),
+            },
         )
-        archived = cert_res.scalars().first()
-        if not archived:
-            continue
-
-        archived_seq: str = (archived.watermark_metadata or {}).get("original_protein", "")
-        if not archived_seq or archived_seq.upper() == sequence.upper():
-            continue
-
-        frags = [Fragment("new", sequence), Fragment("archived", archived_seq)]
-        overlaps = find_overlaps(frags, min_overlap=_KMER_SIZE)
-        if not overlaps:
-            continue
-
-        contigs = assemble(frags, overlaps)
-        for contig in contigs:
-            report = await run_consequence_pipeline(
-                protein=contig,
-                dna="",
-                env=env,
-                run_gates=(2, 4),
-            )
-            if report.overall_status == GateStatus.FAIL:
-                raise HTTPException(
-                    status_code=422,
-                    detail={
-                        "code": "FRAGMENT_ASSEMBLY_RISK",
-                        "message": (
-                            "Your sequence, when combined with a sequence already in "
-                            "the archive, assembles into a product that fails biosafety "
-                            "screening. Registration rejected."
-                        ),
-                    },
-                )
-
-
-def _add_kmer_index_rows(
-    db: AsyncSession,
-    registry_id: str,
-    org_id: uuid.UUID,
-    sequence: str,
-) -> None:
-    """Add k-mer index rows for *sequence* to the session (not yet committed)."""
-    if len(sequence) > _KMER_MAX_LEN:
-        return
-
-    seen: set[str] = set()
-    seq = sequence.upper()
-    for i in range(0, len(seq) - _KMER_SIZE + 1, _KMER_STEP):
-        h = hashlib.sha3_256(seq[i : i + _KMER_SIZE].encode()).hexdigest()
-        if h not in seen:
-            seen.add(h)
-            db.add(FragmentKmerIndex(
-                id=uuid.uuid4(),
-                registry_id=registry_id,
-                org_id=org_id,
-                kmer_hash=h,
-            ))
 
 
 # ---------------------------------------------------------------------------
@@ -269,62 +149,16 @@ async def register_sequence(
             },
         )
 
-    # ── Step 1: Parse FASTA ───────────────────────────────────────────────
+    # ── Step 1: Read and classify the sequence ────────────────────────────
+    # Shared with /submissions through sentinel_api.screening.prepare.
     try:
-        _header, sequence, seq_type = normalise(body.fasta)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-    # ── Step 1b: What is this, and how can it be screened? ────────────────
-    # The pipeline has always documented that its `dna` argument must translate
-    # to its `protein` argument. This route used to pass the nucleotide string
-    # as both, so gate alpha ran a structure predictor over a string of A, C, G
-    # and T and returned a confidence score for a protein that does not exist.
-    #
-    # Three cases now, and none of them involves inventing a protein:
-    #   protein     the submission is a protein; all four gates apply
-    #   cds         a single clean reading frame; translate, then all four
-    #   nucleotide  no single product, so the protein gates run over the six
-    #               frame reading frames and gate alpha is not run at all
-    #
-    # `sequence` stays as submitted throughout, and is what gets hashed for
-    # deduplication: two coding sequences for the same protein are different
-    # objects, because the TINSEL watermark lives in the codon choices.
-    orfs: list = []
-    if seq_type is SequenceType.PROTEIN:
-        screen_mode = "protein"
-        gate_protein = sequence
-        coding_dna = ""
-        limit, units, measured = MAX_PROTEIN_RESIDUES, "residues", len(sequence)
-    else:
-        coding_dna = to_dna(sequence)
-        analysis = analyse_nucleotide(sequence)
-        if analysis.is_cds:
-            screen_mode = "cds"
-            gate_protein = analysis.protein or ""
-            limit, units, measured = MAX_CDS_NUCLEOTIDES, "bases", len(coding_dna)
-        else:
-            screen_mode = "nucleotide"
-            # No single protein product. The longest reading frame stands in
-            # for the record wherever one protein is needed, which is the k-mer
-            # index and the fragment assembly cross-check, so that index stays
-            # homogeneous instead of mixing peptides and bases.
-            orfs = six_frame_orfs(coding_dna)
-            gate_protein = orfs[0].protein if orfs else ""
-            limit, units, measured = MAX_NUCLEOTIDES, "bases", len(coding_dna)
-
-    if measured > limit:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "code": "SEQUENCE_TOO_LONG",
-                "message": (
-                    f"Sequence length {measured:,} {units} exceeds the maximum "
-                    f"of {limit:,} {units} for a {screen_mode} submission."
-                ),
-                "screen_mode": screen_mode,
-            },
-        )
+        prepared = prepare(body.fasta)
+    except ScreeningInputError as exc:
+        raise HTTPException(status_code=422, detail=exc.detail) from exc
+    sequence = prepared.sequence
+    seq_type = prepared.seq_type
+    screen_mode = prepared.screen_mode
+    gate_protein = prepared.gate_protein
 
     # ── Step 1c: Fragment assembly cross-check ────────────────────────────
     # Checks new sequence against the k-mer index of all archived sequences.
@@ -359,19 +193,9 @@ async def register_sequence(
     import logging as _logging
     _reg_log = _logging.getLogger(__name__)
     try:
-        if screen_mode == "nucleotide":
-            report = await run_nucleotide_pipeline(
-                coding_dna,
-                env=settings.sentinel_env,
-                host_organism=body.host_organism.value,
-            )
-        else:
-            report = await run_consequence_pipeline(
-                protein=gate_protein,
-                dna=coding_dna,
-                env=settings.sentinel_env,
-                host_organism=body.host_organism.value,
-            )
+        report = await run_pipeline(
+            prepared, body.host_organism.value, settings.sentinel_env
+        )
     except Exception as exc:
         _reg_log.exception("Consequence pipeline raised an unexpected error: %s", exc)
         raise HTTPException(
@@ -400,15 +224,7 @@ async def register_sequence(
     # and the adapter substitutes a mock returning pLDDT 87.3, comfortably
     # above the 70.0 fail threshold; and a nucleotide submission with more
     # reading frames than the screen covers is only partly checked.
-    partial_screen: str | None = None
-    if report.gate1 is not None and report.gate1.mock_fallback:
-        partial_screen = (
-            "the structural gate did not run, because this sequence is longer "
-            "than the structure predictor accepts, so its confidence figures "
-            "are placeholders."
-        )
-    elif report.orf_screen is not None and not report.orf_screen.complete:
-        partial_screen = report.orf_screen.note
+    partial_screen = partial_screen_note(report)
     if partial_screen:
         _warn_only = True
 

@@ -27,10 +27,11 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, date, datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sentinel_api.accession import (
@@ -48,6 +49,7 @@ from sentinel_api.db.catalogue import (
     License,
     Record,
     RecordGateResult,
+    SequenceBlob,
     Source,
     SourceAuthor,
 )
@@ -160,6 +162,56 @@ class GateOut(BaseModel):
     detail: str | None = None
 
 
+class AuthorOut(BaseModel):
+    full_name: str
+    orcid: str | None = None
+    affiliation: str | None = None
+    is_corresponding: bool = False
+
+
+class SourceOut(BaseModel):
+    title: str
+    url: str
+    doi: str | None = None
+    container: str | None = None
+    published_on: date | None = None
+    peer_reviewed: bool = False
+    version: str | None = None
+    article_license: str | None = None
+    data_license: str | None = None
+    authors: list[AuthorOut] = Field(default_factory=list)
+
+
+class DesignOut(BaseModel):
+    generating_model: str | None = None
+    model_version: str | None = None
+    model_availability: str | None = None
+    design_method: str | None = None
+    design_target: str | None = None
+    n_designed: int | None = None
+    n_tested: int | None = None
+    n_functional: int | None = None
+    assays: list[str] = Field(default_factory=list)
+    expression_host: str | None = None
+    wet_lab_validated: bool = False
+
+
+class AccessionOut(BaseModel):
+    database: str
+    accession: str
+    url: str
+
+
+class SequenceOut(BaseModel):
+    """What the archive holds. Never the sequence itself."""
+
+    molecule_type: str
+    length: int
+    sha3_256: str
+    held: bool = Field(description="The archive stores the sequence data.")
+    withheld: bool = Field(description="Withheld on biosafety or the authors' request.")
+
+
 class CatalogueOut(BaseModel):
     registry_id: str
     status: str
@@ -175,6 +227,16 @@ class CatalogueOut(BaseModel):
     source_title: str | None = None
     generating_model: str | None = None
     gates: list[GateOut] = Field(default_factory=list)
+    # catalogue: a citation of published work (AGC-). submission: deposited
+    # directly by its authors (AG-).
+    record_kind: str = "catalogue"
+    summary: str | None = None
+    created_at: datetime | None = None
+    published_at: datetime | None = None
+    source: SourceOut | None = None
+    design: DesignOut | None = None
+    accessions: list[AccessionOut] = Field(default_factory=list)
+    sequence: SequenceOut | None = None
 
 
 class StatusChange(BaseModel):
@@ -294,15 +356,110 @@ async def _load(db: AsyncSession, registry_id: str) -> tuple[CatalogueRecord, So
     return row[0], row[1]
 
 
+def _public_gate(gate: GateOut) -> bool:
+    """Whether a gate row may be shown to someone who is not a reviewer.
+
+    Per-gate biosafety detail (``gate:*``) is for reviewers only: which check
+    caught a sequence is exactly what someone designing around the screen
+    wants. Integrity rows record who moved a record, which is internal.
+    """
+    return not gate.gate_key.startswith("gate:") and gate.gate_family != "integrity"
+
+
 async def _to_out(
-    db: AsyncSession, record: CatalogueRecord, source: Source
+    db: AsyncSession,
+    record: CatalogueRecord,
+    source: Source,
+    privileged: bool = True,
 ) -> CatalogueOut:
     design = (
         await db.execute(
             select(DesignMetadata).where(DesignMetadata.record_id == record.id)
         )
     ).scalars().first()
+    authors = (
+        await db.execute(
+            select(SourceAuthor)
+            .where(SourceAuthor.source_id == source.id)
+            .order_by(SourceAuthor.position)
+        )
+    ).scalars().all()
+    accessions = (
+        await db.execute(
+            select(ExternalAccession).where(ExternalAccession.record_id == record.id)
+        )
+    ).scalars().all()
+    blob = (
+        await db.execute(select(SequenceBlob).where(SequenceBlob.record_id == record.id))
+    ).scalars().first()
+    record_class = (
+        await db.execute(select(Record.record_class).where(Record.id == record.id))
+    ).scalar_one_or_none()
+
+    gates = await _gates_for(db, record.id)
+    # A withheld record shows that screening withheld it, and not what it was
+    # designed to do: on a failed screen, that description is the hazard.
+    redact = not privileged and record.biosafety_class == "restricted"
+    if not privileged:
+        gates = [g for g in gates if _public_gate(g)]
+
+    design_out = None
+    if design is not None:
+        design_out = DesignOut(
+            generating_model=design.generating_model,
+            model_version=design.model_version,
+            model_availability=design.model_availability,
+            design_method=design.design_method,
+            design_target=None if redact else design.design_target,
+            n_designed=design.n_designed,
+            n_tested=design.n_tested,
+            n_functional=design.n_functional,
+            assays=[] if redact else list(design.assays or []),
+            expression_host=design.expression_host,
+            wet_lab_validated=design.wet_lab_validated,
+        )
+
     return CatalogueOut(
+        record_kind="submission" if record_class == "submission" else "catalogue",
+        summary=None if redact else record.summary,
+        created_at=record.created_at,
+        published_at=record.published_at,
+        source=SourceOut(
+            title=source.title,
+            url=source.url,
+            doi=source.doi,
+            container=source.container,
+            published_on=source.published_on,
+            peer_reviewed=source.peer_reviewed,
+            version=source.version,
+            article_license=source.article_license,
+            data_license=source.data_license,
+            authors=[
+                AuthorOut(
+                    full_name=a.full_name,
+                    orcid=a.orcid,
+                    affiliation=a.affiliation,
+                    is_corresponding=a.is_corresponding,
+                )
+                for a in authors
+            ],
+        ),
+        design=design_out,
+        accessions=[
+            AccessionOut(database=a.database, accession=a.accession, url=a.url)
+            for a in accessions
+        ],
+        sequence=(
+            SequenceOut(
+                molecule_type=blob.molecule_type,
+                length=blob.length,
+                sha3_256=blob.sha3_256,
+                held=blob.data is not None,
+                withheld=record.hosting_decision == "withheld",
+            )
+            if blob is not None
+            else None
+        ),
         registry_id=record.id,
         status=record.status,
         visibility=record.visibility,
@@ -316,7 +473,7 @@ async def _to_out(
         source_doi=source.doi,
         source_title=source.title,
         generating_model=design.generating_model if design else None,
-        gates=await _gates_for(db, record.id),
+        gates=gates,
     )
 
 
@@ -624,7 +781,8 @@ async def get_catalogue_record(
             status_code=404, detail=f"Catalogue record '{registry_id}' not found"
         )
 
-    return await _to_out(db, record, source)
+    privileged = principal.has(READ_EMBARGOED) or principal.has(CATALOGUE_DRAFT)
+    return await _to_out(db, record, source, privileged=privileged)
 
 
 @router.get("", response_model=dict)
@@ -634,10 +792,20 @@ async def list_catalogue_records(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     status: str | None = Query(None),
+    q: str | None = Query(None, max_length=200, description="Search titles, sources and models"),
+    molecule_type: str | None = Query(None),
+    model: str | None = Query(None, max_length=100, description="Generating model, partial match"),
+    validated: bool | None = Query(None, description="Wet-lab validated only"),
+    kind: str | None = Query(None, description="catalogue or submission"),
     db: AsyncSession = Depends(get_db),
     principal: Principal = Depends(require_principal),
 ) -> dict:
-    """List records. Unpublished ones appear only for a caller who may see them."""
+    """List records. Unpublished ones appear only for a caller who may see them.
+
+    The search deliberately does not reach design targets: a withheld record's
+    target is hidden from the public, and a search that matched on it would
+    disclose it one query at a time.
+    """
     may_see_unpublished = principal.has(READ_EMBARGOED) or principal.has(
         CATALOGUE_DRAFT
     )
@@ -655,22 +823,46 @@ async def list_catalogue_records(
                 },
             )
         conditions.append(CatalogueRecord.status == status)
-
-    total = (
-        await db.execute(
-            select(func.count()).select_from(CatalogueRecord).where(*conditions)
+    if molecule_type is not None:
+        conditions.append(CatalogueRecord.molecule_type == molecule_type)
+    if model:
+        conditions.append(
+            func.lower(DesignMetadata.generating_model).contains(model.lower(), autoescape=True)
         )
-    ).scalar_one()
+    if validated is not None:
+        conditions.append(DesignMetadata.wet_lab_validated == validated)
+    if kind in ("catalogue", "submission"):
+        conditions.append(Record.record_class == kind)
+    if q:
+        needle = q.strip().lower()
+        conditions.append(
+            func.lower(CatalogueRecord.title).contains(needle, autoescape=True)
+            | func.lower(Source.title).contains(needle, autoescape=True)
+            | func.lower(func.coalesce(Source.container, "")).contains(needle, autoescape=True)
+            | func.lower(func.coalesce(DesignMetadata.generating_model, "")).contains(
+                needle, autoescape=True
+            )
+        )
+
+    def joined(stmt: Select[Any]) -> Select[Any]:
+        return (
+            stmt.select_from(CatalogueRecord)
+            .join(Record, Record.id == CatalogueRecord.id)
+            .join(Source, Source.id == CatalogueRecord.source_id)
+            .outerjoin(DesignMetadata, DesignMetadata.record_id == CatalogueRecord.id)
+            .where(*conditions)
+        )
+
+    total = (await db.execute(joined(select(func.count())))).scalar_one()
 
     rows = (
         await db.execute(
-            select(CatalogueRecord)
-            .where(*conditions)
+            joined(select(CatalogueRecord, Record.record_class, Source, DesignMetadata))
             .order_by(CatalogueRecord.created_at.desc())
             .limit(limit)
             .offset(offset)
         )
-    ).scalars().all()
+    ).all()
 
     return {
         "items": [
@@ -681,9 +873,17 @@ async def list_catalogue_records(
                 "visibility": r.visibility,
                 "molecule_type": r.molecule_type,
                 "hosting_decision": r.hosting_decision,
+                "biosafety_class": r.biosafety_class,
+                "record_kind": "submission" if record_class == "submission" else "catalogue",
+                "generating_model": d.generating_model if d else None,
+                "wet_lab_validated": bool(d.wet_lab_validated) if d else False,
+                "container": src.container,
+                "published_on": src.published_on.isoformat() if src.published_on else None,
+                "peer_reviewed": src.peer_reviewed,
                 "created_at": r.created_at.isoformat(),
+                "published_at": r.published_at.isoformat() if r.published_at else None,
             }
-            for r in rows
+            for r, record_class, src, d in rows
         ],
         "count": total,
         "offset": offset,

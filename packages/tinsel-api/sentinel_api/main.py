@@ -28,6 +28,7 @@ from sentinel_api.routes import (
     pathways,
     register,
     structure,
+    submissions,
 )
 
 logger = logging.getLogger(__name__)
@@ -124,6 +125,9 @@ app.include_router(
 )
 app.include_router(
     enquiries.router, prefix="/api/v1/enquiries", tags=["enquiries"]
+)
+app.include_router(
+    submissions.router, prefix="/api/v1/submissions", tags=["submissions"]
 )
 app.include_router(pathways.router, prefix="/api/v1/pathways", tags=["pathways"])
 app.include_router(analyse.router, prefix="/api/v1", tags=["demo"])
