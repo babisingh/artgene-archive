@@ -31,6 +31,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     SmallInteger,
     String,
@@ -51,7 +52,9 @@ from sentinel_api.db.models import Base
 # migration, which is the right amount of friction for a registry.
 # ---------------------------------------------------------------------------
 
-RECORD_CLASSES = ("certificate", "catalogue")
+#: ``certificate`` and ``submission`` are both deposits under AG-; a
+#: ``catalogue`` record cites work published elsewhere, under AGC-.
+RECORD_CLASSES = ("certificate", "catalogue", "submission")
 MOLECULE_TYPES = ("protein", "dna", "rna", "genome", "regulatory_element", "grna_scaffold")
 CATALOGUE_STATUSES = ("draft", "staged", "reviewed", "published", "restricted", "withdrawn")
 VISIBILITIES = ("private", "public")
@@ -89,12 +92,19 @@ def _in(column: str, allowed: tuple[str, ...], name: str) -> CheckConstraint:
 # ---------------------------------------------------------------------------
 
 class Record(Base):
-    """One row per accession, of either class.
+    """One row per accession.
 
     The prefix is tied to the class by a CHECK, so a citation of a bare id
-    always says which kind of claim it is. ``AGC-2026-000001`` does not match
-    ``AG-%`` because the third character is ``C`` rather than ``-``, so the two
-    branches are genuinely exclusive.
+    always says which kind of claim it is:
+
+    * ``AG-``: deposited directly with the archive, which holds the primary
+      copy. A ``certificate`` came through the original watermark deposit; a
+      ``submission`` came through the submission form or API.
+    * ``AGC-``: a ``catalogue`` record citing work published elsewhere. The
+      publication is the primary record and the archive is the index.
+
+    ``AGC-2026-000001`` does not match ``AG-%`` because the third character is
+    ``C`` rather than ``-``, so the branches are genuinely exclusive.
     """
 
     __tablename__ = "records"
@@ -110,7 +120,7 @@ class Record(Base):
     __table_args__ = (
         _in("record_class", RECORD_CLASSES, "ck_records_class"),
         CheckConstraint(
-            "(record_class = 'certificate' AND id LIKE 'AG-%') OR "
+            "(record_class IN ('certificate', 'submission') AND id LIKE 'AG-%') OR "
             "(record_class = 'catalogue' AND id LIKE 'AGC-%')",
             name="ck_records_prefix_matches_class",
         ),
@@ -243,7 +253,11 @@ class IngestRun(Base):
 # ---------------------------------------------------------------------------
 
 class CatalogueRecord(Base):
-    """A record of someone else's published work.
+    """A catalogue entry: published work (AGC-) or a direct submission (AG-).
+
+    Submissions share this table so that one review and publication workflow,
+    one list and one record page cover both. What a submission has that a
+    citation does not, a person to write to, lives in ``submissions``.
 
     ``hosting_decision`` is what the archive does; the reason is stored beside it
     in words, so the decision is explicable later without re-deriving it.
@@ -260,6 +274,15 @@ class CatalogueRecord(Base):
         UUID(as_uuid=True), ForeignKey("sources.id"), nullable=False
     )
     title: Mapped[str] = mapped_column(Text, nullable=False)
+    summary: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment=(
+            "What was designed and why, in plain words. Written by the "
+            "submitter for AG-, paraphrased by an editor for AGC-: never "
+            "copied from an abstract."
+        ),
+    )
     molecule_type: Mapped[str] = mapped_column(String(32), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
     visibility: Mapped[str] = mapped_column(String(20), nullable=False, default="private")
@@ -299,7 +322,7 @@ class CatalogueRecord(Base):
         _in("hosting_decision", HOSTING_DECISIONS, "ck_catalogue_hosting_decision"),
         _in("biosafety_class", BIOSAFETY_CLASSES, "ck_catalogue_biosafety_class"),
         _in("license_resolution", LICENSE_RESOLUTIONS, "ck_catalogue_license_resolution"),
-        CheckConstraint("id LIKE 'AGC-%'", name="ck_catalogue_id_prefix"),
+        CheckConstraint("id LIKE 'AGC-%' OR id LIKE 'AG-%'", name="ck_catalogue_id_prefix"),
     )
 
 
@@ -453,3 +476,78 @@ class TakedownRequest(Base):
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (_in("kind", TAKEDOWN_KINDS, "ck_takedown_kind"),)
+
+
+# ---------------------------------------------------------------------------
+# submissions: sequences deposited directly by their authors
+# ---------------------------------------------------------------------------
+
+SUBMISSION_OUTCOMES = ("passed", "passed_with_notes", "withheld")
+NOTIFICATION_KINDS = ("screening_withheld",)
+NOTIFICATION_STATUSES = ("drafted", "sent", "suppressed", "discarded")
+
+
+class Submission(Base):
+    """Who submitted an AG- record, and what screening concluded at the time.
+
+    The record itself is an ordinary catalogue entry. This row holds what a
+    submission has that a citation does not: a person to write to. The outcome
+    is kept here as well as on the record because the record's biosafety class
+    can be revised on review, and this is what the screen said when it ran.
+    """
+
+    __tablename__ = "submissions"
+
+    record_id: Mapped[str] = mapped_column(
+        String(20), ForeignKey("records.id"), primary_key=True
+    )
+    submitter_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    submitter_email: Mapped[str] = mapped_column(String(320), nullable=False)
+    submitter_affiliation: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    submitter_orcid: Mapped[str | None] = mapped_column(String(19), nullable=True)
+    screen_mode: Mapped[str] = mapped_column(String(16), nullable=False)
+    screening_outcome: Mapped[str] = mapped_column(String(24), nullable=False)
+    submitted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        _in("screening_outcome", SUBMISSION_OUTCOMES, "ck_submission_outcome"),
+    )
+
+
+class Notification(Base):
+    """A letter the archive has drafted for a person to read and send.
+
+    The archive cannot send anything itself; tests/test_no_send_path.py makes
+    that structural. It writes the letter and queues it here, someone sends it
+    from their own mail client and marks it ``sent``. ``suppressed`` means the
+    recipient is on the do-not-contact list: the letter exists for the record,
+    and must not go out.
+    """
+
+    __tablename__ = "notifications"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    record_id: Mapped[str] = mapped_column(
+        String(20), ForeignKey("records.id"), nullable=False
+    )
+    kind: Mapped[str] = mapped_column(String(40), nullable=False)
+    recipient_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    recipient_email: Mapped[str] = mapped_column(String(320), nullable=False)
+    subject: Mapped[str] = mapped_column(String(300), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="drafted")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        Index("ix_notifications_status", "status"),
+        _in("kind", NOTIFICATION_KINDS, "ck_notification_kind"),
+        _in("status", NOTIFICATION_STATUSES, "ck_notification_status"),
+    )

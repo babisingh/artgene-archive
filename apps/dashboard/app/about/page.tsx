@@ -1,105 +1,184 @@
-// Charter page — /about
+import type { Metadata } from "next";
+import Link from "next/link";
 
-const ARTICLES = [
-  {
-    numeral: "I.",
-    title: "Openness",
-    body: "All certified records are public, machine-readable, and available under CC-BY-4.0 by default. Mirrors in Hinxton, Mishima, and Bethesda ensure the registry is redundantly preserved.",
-  },
-  {
-    numeral: "II.",
-    title: "Neutrality",
-    body: "The Archive does not recommend, endorse, or commercialize any generative model or depositor. The registry is agnostic to method and affiliation.",
-  },
-  {
-    numeral: "III.",
-    title: "Biosafety first",
-    body: "Every deposit undergoes automated three-gate screening. Tier 3 records are never released publicly. The biosafety policy is reviewed by an independent panel annually.",
-  },
-  {
-    numeral: "IV.",
-    title: "Attribution, permanently",
-    body: "First-deposit priority is recorded on a public Merkle ledger. Contributors and their institutions receive lasting, verifiable credit. Models themselves are credited as generative provenance.",
-  },
-  {
-    numeral: "V.",
-    title: "No lock-in",
-    body: "The verification protocol is open-source. Certificates can be validated entirely offline. If the Consortium ceases to exist, the data remains readable.",
-  },
-];
+export const metadata: Metadata = {
+  title: "About",
+  description:
+    "What ArtGene Archive catalogues, how a record gets in, what biosafety screening does and does not guarantee, and how to ask for a correction.",
+};
 
-const SIGNATORIES =
-  "Institute X · " +
-  "Institute I· Biosafety Org · Agency X · Funding partner F· " +
-  "Govt. Hub A · Govt. Body B · W Institute · Kyo University · ET Zürich";
+const CONTACT = "b@genethropic.com";
 
 export default function AboutPage() {
   return (
-    <div className="wrap-narrow" style={{ padding: "80px 0 96px" }}>
-
-      {/* ── Header ──────────────────────────────────────────────── */}
-      <div className="eyebrow mb-16">§ Charter · adopted 14 February 2026</div>
-      <h1
-        className="display"
-        style={{ fontSize: "clamp(36px, 6vw, 64px)", margin: "0 0 24px", lineHeight: 1.05 }}
-      >
-        A public-interest<br />registry for the<br /><em>machine-designed</em> biome.
+    <div className="wrap-narrow page prose">
+      <h1 className="h1" style={{ fontSize: "clamp(28px, 5vw, 44px)" }}>
+        About the archive
       </h1>
-      <p className="lede" style={{ margin: "24px 0 40px", maxWidth: 680 }}>
-        ArtGene Archive is a non-profit federation composed of
-        sequencing institutions, biosafety authorities, and independent researchers.
-        We do not sell access. We do not gate the scholarly record. Our commitments are
-        published here in full. We promote fair, transparent, responsible, equitable and accessible scientific research, 
-        open for all.
+
+      <p className="lede">
+        ArtGene Archive is a public catalogue of biological sequences designed
+        with AI models and made in the laboratory. It covers work published in
+        papers and preprints, and work its authors deposit here directly.
       </p>
 
-      {/* ── Articles ────────────────────────────────────────────── */}
-      {ARTICLES.map((article) => (
-        <div
-          key={article.numeral}
-          style={{
-            borderTop: "0.5px solid var(--rule)",
-            padding: "28px 0",
-            display: "grid",
-            gridTemplateColumns: "80px 1fr",
-            gap: 24,
-          }}
-        >
-          <div
-            className="display"
-            style={{ fontSize: 32, color: "var(--accent)", lineHeight: 1.1 }}
-          >
-            {article.numeral}
-          </div>
-          <div>
-            <div
-              className="display"
-              style={{ fontSize: 26, marginBottom: 8, letterSpacing: "-0.01em" }}
-            >
-              {article.title}
-            </div>
-            <p style={{ fontSize: 15, lineHeight: 1.65, color: "var(--ink-2)", margin: 0 }}>
-              {article.body}
-            </p>
-          </div>
-        </div>
-      ))}
+      <section className="section">
+        <h2 className="h2">Why it exists</h2>
+        <p>
+          Generative models now design proteins, genes and regulatory elements
+          faster than the literature can keep track of them. A sequence may
+          appear in a figure, a supplementary table or a repository with no
+          record of which model made it, whether anyone tested it, or under what
+          terms it can be reused. There is no single place to look.
+        </p>
+        <p>
+          This archive is that place. It records where each sequence came from,
+          which model designed it, what was measured, and what the archive is
+          able to hold. It credits the people who did the work, and it links back
+          to the publication wherever there is one.
+        </p>
+      </section>
 
-      {/* ── Signatories ─────────────────────────────────────────── */}
-      <div
-        style={{
-          marginTop: 48,
-          padding: "32px 36px",
-          background: "var(--paper-3)",
-          border: "0.5px solid var(--rule)",
-          borderRadius: 6,
-        }}
-      >
-        <div className="eyebrow mb-8">Signatories</div>
-        <div style={{ fontSize: 14, color: "var(--ink-2)", lineHeight: 1.7 }}>
-          {SIGNATORIES}
-        </div>
-      </div>
+      <section className="section">
+        <h2 className="h2">How it works</h2>
+        <p>A record reaches the catalogue in four steps.</p>
+        <ol>
+          <li>
+            <strong>Found or submitted.</strong> The archive reads papers and
+            preprints for AI-designed sequences that were built and tested.
+            Authors can also{" "}
+            <Link href="/submit">submit a sequence directly</Link>, published or
+            not.
+          </li>
+          <li>
+            <strong>Screened.</strong> Every sequence is screened for biosafety
+            before anything is stored or published.
+          </li>
+          <li>
+            <strong>Licence checked.</strong> What the archive may hold depends on
+            the licence the sequence carries.
+          </li>
+          <li>
+            <strong>Reviewed, then listed.</strong> A person reviews the record
+            before it is published. Nothing is public until then.
+          </li>
+        </ol>
+      </section>
+
+      <section className="section" id="biosafety">
+        <h2 className="h2">Biosafety policy</h2>
+        <p>
+          <strong>What screening does.</strong> Every sequence that enters the
+          archive is screened before anything is stored or published, whether it
+          was catalogued from a paper or submitted by its authors. A sequence
+          that does not pass is not stored. Its length and a checksum are kept,
+          so the record stays identifiable and a resubmission is recognised.
+        </p>
+        <p>
+          <strong>What screening does not guarantee.</strong> Screening is a
+          filter, not an assurance of safety. It can miss things, and a record
+          appearing here is not an endorsement of the work, a safety
+          certification, or permission to make anything. Anyone working with a
+          sequence remains responsible for their own review and for the rules
+          that apply where they work.
+        </p>
+        <p>
+          <strong>Why withheld records are still listed.</strong> When screening
+          withholds a sequence, the record is still listed, without the sequence
+          data. An archive that quietly dropped the results most relevant to
+          biosecurity would make absent coverage look like absent risk. A listing
+          says that screening withheld a sequence. It does not say why: the
+          archive does not publish the detail of a screening decision, because
+          that detail would help someone design around the checks. Parts of such
+          a record, including what the sequence was designed to do, are left out
+          for the same reason.
+        </p>
+      </section>
+
+      <section className="section">
+        <h2 className="h2">Two kinds of record</h2>
+        <p>
+          The accession prefix tells you which kind of record you are reading,
+          and it matters when you cite one.
+        </p>
+        <ul>
+          <li>
+            <strong className="mono">AGC-</strong> cites work published
+            elsewhere. The paper or preprint is the primary record, and the
+            archive entry describes what it read there and links to it. Cite the
+            publication.
+          </li>
+          <li>
+            <strong className="mono">AG-</strong> is a sequence deposited
+            directly with the archive by its authors. The archive holds the
+            primary copy, and the record here is the one to cite.
+          </li>
+        </ul>
+      </section>
+
+      <section className="section">
+        <h2 className="h2">Licences</h2>
+        <p>
+          The archive makes no blanket licence claim over what it catalogues.
+          Each record carries the licence its sequence came under, and that
+          licence decides what the archive can hold.
+        </p>
+        <ul>
+          <li>
+            Under CC0, a public domain dedication, CC BY, CC BY-SA, MIT or Apache
+            2.0, the archive can hold the sequence itself.
+          </li>
+          <li>
+            Under CC BY-NC, CC BY-ND, CC BY-NC-ND, a proprietary licence, or no
+            stated licence at all, the archive keeps the citation, the length and
+            a checksum, and does not store the sequence. An unstated licence is
+            not a permissive one.
+          </li>
+        </ul>
+        <p>
+          Where no licence is stated, the archive drafts a letter to the authors
+          asking what the terms are. Those letters are queued for a person to
+          read and send. The archive has no way to send anything by itself.
+        </p>
+      </section>
+
+      <section className="section" id="corrections">
+        <h2 className="h2">Corrections and removal</h2>
+        <p>
+          If a record about your work is wrong, write and it will be corrected.
+          If you would rather your sequence were not in the archive, say so and
+          it will be taken out, or reduced to a citation if the work is published
+          elsewhere. Every record page carries a link for this, and the address
+          is below.
+        </p>
+      </section>
+
+      <section className="section">
+        <h2 className="h2">Governance</h2>
+        <p>
+          The archive is run by its founder. A governing consortium is planned,
+          and none exists yet: no organisation has joined, and the archive names
+          no partners or funders until one has. The code is public, so what the
+          archive does to a record can be read rather than taken on trust.
+        </p>
+      </section>
+
+      <section className="section">
+        <h2 className="h2">Contact</h2>
+        <p>
+          Write to <a href={`mailto:${CONTACT}`}>{CONTACT}</a> about a record, a
+          correction, a submission, or anything else. Problems with the software
+          can go to{" "}
+          <a
+            href="https://github.com/babisingh/artgene-archive/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            the issue tracker
+          </a>
+          .
+        </p>
+      </section>
     </div>
   );
 }

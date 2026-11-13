@@ -28,13 +28,18 @@ from sentinel_api.db.catalogue import (
     GATE_OUTCOMES,
     HOSTING_DECISIONS,
     MOLECULE_TYPES,
+    NOTIFICATION_KINDS,
+    NOTIFICATION_STATUSES,
     RECORD_CLASSES,
+    SUBMISSION_OUTCOMES,
     TAKEDOWN_KINDS,
     CatalogueRecord,
     ExternalAccession,
+    Notification,
     Record,
     RecordGateResult,
     SequenceBlob,
+    Submission,
 )
 from sentinel_api.db.models import Certificate
 from sqlalchemy import String
@@ -66,6 +71,9 @@ VOCABULARIES = [
     (RecordGateResult, "gate_family", GATE_FAMILIES),
     (RecordGateResult, "outcome", GATE_OUTCOMES),
     (ExternalAccession, "database", ACCESSION_DATABASES),
+    (Submission, "screening_outcome", SUBMISSION_OUTCOMES),
+    (Notification, "kind", NOTIFICATION_KINDS),
+    (Notification, "status", NOTIFICATION_STATUSES),
 ]
 
 

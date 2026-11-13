@@ -339,8 +339,10 @@ class FragmentKmerIndex(Base):
     registry_id: Mapped[str] = mapped_column(
         String(20), nullable=False, comment="Certificate registry ID that owns this k-mer"
     )
-    org_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False
+    org_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+        comment="None for a direct submission, which belongs to no organisation",
     )
     kmer_hash: Mapped[str] = mapped_column(
         String(64), nullable=False,
