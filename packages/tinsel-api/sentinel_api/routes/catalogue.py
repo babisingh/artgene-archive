@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, date, datetime
-from typing import Any
+from typing import TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
@@ -64,6 +64,17 @@ from sentinel_api.scopes import (
 )
 
 router = APIRouter()
+
+#: A select of any shape, carried through a helper with its shape intact.
+#:
+#: The list route applies one set of joins and filters to two selects: a count,
+#: and a row of four entities. Annotating that helper as taking and returning
+#: ``Select[Any]`` reads as "a select of anything", and is one column under
+#: SQLAlchemy 2.1, where ``Select`` became variadic. The four entity select
+#: then does not fit the parameter, and the four way unpack of the result does
+#: not typecheck. Binding a type variable to a bare ``Select`` says what was
+#: meant, whichever shape arrives, and holds under both 2.0 and 2.1.
+_SelectT = TypeVar("_SelectT", bound=Select)
 
 # ---------------------------------------------------------------------------
 # The state machine
@@ -844,7 +855,7 @@ async def list_catalogue_records(
             )
         )
 
-    def joined(stmt: Select[Any]) -> Select[Any]:
+    def joined(stmt: _SelectT) -> _SelectT:
         return (
             stmt.select_from(CatalogueRecord)
             .join(Record, Record.id == CatalogueRecord.id)
