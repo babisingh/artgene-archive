@@ -112,6 +112,20 @@ export const SUBJECT_LABELS: Record<string, string> = {
 };
 
 /**
+ * "acts on an enveloped virion", with the article that fits the label.
+ *
+ * A letter test rather than a pronunciation one, which is enough because the
+ * ten labels above are the only input: two begin with a vowel sound and a
+ * vowel letter ("Enveloped", "Assembled") and the rest with neither. A label
+ * like "hour-long" or "universal" would need more than this, so a new entry
+ * in SUBJECT_LABELS is worth reading against it.
+ */
+export function actsOnPhrase(label: string): string {
+  const subject = label.toLowerCase();
+  return `acts on ${/^[aeiou]/.test(subject) ? "an" : "a"} ${subject}`;
+}
+
+/**
  * Where the drawing for a class lives under /public.
  *
  * The API speaks snake_case and the files are named in kebab-case, so the one

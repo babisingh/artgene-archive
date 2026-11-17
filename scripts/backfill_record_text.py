@@ -116,7 +116,10 @@ def payloads(path: pathlib.Path) -> tuple[dict, dict, str]:
 def request(url: str, key: str, method: str = "GET", body: dict | None = None) -> dict:
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method)
-    req.add_header("Authorization", f"Bearer {key}")
+    # The API reads X-API-Key (sentinel_api/dependencies.py), not a bearer
+    # token. Sending the wrong header fails every call with a 422 for a
+    # missing required header, which looks nothing like an auth problem.
+    req.add_header("X-API-Key", key)
     if data:
         req.add_header("Content-Type", "application/json")
     with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310 - fixed scheme

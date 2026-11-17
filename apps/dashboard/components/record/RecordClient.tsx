@@ -13,6 +13,7 @@ import {
   FUNCTION_LABELS,
   MOLECULE_LABELS,
   SUBJECT_LABELS,
+  actsOnPhrase,
   fetchRecord,
   formatDate,
   formatLength,
@@ -243,7 +244,7 @@ export function RecordClient({ id }: { id: string }) {
               {functionLabel && subjectLabel ? (
                 <span className="sep"> &middot; </span>
               ) : null}
-              {subjectLabel ? `acts on a ${subjectLabel.toLowerCase()}` : null}
+              {subjectLabel ? actsOnPhrase(subjectLabel) : null}
             </p>
           ) : null}
 
