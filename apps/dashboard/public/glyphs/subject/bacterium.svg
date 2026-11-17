@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 110" width="140" height="110" role="img" aria-labelledby="bacterium-t">
+  <title id="bacterium-t">Rod bacterium</title>
+  <path d="M42 72 Q26 76 18 88 M46 78 Q34 86 24 94 M100 28 Q114 18 110 6" fill="none" stroke="var(--glyph-ink, #1c1b17)" stroke-width="0.8" stroke-linecap="round"/>
+  <path d="M36 76 A20 20 0 0 1 50 44 L92 20 A20 20 0 0 1 106 52 L64 76 A20 20 0 0 1 36 76 Z" fill="var(--glyph-fill, #efe9d8)" stroke="var(--glyph-ink, #1c1b17)" stroke-width="1" stroke-linejoin="round"/>
+  <path d="M50 64 L84 44 M58 72 L92 52" fill="none" stroke="var(--glyph-haze, #b5af99)" stroke-width="0.7" stroke-linecap="round"/>
+</svg>

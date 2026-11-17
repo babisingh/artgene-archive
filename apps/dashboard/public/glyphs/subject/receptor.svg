@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 110" width="140" height="110" role="img" aria-labelledby="receptor-t">
+  <title id="receptor-t">Receptor in a membrane</title>
+  <path d="M14 48 L126 48 M14 62 L126 62" fill="none" stroke="var(--glyph-ink, #1c1b17)" stroke-width="0.9"/>
+  <path d="M18 48 L18 62 M24 48 L24 62 M30 48 L30 62 M36 48 L36 62 M42 48 L42 62 M48 48 L48 62 M92 48 L92 62 M98 48 L98 62 M104 48 L104 62 M110 48 L110 62 M116 48 L116 62 M122 48 L122 62" fill="none" stroke="var(--glyph-haze, #b5af99)" stroke-width="0.7"/>
+  <path d="M58 44 L82 44 L82 66 L58 66 Z" fill="var(--glyph-fill, #efe9d8)" stroke="var(--glyph-ink, #1c1b17)" stroke-width="1" stroke-linejoin="round"/>
+  <path d="M70 66 L70 86" fill="none" stroke="var(--glyph-ink, #1c1b17)" stroke-width="0.9" stroke-linecap="round"/>
+  <path d="M62 44 L62 28 Q62 14 52 8 M78 44 L78 28 Q78 14 88 8" fill="none" stroke="var(--glyph-accent, #9a4a22)" stroke-width="1.2" stroke-linecap="round"/>
+</svg>

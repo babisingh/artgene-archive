@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 110" width="140" height="110" role="img" aria-labelledby="soluble-protein-t">
+  <title id="soluble-protein-t">Soluble protein</title>
+  <path d="M30 58 Q24 32 48 24 Q74 14 94 30 Q116 48 102 70 Q88 92 62 88 Q36 84 30 58 Z" fill="var(--glyph-fill, #efe9d8)" stroke="var(--glyph-ink, #1c1b17)" stroke-width="1" stroke-linejoin="round"/>
+  <path d="M44 44 Q60 36 76 44 M40 60 Q62 52 86 62 M50 74 Q66 70 82 76" fill="none" stroke="var(--glyph-haze, #b5af99)" stroke-width="0.7" stroke-linecap="round"/>
+  <path d="M92 28 Q106 40 98 54" fill="none" stroke="var(--glyph-accent, #9a4a22)" stroke-width="1.2" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-labelledby="dna-t">
+  <title id="dna-t">DNA</title>
+  <circle cx="24" cy="24" r="22" fill="var(--glyph-paper, #fbf9f1)" stroke="var(--glyph-ink, #2f7b7e)" stroke-width="0.8"/>
+  <path d="M16 8 C 33 17, 33 31, 16 40 M32 8 C 15 17, 15 31, 32 40 M19 14 L29 14 M15 24 L33 24 M19 34 L29 34" fill="none" stroke="var(--glyph-ink, #2f7b7e)" stroke-width="1.5" stroke-linecap="round"/>
+</svg>

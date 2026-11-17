@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "note": "Three glyph sets for catalogue records. Function is the primary mark, subject is the plate, medium is the corner hallmark. See README.md for why the hierarchy is that way round and for provenance.",
+  "tokens": {
+    "--glyph-ink": "main line; defaults per file (the medium's ink for hallmarks, #1c1b17 elsewhere)",
+    "--glyph-fill": "#efe9d8",
+    "--glyph-haze": "#b5af99",
+    "--glyph-accent": "#9a4a22",
+    "--glyph-accent-fill": "#f7e2d6",
+    "--glyph-paper": "#fbf9f1"
+  },
+  "function": [
+    { "name": "binder", "label": "Binder", "viewBox": "0 0 56 56", "records": 10 },
+    { "name": "sensor", "label": "Sensor", "viewBox": "0 0 56 56", "records": 3 },
+    { "name": "switch", "label": "Switch", "viewBox": "0 0 56 56", "records": 3 },
+    { "name": "enzyme", "label": "Enzyme", "viewBox": "0 0 56 56", "records": 2 },
+    { "name": "shell", "label": "Shell", "viewBox": "0 0 56 56", "records": 2 },
+    { "name": "gene", "label": "Gene", "viewBox": "0 0 56 56", "records": 2 },
+    { "name": "improver", "label": "Improver", "viewBox": "0 0 56 56", "records": 1 }
+  ],
+  "subject": [
+    { "name": "soluble-protein", "label": "Soluble protein", "viewBox": "0 0 140 110", "records": 6, "covers": ["GDF15", "MCL1", "MDM2", "Hsp70", "C. difficile toxin B"] },
+    { "name": "virion", "label": "Enveloped virion", "viewBox": "0 0 140 110", "records": 4, "covers": ["Influenza H1", "SARS-CoV-2 RBD", "RSV sites I and III", "henipavirus"] },
+    { "name": "receptor", "label": "Receptor in a membrane", "viewBox": "0 0 140 110", "records": 4, "covers": ["IL-7R alpha", "AMHR2", "NCAM1", "PTK7", "LOX1"] },
+    { "name": "nucleic-acid-duplex", "label": "Nucleic-acid duplex", "viewBox": "0 0 140 110", "records": 4, "covers": ["transcription-factor binding sites", "DNA aptamer targets", "de novo genes"] },
+    { "name": "disordered-chain", "label": "Disordered chain", "viewBox": "0 0 140 110", "records": 3, "covers": ["amylin", "FUS", "mutant huntingtin", "prion protein"] },
+    { "name": "small-molecule", "label": "Small molecule", "viewBox": "0 0 140 110", "records": 3, "covers": ["cortisol", "diphenylterazine", "designed macrocycles"] },
+    { "name": "bacterium", "label": "Rod bacterium", "viewBox": "0 0 140 110", "records": 2, "covers": ["Clostridioides difficile", "Acinetobacter baumannii"] },
+    { "name": "condensate", "label": "Condensate", "viewBox": "0 0 140 110", "records": 2, "covers": ["G3BP1 granules", "intracellular aggregates"] },
+    { "name": "hormone-peptide", "label": "Hormone peptide", "viewBox": "0 0 140 110", "records": 2, "covers": ["parathyroid hormone", "glucagon", "neuropeptide Y", "secretin", "Bim"] },
+    { "name": "nanoparticle", "label": "Assembled nanoparticle", "viewBox": "0 0 140 110", "records": 2, "covers": ["AAV9 capsid", "I3-01 nanoparticle"] }
+  ],
+  "medium": [
+    { "name": "protein", "label": "Protein", "moleculeType": "protein", "ink": "#9a4a22", "viewBox": "0 0 48 48", "records": 18 },
+    { "name": "dna", "label": "DNA", "moleculeType": "dna", "ink": "#2f7b7e", "viewBox": "0 0 48 48", "records": 2 },
+    { "name": "rna", "label": "RNA", "moleculeType": "rna", "ink": "#5b6b2f", "viewBox": "0 0 48 48", "records": 0 },
+    { "name": "genome", "label": "Genome", "moleculeType": "genome", "ink": "#6d4c7d", "viewBox": "0 0 48 48", "records": 0 },
+    { "name": "regulatory-element", "label": "Regulatory element", "moleculeType": "regulatory_element", "ink": "#3a5a8c", "viewBox": "0 0 48 48", "records": 0 },
+    { "name": "grna-scaffold", "label": "gRNA scaffold", "moleculeType": "grna_scaffold", "ink": "#9e6a1f", "viewBox": "0 0 48 48", "records": 0 },
+    { "name": "small-molecule", "label": "Small molecule", "moleculeType": null, "ink": "#7a3b55", "viewBox": "0 0 48 48", "records": 0 }
+  ]
+}

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-labelledby="protein-t">
+  <title id="protein-t">Protein</title>
+  <circle cx="24" cy="24" r="22" fill="var(--glyph-paper, #fbf9f1)" stroke="var(--glyph-ink, #9a4a22)" stroke-width="0.8"/>
+  <path d="M24 10 C 29 8, 34 11, 34 16 C 39 18, 39 25, 35 28 C 36 33, 31 37, 26 35 C 22 38, 16 36, 15 31 C 10 29, 10 22, 14 19 C 13 14, 18 10, 24 10 Z" fill="none" stroke="var(--glyph-ink, #9a4a22)" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M17 27 C 21 30, 28 30, 32 26 M18 19 C 22 22, 27 21, 30 17" fill="none" stroke="var(--glyph-ink, #9a4a22)" stroke-width="1.1" stroke-linecap="round" opacity="0.55"/>
+</svg>
