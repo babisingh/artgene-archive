@@ -496,47 +496,45 @@
     background: var(--paper-3);
     border: 1px solid var(--rule);
     border-radius: var(--radius);
-    aspect-ratio: 7 / 5;
+    aspect-ratio: 1;
     overflow: hidden;
+    flex: none;
   }
-  .plate-ground { width: 78%; height: auto; display: block; }
+  /* Icon-sized on purpose. The title is what a reader navigates by; the
+     plate gives the record a face without competing for that attention. */
+  .plate-mark { width: 52px; }
+  .plate-hero { width: 92px; }
+
+  /* The single drawing fills most of a small square. */
+  .plate-solo { width: 64%; height: auto; display: block; }
+  .plate-mark .plate-solo { width: 68%; }
+
+  /* The composed plate, hero only, where a record has a subject. */
+  .plate-ground { width: 88%; height: auto; display: block; }
   /* The emblem sits on the engraving, so it carries its own paper disc to
      keep its outline readable over the hatching underneath. The disc is the
      glyphs' own paper tone rather than white, so it reads as part of the
      drawing and not as a sticker laid on top of it. */
   .plate-figure {
     position: absolute;
-    left: 6%;
-    bottom: 6%;
+    left: 3%;
+    bottom: 3%;
     display: grid;
     place-items: center;
-    width: 23%;
+    width: 36%;
     aspect-ratio: 1;
     background: #fbf9f1;
     border: 1px solid var(--rule);
     border-radius: 50%;
   }
-  .plate-figure img { width: 74%; height: auto; display: block; }
-  .plate-solo { width: 46%; height: auto; display: block; }
+  .plate-figure img { width: 76%; height: auto; display: block; }
   .plate-stamp {
     position: absolute;
-    top: 7%;
-    right: 7%;
-    width: 17%;
+    top: 4%;
+    right: 4%;
+    width: 26%;
     height: auto;
   }
-  /* A card plate is small, so the solo drawing is given more of it. */
-  .plate-card .plate-solo { width: 38%; }
-  .plate-hero .plate-solo { width: 42%; }
-  .plate-hero .plate-stamp { width: 15%; }
-
-  .plate-caption {
-    margin: 10px 0 0;
-    font-size: 13px;
-    line-height: 1.55;
-    color: var(--ink-3);
-  }
-  .plate-caption-note { color: var(--ink-4); }
 
   /* --------------------------------------------------------------
      Browse as a gallery
@@ -546,25 +544,38 @@
     margin: 0;
     padding: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 34px 28px;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 30px 28px;
   }
-  .record-card { display: block; text-decoration: none; height: 100%; }
+  .record-card {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    text-decoration: none;
+    height: 100%;
+  }
   .record-card:hover .record-title { color: var(--accent); }
-  .record-card .record-head { margin: 12px 0 6px; }
+  .record-card-body { min-width: 0; }
+  .record-card .record-head { margin: 0 0 6px; }
   .record-card .record-title { font-size: 18px; }
 
   /* --------------------------------------------------------------
-     The record page's plate, beside the museum label
+     The record page's plate, beside the accession and the title
      -------------------------------------------------------------- */
   .record-hero {
     display: flex;
-    flex-wrap: wrap;
-    gap: 36px;
+    gap: 22px;
     align-items: flex-start;
   }
-  .record-hero-plate { flex: 0 1 300px; min-width: 220px; }
-  .record-hero-label { flex: 999 1 340px; min-width: 280px; }
+  .record-hero-label { flex: 1 1 auto; min-width: 0; }
+  /* What the plate is showing, said in words, because the words are what a
+     reader actually uses. Absent entirely when a record is unclassified. */
+  .record-class {
+    margin: 10px 0 0;
+    font-size: 13.5px;
+    color: var(--ink-3);
+  }
+  .record-class .sep { color: var(--ink-4); }
 
   .pager {
     display: flex;
