@@ -93,4 +93,6 @@ sources:
 
 **Why it matters for provenance.** A short single-stranded DNA aptamer is fully specified by its sequence, so it maps cleanly to a sequence-level catalogue entry. The flip side is that such designs are inexpensive to synthesize from a public model, so the record matters precisely because the barrier to reproduction is low.
 
+**In plain words.** An aptamer is a short piece of DNA folded so that it sticks to a chosen protein, normally found by sifting enormous pools of random sequences. Here a language model wrote the candidates instead and an optimiser refined them. Ten were made for each target, and the best of them stuck more tightly than anything the sifting had turned up.
+
 Source: Zhiming Zhang, Meng Jiang, Axin He, Youyuan Zhu, Ercheng Wang, Liqi Wan, Jiezhong Qiu, Pei Guo, Guangyong Chen and Da Han. De novo design of functional nucleic acids of aptamers. Nature Computational Science, published online 11 March 2026, doi 10.1038/s43588-026-00965-3. https://doi.org/10.1038/s43588-026-00965-3

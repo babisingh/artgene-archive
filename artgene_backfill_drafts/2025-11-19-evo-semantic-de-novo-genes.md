@@ -83,4 +83,6 @@ sources:
 
 **Why it matters for provenance.** When a model can write functional genes that resemble nothing in the databases, sequence similarity alone no longer traces origin, and a database of billions of generated base pairs makes a durable record of machine-written DNA a practical necessity.
 
+**In plain words.** A language model trained on genomes was asked to carry on from a piece of bacterial DNA, and what it wrote were working genes. Some of them resemble nothing in any database, yet they do their job inside living bacteria: shutting down CRISPR defences, or forming the poison-and-antidote pairs bacteria use to hold on to their plasmids. Of 84 anti-CRISPR candidates, about one in six worked.
+
 Source: Aditi T. Merchant, Samuel H. King, Eric Nguyen and Brian L. Hie. Semantic design of functional de novo genes from a genomic language model. Nature, published 19 November 2025, doi 10.1038/s41586-025-09749-7. https://www.nature.com/articles/s41586-025-09749-7

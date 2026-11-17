@@ -83,4 +83,6 @@ sources:
 
 **Why it matters for provenance.** RFdiffusion makes functional proteins with no natural homolog much easier to produce. Design structures, AlphaFold2 models and measurements are posted on figshare, the influenza complex is deposited in the PDB and the EMDB, and the code is open, which makes this a well documented reference point for tracing AI designed sequences.
 
+**In plain words.** Most protein design starts by borrowing something nature already made. This program starts from noise and sharpens it into a shape, the way image generators do, so a researcher can ask for a particular size, symmetry or pocket and get a protein built to that order. Hundreds were made and tested, and one photographed structure matched the drawing to within the width of an atom.
+
 Source: Joseph L. Watson, David Juergens, Nathaniel R. Bennett and colleagues, David Baker corresponding. De novo design of protein structure and function with RFdiffusion. Nature, 11 July 2023. doi 10.1038/s41586-023-06415-8. https://doi.org/10.1038/s41586-023-06415-8

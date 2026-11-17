@@ -155,4 +155,6 @@ sources:
 
 **Why it matters for provenance.** The binders are standard genetically encoded proteins, so their coding sequence captures the full molecule. Two complex structures are deposited; a third deposited structure from the published version could not be verified here.
 
+**In plain words.** Some proteins never settle into a shape; they thrash about. That makes them important in disease and very hard to take hold of. Working from sequence alone, the team designed grippers for eight such targets, then used them to break up clumps inside cells and to interfere with the fibres that build up in type 2 diabetes.
+
 Source: Caixuan Liu, Kejia Wu, Hojun Choi and colleagues, including David Baker. Diffusing protein binders to intrinsically disordered proteins. Nature, published 30 July 2025, doi 10.1038/s41586-025-09248-9. https://www.nature.com/articles/s41586-025-09248-9

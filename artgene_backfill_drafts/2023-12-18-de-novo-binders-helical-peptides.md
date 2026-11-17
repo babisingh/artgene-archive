@@ -155,4 +155,6 @@ sources:
 
 **Why it matters for provenance.** These are standard genetically encoded proteins whose full identity is captured by their coding sequence, which makes them clean cases for any registry of designed sequences. The authors deposited four structures and listed binder sequences in the supplementary material.
 
+**In plain words.** Hormones such as glucagon and parathyroid hormone are short, floppy chains, which makes them awkward to grab: there is no fixed shape to take hold of. The team designed proteins that hold them anyway, some so tightly that letting go takes hours, and then wired those grippers into sensors that light up when the hormone is there.
+
 Source: Susana Vazquez Torres, Philip J. Y. Leung, Preetham Venkatesh and colleagues, including Joseph L. Watson, Joseph M. Rogers and David Baker. De novo design of high-affinity binders of bioactive helical peptides. Nature, published 18 December 2023, doi 10.1038/s41586-023-06953-1. https://www.nature.com/articles/s41586-023-06953-1

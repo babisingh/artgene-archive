@@ -117,4 +117,6 @@ sources:
 
 **Why it matters for provenance.** When a vector is chosen by a model from a training dataset rather than by a traceable selection history, the record that explains why a capsid works is the model and its data, which a provenance scheme should capture alongside the sequence.
 
+**In plain words.** Gene therapies travel inside empty virus shells. A shell has to survive manufacturing, slip past the immune system and reach the right organ, and improving one of those usually spoils another. The team trained models to predict all six requirements at once and designed shells to pass them together. About 88 in 100 did, against roughly 3 in 100 for shells picked at random.
+
 Source: Fatma-Elzahraa Eid, Albert T. Chen, Ken Y. Chan and colleagues. Systematic multi-trait AAV capsid engineering for efficient gene delivery. Nature Communications, published 4 August 2024, doi 10.1038/s41467-024-50555-y. https://www.nature.com/articles/s41467-024-50555-y

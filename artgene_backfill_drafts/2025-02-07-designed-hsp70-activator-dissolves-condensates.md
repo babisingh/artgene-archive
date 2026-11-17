@@ -83,4 +83,6 @@ sources:
 
 **Why it matters for provenance.** The designs are standard genetically encoded proteins, so their identity is captured by their coding sequence. The paper states its sequence data are on Figshare, but the deposit identifier was not present in the full text available here, so nothing could be verified and staged.
 
+**In plain words.** Cells form droplets of protein that gather and dissolve on purpose, and some of them stick when they should not. The cell's own cleaner, a protein called Hsp70, can break them up, but it has to be switched on first. The team designed a switch from scratch: over a million designs on the computer, about 25,000 ordered, and one of them clears the droplets inside living cells.
+
 Source: Jason Z. Zhang, Nathan Greenwood, Jason Hernandez and colleagues, including Jason E. Gestwicki and David Baker. De novo designed Hsp70 activator dissolves intracellular condensates. Cell Chemical Biology, published 7 February 2025, doi 10.1016/j.chembiol.2025.01.006. https://doi.org/10.1016/j.chembiol.2025.01.006

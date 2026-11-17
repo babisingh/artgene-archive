@@ -9,13 +9,17 @@ import {
 } from "../lib/catalogue";
 
 /**
- * One record in the browse gallery: the plate first, then the words.
+ * One record in the browse list: a full-width row.
+ *
+ * It was three columns, and three columns of equal-weight cards made the page
+ * hard to read: titles broke across three or four lines, and the eye had no
+ * single column to run down. One row per record gives the title room to be
+ * read in one line or two, and leaves space for a sentence saying what the
+ * work is, which is what a reader is scanning for.
  *
  * The meta line deliberately leads with what the record *does* rather than
  * what it is made of. Molecule type reads "Protein" for the great majority of
- * the archive, so putting it first made every card open the same way; it is
- * still shown, after the thing that actually distinguishes one record from
- * another, and the plate says it again in the corner.
+ * the archive, so putting it first made every row open the same way.
  */
 export function RecordCard({ item }: { item: CatalogueListItem }) {
   const molecule = MOLECULE_LABELS[item.molecule_type] ?? item.molecule_type;
@@ -59,6 +63,7 @@ export function RecordCard({ item }: { item: CatalogueListItem }) {
           ) : null}
         </div>
         <p className="record-title">{item.title}</p>
+        {item.subtitle ? <p className="record-subtitle">{item.subtitle}</p> : null}
         <div className="record-meta">
           {meta.map((part, index) => (
             <span key={index}>

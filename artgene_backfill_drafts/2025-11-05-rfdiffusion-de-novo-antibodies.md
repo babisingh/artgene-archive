@@ -186,4 +186,6 @@ sources:
 
 **Why it matters for provenance.** The designed antibodies are fully encoded by their heavy and light chain sequences, and the training data and validating structures are deposited, so these designs are cleanly described at the sequence level for any registry.
 
+**In plain words.** Antibodies are the body's grabbing tools. Normally you get them by injecting an animal and waiting to see what its immune system invents, which means you cannot choose which part of the germ gets grabbed. This team pointed at one spot and designed a gripper for exactly that spot. Most failed, roughly one or two in a hundred worked, but the ones that worked gripped where they were told to, and an electron microscope showed them sitting as drawn.
+
 Source: Nathaniel R. Bennett, Joseph L. Watson, Robert J. Ragotte and colleagues, including David Baker. Atomically accurate de novo design of antibodies with RFdiffusion. Nature, published 5 November 2025, doi 10.1038/s41586-025-09721-5. https://doi.org/10.1038/s41586-025-09721-5

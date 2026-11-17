@@ -68,4 +68,6 @@ sources:
 
 **Why it matters for provenance.** Because the designs carry no structural template and are generated from a language model, the sequence is the whole object. The authors deposited sequences on Zenodo and released the model under an academic licence, so this is a clean example of an AI designed set whose origin can be recorded at the sequence level.
 
+**In plain words.** To block a protein you normally need a picture of its shape, and some proteins never hold still long enough to have one. This method works from the target's sequence alone: it nudges a language model's reading of a peptide to invent candidates, then uses a second model to judge which of them suit the target. Of twenty made against one enzyme, nineteen slowed it down.
+
 Source: Suhaas Bhat, Kalyan Palepu and colleagues, Pranam Chatterjee corresponding. De novo design of peptide binders to conformationally diverse targets with contrastive language modeling. Science Advances, 24 January 2025. doi 10.1126/sciadv.adr8638. https://doi.org/10.1126/sciadv.adr8638

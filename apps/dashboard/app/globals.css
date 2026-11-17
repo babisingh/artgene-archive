@@ -539,25 +539,33 @@
   /* --------------------------------------------------------------
      Browse as a gallery
      -------------------------------------------------------------- */
-  .record-grid {
+  /* One record per row. Three columns of equal-weight cards gave the eye no
+     column to run down and broke every title across three or four lines. */
+  .record-rows {
     list-style: none;
     margin: 0;
     padding: 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 30px 28px;
   }
+  .record-rows > li + li { border-top: 1px solid var(--rule-2); }
   .record-card {
     display: flex;
-    gap: 16px;
+    gap: 18px;
     align-items: flex-start;
     text-decoration: none;
-    height: 100%;
+    padding: 22px 0;
   }
   .record-card:hover .record-title { color: var(--accent); }
-  .record-card-body { min-width: 0; }
+  .record-card-body { min-width: 0; flex: 1 1 auto; }
   .record-card .record-head { margin: 0 0 6px; }
-  .record-card .record-title { font-size: 18px; }
+  .record-card .record-title { font-size: 19px; max-width: 62ch; }
+  /* The sentence a reader is actually scanning for. */
+  .record-subtitle {
+    margin: 0 0 8px;
+    font-size: 14.5px;
+    line-height: 1.55;
+    color: var(--ink-3);
+    max-width: 78ch;
+  }
 
   /* --------------------------------------------------------------
      The record page's plate, beside the accession and the title
