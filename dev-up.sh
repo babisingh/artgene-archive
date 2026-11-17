@@ -17,6 +17,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 cd "$(dirname "$0")"
+
+# The host port the API is published on. Override when something else already
+# holds 8000: API_PORT=8001 ./dev-up.sh
+API_PORT="${API_PORT:-8000}"
+export API_PORT
 echo "ArtGene Archive / TINSEL — dev up"
 echo "cwd: $(pwd)"
 
@@ -31,7 +36,7 @@ echo ""
 echo "--- Waiting for services to be ready ---"
 timeout=60
 while [ $timeout -gt 0 ]; do
-  code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/api/v1/health 2>/dev/null || echo 999)
+  code=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${API_PORT}/api/v1/health" 2>/dev/null || echo 999)
   if [ "$code" = "200" ]; then
     echo "  API is ready (health: 200)"
     break
@@ -64,7 +69,7 @@ done
 echo ""
 echo "✓ Services are ready."
 echo ""
-echo "  API:       http://127.0.0.1:8000  (see /api/v1/health, /api/v1/catalogue)"
+echo "  API:       http://127.0.0.1:${API_PORT}  (see /api/v1/health, /api/v1/catalogue; set API_PORT to move it)"
 echo "  Dashboard: http://127.0.0.1:3000  (direct; set DASHBOARD_PORT=3111 for 3111)"
 echo "  Postgres:  localhost:5432         (image: supabase/postgres:15, pass: tinsel_local_password)"
 echo ""
