@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" width="56" height="56" role="img" aria-labelledby="enzyme-t">
+  <title id="enzyme-t">Enzyme</title>
+  <path d="M34 16 A16 16 0 1 0 34 40 L22 28 Z" fill="var(--glyph-fill, #efe9d8)" stroke="var(--glyph-ink, #1c1b17)" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M14 22 Q22 18 28 22 M12 32 Q22 28 30 33" fill="none" stroke="var(--glyph-haze, #b5af99)" stroke-width="1" stroke-linecap="round"/>
+  <path d="M40 18 L49 13 M40 38 L49 43 M42 28 L51 28" fill="none" stroke="var(--glyph-accent, #9a4a22)" stroke-width="1.6" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-labelledby="regulatory-element-t">
+  <title id="regulatory-element-t">Regulatory element</title>
+  <circle cx="24" cy="24" r="22" fill="var(--glyph-paper, #fbf9f1)" stroke="var(--glyph-ink, #3a5a8c)" stroke-width="0.8"/>
+  <path d="M9 36 L39 36 M16 36 L16 16 L27 16" fill="none" stroke="var(--glyph-ink, #3a5a8c)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M26 11 L35 16 L26 21 Z" fill="var(--glyph-ink, #3a5a8c)" stroke="none"/>
+</svg>

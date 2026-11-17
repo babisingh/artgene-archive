@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-labelledby="small-molecule-medium-t">
+  <title id="small-molecule-medium-t">Small molecule</title>
+  <circle cx="24" cy="24" r="22" fill="var(--glyph-paper, #fbf9f1)" stroke="var(--glyph-ink, #7a3b55)" stroke-width="0.8"/>
+  <path d="M23 11 L33 17 L33 28 L23 34 L13 28 L13 17 Z M16 19 L16 26 M30 19 L30 26 M33 17 L41 13 M23 34 L23 41" fill="none" stroke="var(--glyph-ink, #7a3b55)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

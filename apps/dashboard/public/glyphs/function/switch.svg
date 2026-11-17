@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" width="56" height="56" role="img" aria-labelledby="switch-t">
+  <title id="switch-t">Switch</title>
+  <path d="M8 33 A9 9 0 1 1 26 33 A9 9 0 1 1 8 33 Z M32 33 A9 9 0 1 1 50 33 A9 9 0 1 1 32 33 Z" fill="var(--glyph-fill, #efe9d8)" stroke="var(--glyph-ink, #1c1b17)" stroke-width="1.5"/>
+  <path d="M13 23 C 17 11, 35 9, 43 21" fill="none" stroke="var(--glyph-accent, #9a4a22)" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M42.6 13 L43 21 L36 18" fill="none" stroke="var(--glyph-accent, #9a4a22)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

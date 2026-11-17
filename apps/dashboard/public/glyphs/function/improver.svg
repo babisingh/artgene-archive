@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" width="56" height="56" role="img" aria-labelledby="improver-t">
+  <title id="improver-t">Improver</title>
+  <path d="M28 9 A20 20 0 1 1 28 49 A20 20 0 1 1 28 9 Z" fill="none" stroke="var(--glyph-haze, #b5af99)" stroke-width="1" stroke-dasharray="3 3"/>
+  <path d="M28 17 A12 12 0 1 1 28 41 A12 12 0 1 1 28 17 Z" fill="var(--glyph-fill, #efe9d8)" stroke="var(--glyph-ink, #1c1b17)" stroke-width="1.5"/>
+  <path d="M28 2 L28 12 M24 7 L28 12 L32 7 M28 54 L28 44 M24 49 L28 44 L32 49" fill="none" stroke="var(--glyph-accent, #9a4a22)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

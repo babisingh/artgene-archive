@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 110" width="140" height="110" role="img" aria-labelledby="disordered-chain-t">
+  <title id="disordered-chain-t">Disordered chain</title>
+  <path d="M16 78 Q30 48 46 72 Q60 94 72 60 Q82 30 96 56 Q106 76 124 46" fill="none" stroke="var(--glyph-haze, #b5af99)" stroke-width="0.7" stroke-linecap="round"/>
+  <path d="M16 56 Q32 26 48 50 Q62 72 74 38 Q84 8 98 34 Q108 54 126 24" fill="none" stroke="var(--glyph-accent, #9a4a22)" stroke-width="1.2" stroke-linecap="round"/>
+</svg>

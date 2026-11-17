@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" width="56" height="56" role="img" aria-labelledby="sensor-t">
+  <title id="sensor-t">Sensor</title>
+  <path d="M20 17 A11 11 0 1 1 20 39 A11 11 0 1 1 20 17 Z" fill="var(--glyph-fill, #efe9d8)" stroke="var(--glyph-ink, #1c1b17)" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M13 23 Q20 19 26 23 M12 32 Q20 28 27 33" fill="none" stroke="var(--glyph-haze, #b5af99)" stroke-width="1" stroke-linecap="round"/>
+  <path d="M37 20 A12 12 0 0 1 37 36 M43 14 A20 20 0 0 1 43 42 M49 8 A28 28 0 0 1 49 48" fill="none" stroke="var(--glyph-accent, #9a4a22)" stroke-width="1.6" stroke-linecap="round"/>
+</svg>

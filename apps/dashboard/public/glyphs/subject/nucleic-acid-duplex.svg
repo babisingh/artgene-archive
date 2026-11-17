@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 110" width="140" height="110" role="img" aria-labelledby="nucleic-acid-duplex-t">
+  <title id="nucleic-acid-duplex-t">Nucleic-acid duplex with a bound site</title>
+  <path d="M24 16 C 62 36, 62 72, 24 94 M60 16 C 22 36, 22 72, 60 94 M30 30 L54 30 M26 54 L58 54 M30 78 L54 78" fill="none" stroke="var(--glyph-haze, #b5af99)" stroke-width="0.7" stroke-linecap="round"/>
+  <path d="M76 56 L126 56 M92 56 L92 40 L112 40 M107 35 L113 40 L107 45" fill="none" stroke="var(--glyph-accent, #9a4a22)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

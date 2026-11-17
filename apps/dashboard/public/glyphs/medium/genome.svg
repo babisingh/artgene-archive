@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-labelledby="genome-t">
+  <title id="genome-t">Genome</title>
+  <circle cx="24" cy="24" r="22" fill="var(--glyph-paper, #fbf9f1)" stroke="var(--glyph-ink, #6d4c7d)" stroke-width="0.8"/>
+  <path d="M14 11 L21 20 M34 11 L27 20 M14 37 L21 28 M34 37 L27 28" fill="none" stroke="var(--glyph-ink, #6d4c7d)" stroke-width="6.5" stroke-linecap="round"/>
+</svg>

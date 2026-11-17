@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" width="56" height="56" role="img" aria-labelledby="binder-t">
+  <title id="binder-t">Binder</title>
+  <path d="M36 18 A16 16 0 1 0 36 38 A12 12 0 0 0 36 18 Z" fill="var(--glyph-fill, #efe9d8)" stroke="var(--glyph-ink, #1c1b17)" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M16 22 Q24 18 31 23 M14 32 Q24 28 32 34" fill="none" stroke="var(--glyph-haze, #b5af99)" stroke-width="1" stroke-linecap="round"/>
+  <path d="M37.5 17 A14 14 0 0 1 37.5 39 A11.5 11.5 0 0 0 37.5 17 Z" fill="var(--glyph-accent-fill, #f7e2d6)" stroke="var(--glyph-accent, #9a4a22)" stroke-width="1.6" stroke-linejoin="round"/>
+</svg>

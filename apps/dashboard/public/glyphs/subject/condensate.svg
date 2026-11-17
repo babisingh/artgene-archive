@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 110" width="140" height="110" role="img" aria-labelledby="condensate-t">
+  <title id="condensate-t">Condensate</title>
+  <path d="M52 30 A26 26 0 1 1 52 82 A26 26 0 1 1 52 30 Z M102 54 A16 16 0 1 1 102 86 A16 16 0 1 1 102 54 Z" fill="var(--glyph-fill, #efe9d8)" stroke="var(--glyph-ink, #1c1b17)" stroke-width="1"/>
+  <path d="M36 46 Q50 38 64 46 M32 62 Q52 54 72 64 M40 74 Q52 70 64 76 M92 64 Q102 60 112 66" fill="none" stroke="var(--glyph-haze, #b5af99)" stroke-width="0.7" stroke-linecap="round"/>
+</svg>

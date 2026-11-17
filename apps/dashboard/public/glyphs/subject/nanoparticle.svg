@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 110" width="140" height="110" role="img" aria-labelledby="nanoparticle-t">
+  <title id="nanoparticle-t">Assembled nanoparticle</title>
+  <path d="M70 12 L108 34 L108 76 L70 98 L32 76 L32 34 Z" fill="var(--glyph-fill, #efe9d8)" stroke="var(--glyph-ink, #1c1b17)" stroke-width="1" stroke-linejoin="round"/>
+  <path d="M70 12 L70 55 L108 76 M70 55 L32 76 M32 34 L70 55 L108 34 M70 12 L32 76 M70 12 L108 76 M32 34 L108 34" fill="none" stroke="var(--glyph-haze, #b5af99)" stroke-width="0.7"/>
+  <path d="M70 48 A7 7 0 1 1 70 62 A7 7 0 1 1 70 48 Z" fill="none" stroke="var(--glyph-accent, #9a4a22)" stroke-width="1.2"/>
+</svg>

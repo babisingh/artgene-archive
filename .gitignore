@@ -61,3 +61,15 @@ Thumbs.db
 test-results/
 playwright-report/
 blob-report/
+
+# Local Postgres volume. `docker compose up` writes the database here, which is
+# tens of megabytes of binary data plus the cluster's own credentials, and it is
+# one `git add -A` from ending up in history.
+postgres-data/
+
+# Runtime logs from a locally run API.
+*.log
+
+# Working archives. The backfill drafts are committed as files; the tarball of
+# them is a byproduct and would go stale against the directory beside it.
+*.tar.gz

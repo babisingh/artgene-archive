@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" width="56" height="56" role="img" aria-labelledby="shell-t">
+  <title id="shell-t">Shell</title>
+  <path d="M28 8 L46 19 L46 37 L28 48 L10 37 L10 19 Z" fill="var(--glyph-fill, #efe9d8)" stroke="var(--glyph-ink, #1c1b17)" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M28 8 L28 28 L46 37 M28 28 L10 37 M10 19 L28 28 L46 19" fill="none" stroke="var(--glyph-haze, #b5af99)" stroke-width="1" stroke-linecap="round"/>
+  <path d="M28 24 A4 4 0 1 1 28 32 A4 4 0 1 1 28 24 Z" fill="none" stroke="var(--glyph-accent, #9a4a22)" stroke-width="1.6"/>
+</svg>
