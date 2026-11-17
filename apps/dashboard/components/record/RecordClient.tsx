@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { KindBadge } from "../Accession";
+import { Plate, PlateCaption } from "../Plate";
 import {
   CatalogueError,
   HOST_LABELS,
@@ -197,32 +198,51 @@ export function RecordClient({ id }: { id: string }) {
       </p>
 
       {/* --- Summary ------------------------------------------------------ */}
-      <div className="record-head">
-        <span className="accession" style={{ fontSize: 16 }}>
-          {record.registry_id}
-        </span>
-        <KindBadge kind={record.record_kind} />
-        <span className="badge">{molecule}</span>
-        {design?.wet_lab_validated ? (
-          <span
-            className="badge badge-verify"
-            title="The authors reported testing this sequence at the bench."
-          >
-            Wet-lab validated
-          </span>
-        ) : null}
-        {withheld ? <span className="badge badge-warn">Sequence withheld</span> : null}
+      <div className="record-hero">
+        <figure className="record-hero-plate" style={{ margin: 0 }}>
+          <Plate
+            moleculeType={record.molecule_type}
+            functionClass={record.function_class}
+            subjectClass={record.subject_class}
+            size="hero"
+          />
+          <figcaption>
+            <PlateCaption
+              functionClass={record.function_class}
+              subjectClass={record.subject_class}
+            />
+          </figcaption>
+        </figure>
+
+        <div className="record-hero-label">
+          <div className="record-head">
+            <span className="accession" style={{ fontSize: 16 }}>
+              {record.registry_id}
+            </span>
+            <KindBadge kind={record.record_kind} />
+            <span className="badge">{molecule}</span>
+            {design?.wet_lab_validated ? (
+              <span
+                className="badge badge-verify"
+                title="The authors reported testing this sequence at the bench."
+              >
+                Wet-lab validated
+              </span>
+            ) : null}
+            {withheld ? <span className="badge badge-warn">Sequence withheld</span> : null}
+          </div>
+
+          <h1 className="h1" style={{ fontSize: "clamp(26px, 4.6vw, 38px)", marginTop: 14 }}>
+            {record.title}
+          </h1>
+
+          {record.summary ? (
+            <p className="lede" style={{ maxWidth: 680 }}>
+              {record.summary}
+            </p>
+          ) : null}
+        </div>
       </div>
-
-      <h1 className="h1" style={{ fontSize: "clamp(26px, 4.6vw, 38px)", marginTop: 14 }}>
-        {record.title}
-      </h1>
-
-      {record.summary ? (
-        <p className="lede" style={{ maxWidth: 680 }}>
-          {record.summary}
-        </p>
-      ) : null}
 
       {withheld ? (
         <div className="notice notice-warn" style={{ marginTop: 8 }}>

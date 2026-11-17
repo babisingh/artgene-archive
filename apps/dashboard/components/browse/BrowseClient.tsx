@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { RecordRow } from "../RecordRow";
+import { RecordCard } from "../RecordCard";
 import {
   MOLECULE_LABELS,
   MOLECULE_TYPES,
@@ -247,9 +247,9 @@ export function BrowseClient() {
               Showing {from} to {to} of {total.toLocaleString("en-GB")}
               {total === 1 ? " record" : " records"}
             </p>
-            <ul className="record-list">
+            <ul className="record-grid">
               {data?.items.map((item) => (
-                <RecordRow key={item.registry_id} item={item} />
+                <RecordCard key={item.registry_id} item={item} />
               ))}
             </ul>
 

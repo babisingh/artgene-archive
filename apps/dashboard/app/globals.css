@@ -484,6 +484,88 @@
   }
   .record-meta .sep { color: var(--ink-4); }
 
+  /* --------------------------------------------------------------
+     The plate: subject engraving, function emblem, medium hallmark.
+     components/Plate.tsx decides which of the three are drawn.
+     -------------------------------------------------------------- */
+  .plate {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--paper-3);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    aspect-ratio: 7 / 5;
+    overflow: hidden;
+  }
+  .plate-ground { width: 78%; height: auto; display: block; }
+  /* The emblem sits on the engraving, so it carries its own paper disc to
+     keep its outline readable over the hatching underneath. The disc is the
+     glyphs' own paper tone rather than white, so it reads as part of the
+     drawing and not as a sticker laid on top of it. */
+  .plate-figure {
+    position: absolute;
+    left: 6%;
+    bottom: 6%;
+    display: grid;
+    place-items: center;
+    width: 23%;
+    aspect-ratio: 1;
+    background: #fbf9f1;
+    border: 1px solid var(--rule);
+    border-radius: 50%;
+  }
+  .plate-figure img { width: 74%; height: auto; display: block; }
+  .plate-solo { width: 46%; height: auto; display: block; }
+  .plate-stamp {
+    position: absolute;
+    top: 7%;
+    right: 7%;
+    width: 17%;
+    height: auto;
+  }
+  /* A card plate is small, so the solo drawing is given more of it. */
+  .plate-card .plate-solo { width: 38%; }
+  .plate-hero .plate-solo { width: 42%; }
+  .plate-hero .plate-stamp { width: 15%; }
+
+  .plate-caption {
+    margin: 10px 0 0;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink-3);
+  }
+  .plate-caption-note { color: var(--ink-4); }
+
+  /* --------------------------------------------------------------
+     Browse as a gallery
+     -------------------------------------------------------------- */
+  .record-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 34px 28px;
+  }
+  .record-card { display: block; text-decoration: none; height: 100%; }
+  .record-card:hover .record-title { color: var(--accent); }
+  .record-card .record-head { margin: 12px 0 6px; }
+  .record-card .record-title { font-size: 18px; }
+
+  /* --------------------------------------------------------------
+     The record page's plate, beside the museum label
+     -------------------------------------------------------------- */
+  .record-hero {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 36px;
+    align-items: flex-start;
+  }
+  .record-hero-plate { flex: 0 1 300px; min-width: 220px; }
+  .record-hero-label { flex: 999 1 340px; min-width: 280px; }
+
   .pager {
     display: flex;
     align-items: center;
