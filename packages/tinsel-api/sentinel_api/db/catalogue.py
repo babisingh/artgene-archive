@@ -324,6 +324,16 @@ class CatalogueRecord(Base):
             "copied from an abstract."
         ),
     )
+    technical_summary: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment=(
+            "The same work in the vocabulary the paper uses, for a reader who "
+            "has the background. Sits beside `summary`, which is the plain "
+            "words version: the pair exists so that neither audience is served "
+            "by watering down what the other one reads."
+        ),
+    )
     molecule_type: Mapped[str] = mapped_column(String(32), nullable=False)
     function_class: Mapped[str | None] = mapped_column(
         String(32),

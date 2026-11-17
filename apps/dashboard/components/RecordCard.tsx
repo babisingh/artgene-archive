@@ -37,8 +37,8 @@ export function RecordCard({ item }: { item: CatalogueListItem }) {
           moleculeType={item.molecule_type}
           functionClass={item.function_class}
           subjectClass={item.subject_class}
-          size="card"
         />
+        <div className="record-card-body">
         <div className="record-head">
           <Accession id={item.registry_id} kind={item.record_kind} />
           {item.wet_lab_validated ? (
@@ -66,6 +66,7 @@ export function RecordCard({ item }: { item: CatalogueListItem }) {
               {part}
             </span>
           ))}
+        </div>
         </div>
       </Link>
     </li>
