@@ -13,6 +13,7 @@ import {
   FUNCTION_LABELS,
   MOLECULE_LABELS,
   SUBJECT_LABELS,
+  actsOnPhrase,
   fetchRecord,
   formatDate,
   formatLength,
@@ -243,7 +244,7 @@ export function RecordClient({ id }: { id: string }) {
               {functionLabel && subjectLabel ? (
                 <span className="sep"> &middot; </span>
               ) : null}
-              {subjectLabel ? `acts on a ${subjectLabel.toLowerCase()}` : null}
+              {subjectLabel ? actsOnPhrase(subjectLabel) : null}
             </p>
           ) : null}
 
@@ -268,6 +269,18 @@ export function RecordClient({ id }: { id: string }) {
       {record.technical_summary || record.summary || hitRate ? (
         <section className="record-section record-report">
           <div className="record-report-text">
+            {record.summary ? (
+              <div className="summary-block summary-plain-block">
+                <h2 className="h2">In plain words</h2>
+                <p className="summary-note">No background assumed.</p>
+                {record.summary.split("\n\n").map((para, i) => (
+                  <p className="summary-plain" key={i}>
+                    {para}
+                  </p>
+                ))}
+              </div>
+            ) : null}
+
             {record.technical_summary ? (
               <div className="summary-block">
                 <h2 className="h2">In the paper&rsquo;s words</h2>
@@ -275,20 +288,28 @@ export function RecordClient({ id }: { id: string }) {
                   The archive&rsquo;s reading of the publication, in its own
                   vocabulary.
                 </p>
+                {/* The summary fields are plain text, so the citation is built
+                    from the record's own source rather than written into the
+                    prose: every record gets a working link, and nobody has to
+                    paste a URL into a paragraph. */}
+                {source ? (
+                  <p className="summary-source">
+                    <a
+                      className="link"
+                      href={source.doi ? `https://doi.org/${source.doi}` : source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {source.title}
+                    </a>
+                    {source.container ? ` \u00b7 ${source.container}` : ""}
+                    {formatDate(source.published_on)
+                      ? `, ${formatDate(source.published_on)}`
+                      : ""}
+                  </p>
+                ) : null}
                 {record.technical_summary.split("\n\n").map((para, i) => (
                   <p className="summary-technical" key={i}>
-                    {para}
-                  </p>
-                ))}
-              </div>
-            ) : null}
-
-            {record.summary ? (
-              <div className="summary-block summary-plain-block">
-                <h2 className="h2">In plain words</h2>
-                <p className="summary-note">No background assumed.</p>
-                {record.summary.split("\n\n").map((para, i) => (
-                  <p className="summary-plain" key={i}>
                     {para}
                   </p>
                 ))}
