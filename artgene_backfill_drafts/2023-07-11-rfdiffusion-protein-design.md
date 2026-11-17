@@ -13,13 +13,13 @@ archive:
   container: Nature
   biosafety_class: none
   molecule_type: protein
-  function_class:
+  function_class: method
   subject_class:
   classification_note: >-
     A method paper. It produces monomers, oligomers, active-site scaffolds,
-    metal-binding assemblies and binders, so no single function is true of it,
-    and there is no 'method' value to say that with. Left empty rather than
-    narrowed to one of its applications.
+    metal-binding assemblies and binders, so no one of those is true of it;
+    what it does is make them. The subject stays empty: a method is aimed at
+    no single target.
   generating_model: RFdiffusion, a denoising diffusion model built by fine-tuning the RoseTTAFold structure prediction network, with ProteinMPNN for sequence design
   model_availability: open-weights
   design_target: unconditional and fold-conditioned monomers, symmetric oligomers, functional-motif and enzyme active-site scaffolds, metal-binding assemblies, and de novo binders to specified protein targets

@@ -13,12 +13,14 @@ archive:
   container: Nature Methods
   biosafety_class: none
   molecule_type: protein
-  function_class:
+  function_class: method
   subject_class:
   classification_note: >-
     A method paper, like RFdiffusion: sequence design in the context of small
     molecules, nucleotides and metals, for binders, sensors and enzymes alike.
-    No single function is true of it.
+    No single function of a designed thing is true of it, which is what the
+    method class says. The subject stays empty for the same reason: a method
+    aimed at no one target.
   generating_model: LigandMPNN, an atomic context-conditioned message-passing neural network for protein sequence and sidechain design, extending ProteinMPNN to model non-protein atoms
   model_availability: open-weights
   design_target: amino-acid sequences and sidechain conformations for protein backbones in the context of small molecules, nucleotides and metals, for binders, sensors and enzymes
