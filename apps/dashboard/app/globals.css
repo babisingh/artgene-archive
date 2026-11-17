@@ -642,6 +642,17 @@
     color: var(--ink-3);
   }
   .summary-plain-block .summary-note { color: #6b4f3d; }
+  /* The citation that opens the technical half: the paper's own title, linked,
+     so the reader can go to the source before reading the archive's reading of
+     it. Set small and close to the heading so it reads as a byline, not a
+     first sentence. */
+  .summary-source {
+    margin: -6px 0 16px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink-3);
+    max-width: 68ch;
+  }
   .summary-technical {
     margin: 0 0 14px;
     font-size: 16.5px;
