@@ -4,7 +4,10 @@ services:
       context: .
       dockerfile: packages/tinsel-api/Dockerfile
     ports:
-      - "8000:8000"
+      # Host port is configurable because 8000 is a popular default and a
+      # conflict otherwise means stopping whatever else holds it. The
+      # container always listens on 8000; only the host side moves.
+      - "${API_PORT:-8000}:8000"
     environment:
       - SENTINEL_ENV=development
       - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:tinsel_local_password@db:5432/artgene}
