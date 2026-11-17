@@ -159,6 +159,8 @@ class GateAnswerIn(BaseModel):
 
 class CatalogueCreate(BaseModel):
     title: str
+    summary: str | None = None
+    technical_summary: str | None = None
     molecule_type: str
     # What the record does and what it acts on. Both optional: an ingest run
     # records what the paper says, and these are a reading of it, which may
@@ -251,6 +253,7 @@ class CatalogueOut(BaseModel):
     # directly by its authors (AG-).
     record_kind: str = "catalogue"
     summary: str | None = None
+    technical_summary: str | None = None
     created_at: datetime | None = None
     published_at: datetime | None = None
     source: SourceOut | None = None
@@ -261,6 +264,18 @@ class CatalogueOut(BaseModel):
 
 class StatusChange(BaseModel):
     status: str
+    reason: str | None = None
+
+
+class SummariesIn(BaseModel):
+    """The two summaries a record carries.
+
+    Both are sent every time, so clearing one is ``null`` rather than an
+    absence, and a client cannot wipe a paragraph by forgetting it.
+    """
+
+    summary: str | None = None
+    technical_summary: str | None = None
     reason: str | None = None
 
 
@@ -455,6 +470,7 @@ async def _to_out(
     return CatalogueOut(
         record_kind="submission" if record_class == "submission" else "catalogue",
         summary=None if redact else record.summary,
+        technical_summary=None if redact else record.technical_summary,
         created_at=record.created_at,
         published_at=record.published_at,
         source=SourceOut(
@@ -633,6 +649,8 @@ async def create_catalogue_record(
         id=registry_id,
         source_id=source.id,
         title=body.title,
+        summary=body.summary,
+        technical_summary=body.technical_summary,
         molecule_type=body.molecule_type,
         function_class=body.function_class,
         subject_class=body.subject_class,
@@ -810,6 +828,45 @@ async def change_status(
     await db.commit()
     record, source = await _load(db, registry_id)
     return await _to_out(db, record, source)
+
+
+@router.put("/{registry_id}/summaries", response_model=CatalogueOut)
+async def set_summaries(
+    registry_id: str,
+    body: SummariesIn,
+    db: AsyncSession = Depends(get_db),
+    principal: Principal = Depends(require_scope(CATALOGUE_DRAFT)),
+) -> CatalogueOut:
+    """Write or revise the two summaries.
+
+    Separate from ingest for the same reason classification is: reading a
+    paper well enough to paraphrase it happens after the citation is
+    recorded, and gets revised. Allowed in any status, so a published record
+    with a clumsy paragraph can be fixed without a trip through withdrawn.
+
+    `summary` is the plain-words one and `technical_summary` keeps the
+    paper's own vocabulary. Neither is required, and a record may carry one
+    without the other.
+    """
+    record, source = await _load(db, registry_id)
+    previous = (record.summary, record.technical_summary)
+    record.summary = body.summary
+    record.technical_summary = body.technical_summary
+
+    if previous != (body.summary, body.technical_summary):
+        await _record_gate(
+            db,
+            registry_id,
+            "integrity",
+            "summaries",
+            "pass",
+            body.reason or "summaries rewritten",
+            f"key:{principal.key_id}",
+        )
+
+    await db.commit()
+    record, source = await _load(db, registry_id)
+    return await _to_out(db, record, source, privileged=True)
 
 
 @router.put("/{registry_id}/classification", response_model=CatalogueOut)

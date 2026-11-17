@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" width="56" height="56" role="img" aria-labelledby="method-t">
+  <title id="method-t">Method</title>
+  <path d="M11 18 L24 18 A3 3 0 0 1 27 21 L27 35 A3 3 0 0 1 24 38 L11 38 A3 3 0 0 1 8 35 L8 21 A3 3 0 0 1 11 18 Z" fill="var(--glyph-fill, #efe9d8)" stroke="var(--glyph-ink, #1c1b17)" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M14 24 L21 24 M14 28 L21 28 M14 32 L21 32" fill="none" stroke="var(--glyph-haze, #b5af99)" stroke-width="1" stroke-linecap="round"/>
+  <path d="M29 24 L37 16 M32.2 17.3 L37 16 L35.7 20.8 M29 28 L38 28 M34 25 L38 28 L34 31 M29 32 L37 40 M35.7 35.2 L37 40 L32.2 38.7" fill="none" stroke="var(--glyph-accent, #9a4a22)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M43 12 A4 4 0 1 1 51 12 A4 4 0 1 1 43 12 Z M43 24 L51 24 L51 32 L43 32 Z M47 38 L52 47 L42 47 Z" fill="none" stroke="var(--glyph-ink, #1c1b17)" stroke-width="1.5" stroke-linejoin="round"/>
+</svg>

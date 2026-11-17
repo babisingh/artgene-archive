@@ -17,6 +17,12 @@
       "records": 10
     },
     {
+      "name": "method",
+      "label": "Method",
+      "viewBox": "0 0 56 56",
+      "records": 2
+    },
+    {
       "name": "shell",
       "label": "Shell",
       "viewBox": "0 0 56 56",

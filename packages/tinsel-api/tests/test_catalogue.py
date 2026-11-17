@@ -478,3 +478,99 @@ class TestClassification:
             f"/api/v1/catalogue?{query}", headers=scoped_keys["agent"]
         )
         assert resp.status_code == 422
+
+    async def test_a_method_paper_can_say_so(
+        self, client: AsyncClient, scoped_keys, licences
+    ) -> None:
+        """`method` exists because two of the first twenty records needed it.
+
+        RFdiffusion and LigandMPNN each produce binders, scaffolds, sensors and
+        enzymes alike, so every other value would have been a claim the paper
+        does not make. A method is aimed at no single target, so the subject
+        stays empty beside it.
+        """
+        body = payload()
+        body["function_class"] = "method"
+        resp = await _create(client, scoped_keys["agent"], body)
+        assert resp.status_code == 201, resp.text
+        assert resp.json()["function_class"] == "method"
+        assert resp.json()["subject_class"] is None
+
+        listed = await client.get(
+            "/api/v1/catalogue?function_class=method", headers=scoped_keys["agent"]
+        )
+        assert listed.json()["count"] == 1
+
+
+class TestSummaries:
+    """The two summaries a record page shows.
+
+    `summary` is the plain-words one and has been since 016; 019 adds
+    `technical_summary` beside it, in the paper's own vocabulary. The point of
+    the pair is that neither audience is served by watering down what the
+    other one reads, so either may be present without the other.
+    """
+
+    async def test_a_record_may_start_with_neither(
+        self, client: AsyncClient, scoped_keys, licences
+    ) -> None:
+        resp = await _create(client, scoped_keys["agent"])
+        assert resp.status_code == 201, resp.text
+        assert resp.json()["summary"] is None
+        assert resp.json()["technical_summary"] is None
+
+    async def test_both_can_be_written_after_ingest_and_revised(
+        self, client: AsyncClient, scoped_keys, licences
+    ) -> None:
+        created = await _create(client, scoped_keys["agent"])
+        registry_id = created.json()["registry_id"]
+
+        written = await client.put(
+            f"/api/v1/catalogue/{registry_id}/summaries",
+            json={
+                "summary": "They built a gripper for one chosen spot.",
+                "technical_summary": "De novo VHHs against a specified epitope.",
+            },
+            headers=scoped_keys["agent"],
+        )
+        assert written.status_code == 200, written.text
+        assert written.json()["summary"].startswith("They built")
+        assert written.json()["technical_summary"].startswith("De novo")
+
+        # One without the other is a real state, not half-finished work.
+        revised = await client.put(
+            f"/api/v1/catalogue/{registry_id}/summaries",
+            json={"summary": "They built a gripper for one chosen spot."},
+            headers=scoped_keys["agent"],
+        )
+        assert revised.status_code == 200, revised.text
+        assert revised.json()["technical_summary"] is None
+
+    async def test_writing_summaries_requires_the_draft_scope(
+        self, client: AsyncClient, scoped_keys, licences
+    ) -> None:
+        created = await _create(client, scoped_keys["agent"])
+        registry_id = created.json()["registry_id"]
+        resp = await client.put(
+            f"/api/v1/catalogue/{registry_id}/summaries",
+            json={"summary": "..."},
+            headers=scoped_keys["plain"],
+        )
+        assert resp.status_code == 403
+
+    async def test_summaries_survive_a_read_back(
+        self, client: AsyncClient, scoped_keys, licences
+    ) -> None:
+        """The record page reads them from GET, not from the write response."""
+        body = payload()
+        body["summary"] = "Plain words."
+        body["technical_summary"] = "The paper's words."
+        created = await _create(client, scoped_keys["agent"], body)
+        registry_id = created.json()["registry_id"]
+
+        fetched = await client.get(
+            f"/api/v1/catalogue/{registry_id}", headers=scoped_keys["agent"]
+        )
+        assert fetched.status_code == 200
+        assert fetched.json()["summary"] == "Plain words."
+        assert fetched.json()["technical_summary"] == "The paper's words."

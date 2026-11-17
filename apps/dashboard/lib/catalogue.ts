@@ -55,6 +55,7 @@ export const FUNCTION_CLASSES = [
   "shell",
   "gene",
   "improver",
+  "method",
 ] as const;
 
 export type FunctionClass = (typeof FUNCTION_CLASSES)[number];
@@ -67,6 +68,7 @@ export const FUNCTION_LABELS: Record<string, string> = {
   shell: "Shell",
   gene: "Gene",
   improver: "Improver",
+  method: "Method",
 };
 
 /** One line each, for a filter bar or a tooltip. */
@@ -78,6 +80,7 @@ export const FUNCTION_DESCRIPTIONS: Record<string, string> = {
   shell: "Made to carry or display a cargo",
   gene: "A stretch of sequence written to encode something",
   improver: "An existing thing made better rather than a new one",
+  method: "A way of designing things, rather than one designed thing",
 };
 
 export const SUBJECT_CLASSES = [
@@ -296,7 +299,9 @@ export interface SequenceInfo {
 export interface CatalogueRecord {
   registry_id: string;
   title: string;
+  /** The plain-words summary. Its companion keeps the paper's vocabulary. */
   summary: string | null;
+  technical_summary: string | null;
   molecule_type: string;
   /** Null until a reader has classified the record. */
   function_class: string | null;

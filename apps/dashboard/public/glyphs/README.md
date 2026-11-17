@@ -1,6 +1,6 @@
 # Glyphs
 
-Twenty-four drawings for catalogue records, in three sets. Open `contact-sheet.html`
+Twenty-five drawings for catalogue records, in three sets. Open `contact-sheet.html`
 to see them all at once.
 
 ## The three sets, and why they rank the way they do
@@ -19,7 +19,7 @@ So:
 
 | Set | Role | Count | Size |
 |---|---|---|---|
-| `function/` | the primary mark; what the designed thing does | 7 | 56 × 56 |
+| `function/` | the primary mark; what the designed thing does | 8 | 56 × 56 |
 | `subject/` | the plate; what it acts on | 10 | 140 × 110 |
 | `medium/` | a quiet corner hallmark; what it is made of | 7 | 48 × 48 |
 
@@ -36,26 +36,27 @@ ones.
 | function | records | | subject | records |
 |---|---|---|---|---|
 | binder | 10 | | soluble_protein | 6 |
-| shell | 2 | | small_molecule | 3 |
-| switch | 2 | | disordered_chain | 2 |
-| enzyme | 1 | | virion | 2 |
-| gene | 1 | | bacterium | 1 |
-| improver | 1 | | condensate | 1 |
-| sensor | 1 | | hormone_peptide | 1 |
-| *none* | 2 | | receptor | 1 |
+| method | 2 | | small_molecule | 3 |
+| shell | 2 | | disordered_chain | 2 |
+| switch | 2 | | virion | 2 |
+| enzyme | 1 | | bacterium | 1 |
+| gene | 1 | | condensate | 1 |
+| improver | 1 | | hormone_peptide | 1 |
+| sensor | 1 | | receptor | 1 |
 | | | | *none* | 3 |
 
-Two things that fell out of it, both worth knowing before the sets are treated
-as settled:
+Every record now has a function. Two things worth knowing before the sets are
+treated as settled:
 
 - **`nanoparticle` and `nucleic_acid_duplex` are used by no record.** Both were
   drawn because a target of that kind is *mentioned* in a paper, but neither is
   what any single record is best classified as. They are kept because records
   that need them are plausible, not because anything needs them today.
-- **Two records have no function at all.** RFdiffusion and LigandMPNN are
-  method papers: each produces binders, scaffolds, sensors and enzymes alike,
-  so no one value is true of either. A `method` value in `FUNCTION_CLASSES`
-  would fit them, and nothing else in the set does.
+- **`method` was added after the fact**, in migration 018. RFdiffusion and
+  LigandMPNN are method papers: each produces binders, scaffolds, sensors and
+  enzymes alike, so naming any one of those would have been a claim the paper
+  does not make, and both sat unclassified until the class existed. Their
+  subject stays empty, because a method is aimed at no single target.
 
 ## Colour
 
