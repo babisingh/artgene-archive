@@ -6,29 +6,31 @@ import {
 } from "../lib/catalogue";
 
 /**
- * The plate: how a record looks before it is read.
+ * The plate: a small mark that gives a record a face.
  *
- * Three drawings, doing three different jobs. The subject engraving is the
- * ground, the function emblem is the figure acting on it, and the medium
- * hallmark is stamped in the corner at the same size on every record, so the
- * eye learns that corner and stops reading it consciously.
+ * It is deliberately an icon rather than an illustration. A reader finds the
+ * record they want by reading the title, so a plate that competes with the
+ * title for attention costs more than it gives, and the first version did
+ * exactly that at 300px wide.
  *
- * Most records are not classified yet, and a blank frame would be worse than
- * no frame, so the plate degrades deliberately rather than by accident:
+ * What is drawn depends on how much room there is:
  *
- *   function + subject  the full composition
- *   function only       the emblem alone, centred
- *   subject only        the engraving alone
- *   neither             the hallmark alone, enlarged
+ *   mark  one drawing only: the function emblem, or the medium hallmark when
+ *         the record is not classified. At 52px a composition is mush, and
+ *         the function is what distinguishes one record from another anyway.
+ *   hero  the subject engraving with the emblem on it and the hallmark
+ *         stamped in the corner, where a record has a subject and the page
+ *         has room for it. Otherwise the same single drawing.
  *
- * The last case is not an error state and is not drawn as one. Every record
- * has a molecule type, so every record has a plate.
+ * Most records are not classified, so most plates are a single hallmark. That
+ * is not an error state and is not drawn as one: every record has a molecule
+ * type, so every record has a plate.
  *
  * The drawings and the reasoning behind the sets are in
  * public/glyphs/README.md.
  */
 
-export type PlateSize = "card" | "hero";
+export type PlateSize = "mark" | "hero";
 
 interface PlateProps {
   moleculeType: string;
@@ -37,8 +39,8 @@ interface PlateProps {
   size?: PlateSize;
 }
 
-/** One sentence describing the whole plate, for a screen reader. */
-function describe(
+/** One sentence describing the plate, for a screen reader and on hover. */
+export function describePlate(
   moleculeType: string,
   functionClass?: string | null,
   subjectClass?: string | null,
@@ -47,7 +49,7 @@ function describe(
   const fn = functionClass ? FUNCTION_LABELS[functionClass] ?? functionClass : null;
   const subject = subjectClass ? SUBJECT_LABELS[subjectClass] ?? subjectClass : null;
 
-  if (fn && subject) return `${fn} acting on a ${subject.toLowerCase()}. ${molecule}.`;
+  if (fn && subject) return `${fn}, acting on a ${subject.toLowerCase()}. ${molecule}.`;
   if (fn) return `${fn}. ${molecule}.`;
   if (subject) return `Acts on a ${subject.toLowerCase()}. ${molecule}.`;
   return `${molecule}. Not yet classified.`;
@@ -57,78 +59,48 @@ export function Plate({
   moleculeType,
   functionClass,
   subjectClass,
-  size = "card",
+  size = "mark",
 }: PlateProps) {
   const subject = glyphPath("subject", subjectClass);
   const fn = glyphPath("function", functionClass);
   const hallmark = glyphPath("medium", moleculeType);
 
-  // What stands alone in the middle when there is no engraving to stand on.
+  const description = describePlate(moleculeType, functionClass, subjectClass);
+  // Both class names are written out in full on purpose. Tailwind 3 drops
+  // rules in `@layer components` whose class it cannot find as a literal
+  // string while scanning the source, so a template literal like
+  // `plate-${size}` makes `.plate-mark` and `.plate-hero` vanish from the
+  // built stylesheet with no error anywhere. The first version of this
+  // component did that, and the plate silently took whatever width its
+  // container happened to give it.
+  const className = size === "hero" ? "plate plate-hero" : "plate plate-mark";
+  const composed = size === "hero" && subject !== null;
+  // What stands alone when there is no composition: the function if the
+  // record has one, else what it is made of.
   const solo = fn ?? hallmark;
 
   return (
     <div
-      className={`plate plate-${size}`}
+      className={className}
       role="img"
-      aria-label={describe(moleculeType, functionClass, subjectClass)}
+      aria-label={description}
+      title={description}
     >
-      {subject ? (
+      {composed ? (
         <>
-          <img className="plate-ground" src={subject} alt="" aria-hidden="true" />
+          <img className="plate-ground" src={subject as string} alt="" aria-hidden="true" />
           {fn ? (
             <span className="plate-figure">
               <img src={fn} alt="" aria-hidden="true" />
             </span>
           ) : null}
+          {hallmark ? (
+            <img className="plate-stamp" src={hallmark} alt="" aria-hidden="true" />
+          ) : null}
         </>
       ) : solo ? (
         <img className="plate-solo" src={solo} alt="" aria-hidden="true" />
       ) : null}
-
-      {/* The stamp is omitted only when it is already the solo drawing, so it
-          is never shown twice on one plate. */}
-      {hallmark && (subject || fn) ? (
-        <img className="plate-stamp" src={hallmark} alt="" aria-hidden="true" />
-      ) : null}
     </div>
-  );
-}
-
-/**
- * What the plate is showing, in words, for the record page.
- *
- * Kept beside the drawing rather than inside it, because a plate that is
- * mistaken for a picture of the molecule is worse than no plate: these are
- * house drawings of a class of thing, not depictions of this sequence.
- */
-export function PlateCaption({
-  functionClass,
-  subjectClass,
-}: {
-  functionClass?: string | null;
-  subjectClass?: string | null;
-}) {
-  const fn = functionClass ? FUNCTION_LABELS[functionClass] ?? functionClass : null;
-  const subject = subjectClass ? SUBJECT_LABELS[subjectClass] ?? subjectClass : null;
-
-  if (!fn && !subject) {
-    return (
-      <p className="plate-caption">
-        This record has not been classified yet, so the plate shows only what it
-        is made of.
-      </p>
-    );
-  }
-
-  return (
-    <p className="plate-caption">
-      {fn ? <strong>{fn}</strong> : null}
-      {fn && subject ? ", acting on " : null}
-      {!fn && subject ? "Acts on " : null}
-      {subject ? <strong>{subject.toLowerCase()}</strong> : null}.{" "}
-      <span className="plate-caption-note">
-        A house drawing of that class of thing, not a depiction of this sequence.
-      </span>
-    </p>
   );
 }

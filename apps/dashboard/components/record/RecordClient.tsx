@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { KindBadge } from "../Accession";
-import { Plate, PlateCaption } from "../Plate";
+import { Plate } from "../Plate";
 import {
   CatalogueError,
   HOST_LABELS,
   LICENSE_LABELS,
+  FUNCTION_LABELS,
   MOLECULE_LABELS,
+  SUBJECT_LABELS,
   fetchRecord,
   formatDate,
   formatLength,
@@ -175,6 +177,12 @@ export function RecordClient({ id }: { id: string }) {
   const record = data;
   const { source, design, sequence } = record;
   const molecule = MOLECULE_LABELS[record.molecule_type] ?? record.molecule_type;
+  const functionLabel = record.function_class
+    ? FUNCTION_LABELS[record.function_class] ?? record.function_class
+    : null;
+  const subjectLabel = record.subject_class
+    ? SUBJECT_LABELS[record.subject_class] ?? record.subject_class
+    : null;
   const citation = citationFor(record);
   const withheld = sequence?.withheld ?? false;
   const held = sequence?.held ?? false;
@@ -199,20 +207,12 @@ export function RecordClient({ id }: { id: string }) {
 
       {/* --- Summary ------------------------------------------------------ */}
       <div className="record-hero">
-        <figure className="record-hero-plate" style={{ margin: 0 }}>
-          <Plate
-            moleculeType={record.molecule_type}
-            functionClass={record.function_class}
-            subjectClass={record.subject_class}
-            size="hero"
-          />
-          <figcaption>
-            <PlateCaption
-              functionClass={record.function_class}
-              subjectClass={record.subject_class}
-            />
-          </figcaption>
-        </figure>
+        <Plate
+          moleculeType={record.molecule_type}
+          functionClass={record.function_class}
+          subjectClass={record.subject_class}
+          size="hero"
+        />
 
         <div className="record-hero-label">
           <div className="record-head">
@@ -235,6 +235,16 @@ export function RecordClient({ id }: { id: string }) {
           <h1 className="h1" style={{ fontSize: "clamp(26px, 4.6vw, 38px)", marginTop: 14 }}>
             {record.title}
           </h1>
+
+          {functionLabel || subjectLabel ? (
+            <p className="record-class">
+              {functionLabel}
+              {functionLabel && subjectLabel ? (
+                <span className="sep"> &middot; </span>
+              ) : null}
+              {subjectLabel ? `acts on a ${subjectLabel.toLowerCase()}` : null}
+            </p>
+          ) : null}
 
           {record.summary ? (
             <p className="lede" style={{ maxWidth: 680 }}>
