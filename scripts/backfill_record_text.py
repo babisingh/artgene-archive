@@ -16,10 +16,17 @@ What it sends, per record:
 
 Usage::
 
-    export ARTGENE_API_URL=https://...        # no trailing slash
-    export ARTGENE_API_KEY=...                # needs catalogue:draft
+    export ARTGENE_API_URL=http://localhost:8000   # the tinsel-api service
+    export ARTGENE_API_KEY=...                     # needs catalogue:draft
     python3 scripts/backfill_record_text.py --dry-run
     python3 scripts/backfill_record_text.py
+
+``ARTGENE_API_URL`` is the tinsel-api service's base URL, with no trailing
+slash and no ``/api/v1`` -- this script adds the path. That is
+``http://localhost:8000`` for the local stack from ``docker compose up``, and
+in production the same value the dashboard service carries as ``API_URL``.
+The key goes in ``X-API-Key`` and needs the ``catalogue:draft`` scope, so a
+public read-only key will not do.
 
 Matching is by DOI, which is the only identifier a draft and a record share;
 the script reads the catalogue, builds a DOI index, and skips any draft whose
@@ -109,7 +116,10 @@ def payloads(path: pathlib.Path) -> tuple[dict, dict, str]:
 def request(url: str, key: str, method: str = "GET", body: dict | None = None) -> dict:
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method)
-    req.add_header("Authorization", f"Bearer {key}")
+    # The API reads X-API-Key (sentinel_api/dependencies.py), not a bearer
+    # token. Sending the wrong header fails every call with a 422 for a
+    # missing required header, which looks nothing like an auth problem.
+    req.add_header("X-API-Key", key)
     if data:
         req.add_header("Content-Type", "application/json")
     with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310 - fixed scheme
@@ -157,8 +167,26 @@ def main() -> int:
 
     index: dict[str, str] = {}
     if not args.dry_run:
-        print("Reading the catalogue to match drafts by DOI.")
-        index = doi_index(base, key)
+        print(f"Reading the catalogue at {base} to match drafts by DOI.")
+        try:
+            index = doi_index(base, key)
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode()[:200]
+            print(f"Could not read the catalogue: {exc.code} {detail}")
+            if exc.code in (401, 403):
+                print(
+                    "  The key goes in X-API-Key and needs catalogue:draft. "
+                    "A public read-only key is not enough."
+                )
+            elif exc.code == 404:
+                print(
+                    "  ARTGENE_API_URL should be the service root, with no "
+                    "trailing slash and no /api/v1."
+                )
+            return 1
+        except urllib.error.URLError as exc:
+            print(f"Could not reach {base}: {exc.reason}")
+            return 1
         print(f"  {len(index)} record(s) with a DOI.")
 
     sent = skipped = 0
