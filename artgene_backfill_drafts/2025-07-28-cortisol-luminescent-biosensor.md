@@ -13,6 +13,8 @@ archive:
   container: Journal of the American Chemical Society
   biosafety_class: none
   molecule_type: protein
+  function_class: sensor
+  subject_class: small_molecule
   generating_model: a Rosetta-based de novo design pipeline using RIFdock and PatchDock for scaffold placement, Rosetta FastDesign and ProteinMPNN for sequence design, with AlphaFold2 and AlphaFold3 for filtering and fusion sampling
   model_availability: open-weights
   design_target: cortisol-induced protein heterodimers (lid proteins paired with the mhcy129 cortisol binder) fused to split luciferase fragments to make a luminescent cortisol biosensor

@@ -12,6 +12,11 @@ archive:
   container: Cell Chemical Biology
   biosafety_class: none
   molecule_type: protein
+  function_class: switch
+  subject_class: condensate
+  classification_note: >-
+    It binds Hsp70 and acts on condensates. The condensate is the effect the
+    paper is about, and the more informative plate.
   generating_model: Rosetta de novo design, using RifDock docking, FastDesign and MotifGraft for fully de novo J-domain mimics and RosettaRemodel for the partially designed series, with AlphaFold2 used to filter predicted complexes
   model_availability: open-weights
   design_target: synthetic J-domain mimic proteins that bind the Hsp70 chaperone at the native J-domain site, activate its ATPase, and dissolve intracellular condensates

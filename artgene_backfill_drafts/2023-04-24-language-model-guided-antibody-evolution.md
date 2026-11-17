@@ -13,6 +13,8 @@ archive:
   container: Nature Biotechnology
   biosafety_class: none
   molecule_type: protein
+  function_class: improver
+  subject_class: soluble_protein
   generating_model: ESM-1b and the ESM-1v ensemble of five models, six general protein language models total, used without task-specific training
   model_availability: open-weights
   design_target: affinity maturation of human antibodies by proposing evolutionarily plausible single-residue substitutions, with no antigen, structure or binding information given to the model

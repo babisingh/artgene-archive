@@ -13,6 +13,12 @@ archive:
   container: Nature Computational Science
   biosafety_class: none
   molecule_type: dna
+  function_class: binder
+  subject_class: receptor
+  classification_note: >-
+    LOX1 and PTK7 are receptors; CXCL5 is a soluble chemokine. The
+    transcription-factor-binding DNA in the same paper is bound by its target
+    rather than binding one.
   generating_model: InstructNA, a nucleic-acid language model continually pretrained on HT-SELEX data, DNABERT by default and also tested with Evo1 and Nucleotide Transformer, coupled to the HC-HEBO hill-climbing Bayesian optimization algorithm for latent-space directed evolution
   model_availability: open-weights
   design_target: de novo functional nucleic acids, transcription-factor-binding DNA with higher binding specificity and DNA aptamers with higher binding affinity to protein targets LOX1, CXCL5 and PTK7

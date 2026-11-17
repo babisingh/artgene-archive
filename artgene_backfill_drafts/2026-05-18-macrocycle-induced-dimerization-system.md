@@ -13,6 +13,8 @@ archive:
   container: Nature Communications
   biosafety_class: none
   molecule_type: protein
+  function_class: switch
+  subject_class: small_molecule
   generating_model: Rosetta de novo design, with a PyRosetta hashing protocol to find closed C2-symmetric macrocycle conformations and RosettaFastDesign allowing L and D amino acids and N-alkylation for the macrocycle, and RifGen, RifDock, RosettaFastDesign and ProteinMPNN for the protein binder, with AlphaFold2 filtering
   model_availability: open-weights
   design_target: a chemically induced dimerization system made of a de novo macrocyclic peptide ligand and a cognate protein homodimer that binds it across both chains, for conditional control of gene expression and luciferase reconstitution in cells

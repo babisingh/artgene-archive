@@ -12,6 +12,8 @@ archive:
   container: Nature
   biosafety_class: none
   molecule_type: protein
+  function_class: binder
+  subject_class: hormone_peptide
   generating_model: RFdiffusion, extended to flexible targets and to partial diffusion, with ProteinMPNN sequence design and AlphaFold2 filtering, alongside parametric Rosetta generation, RFjoint Inpainting and AF2 hallucination
   model_availability: open-weights
   design_target: high-affinity binding proteins for bioactive helical peptide hormones, including parathyroid hormone, glucagon, neuropeptide Y, secretin and the Bim peptide

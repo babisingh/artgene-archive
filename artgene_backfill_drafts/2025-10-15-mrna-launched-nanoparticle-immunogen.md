@@ -13,6 +13,11 @@ archive:
   container: Science Translational Medicine
   biosafety_class: none
   molecule_type: protein
+  function_class: shell
+  subject_class: virion
+  classification_note: >-
+    The nanoparticle displays a SARS-CoV-2 antigen, so what it is aimed at is
+    the virion, not the particle that carries the display.
   generating_model: Rosetta-based computational protein design, using the de novo icosahedral nanoparticle I3-01 re-engineered for secretion (I3-01NS) and a computationally stabilized SARS-CoV-2 RBD (Rpk9)
   model_availability: not stated
   design_target: a self-assembling 60-subunit protein nanoparticle that secretes from human cells and displays 60 copies of a viral antigen, delivered as an mRNA vaccine

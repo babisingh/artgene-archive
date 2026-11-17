@@ -13,13 +13,20 @@ archive:
   container: Nature
   biosafety_class: none
   molecule_type: protein
+  function_class:
+  subject_class:
+  classification_note: >-
+    A method paper. It produces monomers, oligomers, active-site scaffolds,
+    metal-binding assemblies and binders, so no single function is true of it,
+    and there is no 'method' value to say that with. Left empty rather than
+    narrowed to one of its applications.
   generating_model: RFdiffusion, a denoising diffusion model built by fine-tuning the RoseTTAFold structure prediction network, with ProteinMPNN for sequence design
   model_availability: open-weights
   design_target: unconditional and fold-conditioned monomers, symmetric oligomers, functional-motif and enzyme active-site scaffolds, metal-binding assemblies, and de novo binders to specified protein targets
   n_designed: unknown
   n_tested: unknown
   n_functional: unknown
-  counts_note: The paper reports results per design campaign rather than as one total. Examples: 608 symmetric oligomer designs screened with at least 87 matching the intended oligomeric state by size exclusion chromatography; 96 MDM2-targeting designs with 55 binding at 10 micromolar and the best at 0.5 to 0.7 nM; 44 nickel-binding designs expressed with 18 coordinating the metal; five binder targets at 95 designs each with an overall 19 percent experimental success rate.
+  counts_note: 'The paper reports results per design campaign rather than as one total. Examples: 608 symmetric oligomer designs screened with at least 87 matching the intended oligomeric state by size exclusion chromatography; 96 MDM2-targeting designs with 55 binding at 10 micromolar and the best at 0.5 to 0.7 nM; 44 nickel-binding designs expressed with 18 coordinating the metal; five binder targets at 95 designs each with an overall 19 percent experimental success rate.'
   assays: [expression, binding, structure, activity, biolayer-interferometry, size-exclusion-chromatography, electron-microscopy, cryo-EM, isothermal-titration-calorimetry, circular-dichroism]
   expression_host: ECOLI
   sequences_deposited: yes

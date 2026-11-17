@@ -13,6 +13,11 @@ archive:
   container: Nature Biotechnology
   biosafety_class: none
   molecule_type: protein
+  function_class: binder
+  subject_class: soluble_protein
+  classification_note: >-
+    The targets span receptors and disordered proteins as well as soluble
+    ones; soluble protein is the plurality, not the whole.
   generating_model: PepMLM, the ESM-2-650M protein language model finetuned with a span-masking strategy that reconstructs a masked binder region appended to the target protein sequence
   model_availability: open-weights
   design_target: de novo linear peptide binders conditioned on target protein sequence alone, used directly as binders and as guides in ubiquibody degraders against NCAM1, AMHR2, MSH3, mutant huntingtin, the henipavirus and metapneumovirus phosphoproteins and MESH1

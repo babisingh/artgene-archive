@@ -12,6 +12,8 @@ archive:
   container: Nature
   biosafety_class: none
   molecule_type: protein
+  function_class: binder
+  subject_class: disordered_chain
   generating_model: RFdiffusion v1.1.0, fine-tuned for flexible targets with sequence-only target input and an added secondary structure specification, with ProteinMPNN v1.0.1 for sequence design and AlphaFold2 initial guess for filtering
   model_availability: open-weights
   design_target: high-affinity binding proteins for intrinsically disordered proteins and regions, including amylin, C-peptide, VP48, BRCA1_ARATH, FUS, G3BP1, the prion protein and IL-2RG

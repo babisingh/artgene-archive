@@ -13,6 +13,12 @@ archive:
   container: Nature Communications
   biosafety_class: none
   molecule_type: protein
+  function_class: shell
+  subject_class:
+  classification_note: >-
+    The capsids are aimed at liver tissue across species. There is no cell or
+    tissue value in SUBJECT_CLASSES, and naming the capsid itself as the
+    subject would describe the thing rather than what it acts on.
   generating_model: "Fit4Function, an ensemble of six sequence-to-function machine learning models including long short-term memory regression models, used to design 7-mer capsid insertions; no single version number stated"
   model_availability: open-weights
   design_target: AAV9 capsids carrying engineered 7-mer peptide insertions that are simultaneously manufacturable and liver-targeted across species

@@ -13,6 +13,8 @@ archive:
   container: Nature
   biosafety_class: none
   molecule_type: protein
+  function_class: enzyme
+  subject_class: small_molecule
   generating_model: Family-wide hallucination using the trRosetta structure prediction network for scaffold generation, with ProteinMPNN for sequence design, AlphaFold2 for filtering, and RIF docking plus Rosetta for active-site placement
   model_availability: open-weights
   design_target: artificial luciferases that catalyze the oxidative chemiluminescence of the synthetic luciferins diphenylterazine and 2-deoxycoelenterazine

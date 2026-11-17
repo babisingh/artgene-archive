@@ -13,6 +13,12 @@ archive:
   container: Nature
   biosafety_class: none
   molecule_type: protein
+  function_class: binder
+  subject_class: virion
+  classification_note: >-
+    Six targets, of which influenza haemagglutinin, RSV sites I and III and
+    the SARS-CoV-2 RBD are viral. Toxin B and IL-7R alpha are not, so this is
+    the plurality rather than the whole.
   generating_model: RFdiffusion fine-tuned for antibody design, with ProteinMPNN for complementarity-determining region sequence design and a fine-tuned RoseTTAFold for filtering
   model_availability: open-weights
   design_target: de novo VHHs, single-chain variable fragments and full antibodies that bind user-specified epitopes on targets including Clostridioides difficile toxin B, influenza haemagglutinin, RSV sites I and III, SARS-CoV-2 RBD, IL-7R alpha and a PHOX2B peptide-MHC complex
