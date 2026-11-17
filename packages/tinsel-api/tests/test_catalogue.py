@@ -340,3 +340,141 @@ class TestVisibility:
             f"/api/v1/catalogue?status={bad_status}", headers=scoped_keys["agent"]
         )
         assert resp.status_code == 422
+
+
+class TestClassification:
+    """What a record does and what it acts on.
+
+    These are the two fields the browse page groups by, so the behaviour that
+    matters is that a wrong value is refused loudly rather than stored, and
+    that an unclassified record stays usable.
+    """
+
+    async def test_a_record_starts_unclassified(
+        self, client: AsyncClient, scoped_keys, licences
+    ) -> None:
+        """Neither field is required to create a record, and absence is null."""
+        resp = await _create(client, scoped_keys["agent"])
+        assert resp.status_code == 201, resp.text
+        assert resp.json()["function_class"] is None
+        assert resp.json()["subject_class"] is None
+
+    async def test_classes_can_be_set_at_ingest(
+        self, client: AsyncClient, scoped_keys, licences
+    ) -> None:
+        body = payload()
+        body["function_class"] = "binder"
+        body["subject_class"] = "soluble_protein"
+        resp = await _create(client, scoped_keys["agent"], body)
+        assert resp.status_code == 201, resp.text
+        assert resp.json()["function_class"] == "binder"
+        assert resp.json()["subject_class"] == "soluble_protein"
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("function_class", "inhibitor"),
+            ("function_class", "Binder"),
+            ("subject_class", "virus"),
+            ("subject_class", "soluble-protein"),
+        ],
+    )
+    async def test_an_unknown_class_is_refused_at_ingest(
+        self, client: AsyncClient, scoped_keys, licences, field: str, value: str
+    ) -> None:
+        """Including near-misses: the wrong case, and the file's kebab spelling."""
+        body = payload()
+        body[field] = value
+        resp = await _create(client, scoped_keys["agent"], body)
+        assert resp.status_code == 422, resp.text
+
+    async def test_classification_can_be_set_and_revised_after_ingest(
+        self, client: AsyncClient, scoped_keys, licences
+    ) -> None:
+        """Assigning these is a reading of the paper, so it happens later."""
+        created = await _create(client, scoped_keys["agent"])
+        registry_id = created.json()["registry_id"]
+
+        first = await client.put(
+            f"/api/v1/catalogue/{registry_id}/classification",
+            json={"function_class": "binder", "subject_class": "virion"},
+            headers=scoped_keys["agent"],
+        )
+        assert first.status_code == 200, first.text
+        assert first.json()["function_class"] == "binder"
+        assert first.json()["subject_class"] == "virion"
+
+        revised = await client.put(
+            f"/api/v1/catalogue/{registry_id}/classification",
+            json={"function_class": "sensor", "subject_class": None},
+            headers=scoped_keys["agent"],
+        )
+        assert revised.status_code == 200, revised.text
+        assert revised.json()["function_class"] == "sensor"
+        assert revised.json()["subject_class"] is None
+
+    async def test_classifying_requires_the_draft_scope(
+        self, client: AsyncClient, scoped_keys, licences
+    ) -> None:
+        created = await _create(client, scoped_keys["agent"])
+        registry_id = created.json()["registry_id"]
+        resp = await client.put(
+            f"/api/v1/catalogue/{registry_id}/classification",
+            json={"function_class": "binder"},
+            headers=scoped_keys["plain"],
+        )
+        assert resp.status_code == 403
+
+    async def test_classifying_an_unknown_record_is_a_404(
+        self, client: AsyncClient, scoped_keys, licences
+    ) -> None:
+        resp = await client.put(
+            "/api/v1/catalogue/AGC-2026-999999/classification",
+            json={"function_class": "binder"},
+            headers=scoped_keys["agent"],
+        )
+        assert resp.status_code == 404
+
+    async def test_list_filters_by_function_and_subject(
+        self, client: AsyncClient, scoped_keys, licences
+    ) -> None:
+        binder = payload()
+        binder["function_class"] = "binder"
+        binder["subject_class"] = "virion"
+        await _create(client, scoped_keys["agent"], binder)
+
+        sensor = payload(doi="10.64898/2026.10.08.757795")
+        sensor["function_class"] = "sensor"
+        await _create(client, scoped_keys["agent"], sensor)
+
+        both = await client.get("/api/v1/catalogue", headers=scoped_keys["agent"])
+        assert both.json()["count"] == 2
+
+        only_binders = await client.get(
+            "/api/v1/catalogue?function_class=binder", headers=scoped_keys["agent"]
+        )
+        assert only_binders.json()["count"] == 1
+        assert only_binders.json()["items"][0]["function_class"] == "binder"
+
+        by_subject = await client.get(
+            "/api/v1/catalogue?subject_class=virion", headers=scoped_keys["agent"]
+        )
+        assert by_subject.json()["count"] == 1
+
+        unused = await client.get(
+            "/api/v1/catalogue?subject_class=nanoparticle", headers=scoped_keys["agent"]
+        )
+        assert unused.json()["count"] == 0
+
+    @pytest.mark.parametrize(
+        "query",
+        ["function_class=inhibitor", "subject_class=virus", "function_class=Binder"],
+    )
+    async def test_list_rejects_an_unknown_class_filter(
+        self, client: AsyncClient, scoped_keys, licences, query: str
+    ) -> None:
+        """Silently returning nothing would read as 'the archive holds none'."""
+        resp = await client.get(
+            f"/api/v1/catalogue?{query}", headers=scoped_keys["agent"]
+        )
+        assert resp.status_code == 422

@@ -42,7 +42,9 @@ from sentinel_api.accession import (
 from sentinel_api.db.catalogue import (
     BIOSAFETY_CLASSES,
     CATALOGUE_STATUSES,
+    FUNCTION_CLASSES,
     MOLECULE_TYPES,
+    SUBJECT_CLASSES,
     CatalogueRecord,
     DesignMetadata,
     ExternalAccession,
@@ -158,6 +160,11 @@ class GateAnswerIn(BaseModel):
 class CatalogueCreate(BaseModel):
     title: str
     molecule_type: str
+    # What the record does and what it acts on. Both optional: an ingest run
+    # records what the paper says, and these are a reading of it, which may
+    # arrive later or not at all.
+    function_class: str | None = None
+    subject_class: str | None = None
     source: SourceIn
     design: DesignIn
     accessions: list[AccessionIn] = Field(default_factory=list)
@@ -231,6 +238,8 @@ class CatalogueOut(BaseModel):
     citation_only: bool = False
     title: str
     molecule_type: str
+    function_class: str | None = None
+    subject_class: str | None = None
     hosting_decision: str
     hosting_reason: str
     biosafety_class: str
@@ -252,6 +261,19 @@ class CatalogueOut(BaseModel):
 
 class StatusChange(BaseModel):
     status: str
+    reason: str | None = None
+
+
+class ClassificationIn(BaseModel):
+    """How a record is classified for browsing.
+
+    Both fields are sent every time rather than patched one at a time, so
+    clearing one is ``null`` rather than an absence, and a client cannot clear
+    a field by forgetting it.
+    """
+
+    function_class: str | None = None
+    subject_class: str | None = None
     reason: str | None = None
 
 
@@ -478,6 +500,8 @@ async def _to_out(
         citation_only=record.citation_only,
         title=record.title,
         molecule_type=record.molecule_type,
+        function_class=record.function_class,
+        subject_class=record.subject_class,
         hosting_decision=record.hosting_decision,
         hosting_reason=record.hosting_reason,
         biosafety_class=record.biosafety_class,
@@ -515,6 +539,24 @@ async def create_catalogue_record(
             detail={
                 "code": "INVALID_BIOSAFETY_CLASS",
                 "message": f"biosafety_class must be one of {sorted(BIOSAFETY_CLASSES)}",
+            },
+        )
+    # Checked here as well as by the CHECK constraint, so a bad value is a 422
+    # naming the field rather than a 500 from the database driver.
+    if body.function_class is not None and body.function_class not in FUNCTION_CLASSES:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "INVALID_FUNCTION_CLASS",
+                "message": f"function_class must be one of {sorted(FUNCTION_CLASSES)}",
+            },
+        )
+    if body.subject_class is not None and body.subject_class not in SUBJECT_CLASSES:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "INVALID_SUBJECT_CLASS",
+                "message": f"subject_class must be one of {sorted(SUBJECT_CLASSES)}",
             },
         )
 
@@ -592,6 +634,8 @@ async def create_catalogue_record(
         source_id=source.id,
         title=body.title,
         molecule_type=body.molecule_type,
+        function_class=body.function_class,
+        subject_class=body.subject_class,
         status="draft",
         visibility="private",
         hosting_decision=hosting_decision,
@@ -768,6 +812,65 @@ async def change_status(
     return await _to_out(db, record, source)
 
 
+@router.put("/{registry_id}/classification", response_model=CatalogueOut)
+async def set_classification(
+    registry_id: str,
+    body: ClassificationIn,
+    db: AsyncSession = Depends(get_db),
+    principal: Principal = Depends(require_scope(CATALOGUE_DRAFT)),
+) -> CatalogueOut:
+    """Set what a record does and what it acts on.
+
+    Separate from the ingest that created the record, because this is a
+    reading of the paper rather than a transcription of it, and it is often
+    done later and revised. Allowed in any status: a record published with the
+    wrong class should be correctable without a round trip through withdrawn.
+
+    The change is recorded as an integrity gate row, like a status move, so the
+    record can say who classified it and why.
+    """
+    if body.function_class is not None and body.function_class not in FUNCTION_CLASSES:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "INVALID_FUNCTION_CLASS",
+                "message": f"function_class must be one of {sorted(FUNCTION_CLASSES)}",
+            },
+        )
+    if body.subject_class is not None and body.subject_class not in SUBJECT_CLASSES:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "INVALID_SUBJECT_CLASS",
+                "message": f"subject_class must be one of {sorted(SUBJECT_CLASSES)}",
+            },
+        )
+
+    record, source = await _load(db, registry_id)
+    previous = (record.function_class, record.subject_class)
+    record.function_class = body.function_class
+    record.subject_class = body.subject_class
+
+    if previous != (body.function_class, body.subject_class):
+        await _record_gate(
+            db,
+            registry_id,
+            "integrity",
+            "classification",
+            "pass",
+            body.reason
+            or (
+                f"function {previous[0] or '-'}->{body.function_class or '-'}, "
+                f"subject {previous[1] or '-'}->{body.subject_class or '-'}"
+            ),
+            f"key:{principal.key_id}",
+        )
+
+    await db.commit()
+    record, source = await _load(db, registry_id)
+    return await _to_out(db, record, source, privileged=True)
+
+
 # ---------------------------------------------------------------------------
 # Reads
 # ---------------------------------------------------------------------------
@@ -805,6 +908,8 @@ async def list_catalogue_records(
     status: str | None = Query(None),
     q: str | None = Query(None, max_length=200, description="Search titles, sources and models"),
     molecule_type: str | None = Query(None),
+    function_class: str | None = Query(None, description="What the record does"),
+    subject_class: str | None = Query(None, description="What it acts on"),
     model: str | None = Query(None, max_length=100, description="Generating model, partial match"),
     validated: bool | None = Query(None, description="Wet-lab validated only"),
     kind: str | None = Query(None, description="catalogue or submission"),
@@ -836,6 +941,29 @@ async def list_catalogue_records(
         conditions.append(CatalogueRecord.status == status)
     if molecule_type is not None:
         conditions.append(CatalogueRecord.molecule_type == molecule_type)
+    # An unknown value here would silently return nothing, which reads as "the
+    # archive holds no such records" rather than "you asked for a class that
+    # does not exist". Reject it instead, as status above does.
+    if function_class is not None:
+        if function_class not in FUNCTION_CLASSES:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "INVALID_FUNCTION_CLASS",
+                    "message": f"function_class must be one of {sorted(FUNCTION_CLASSES)}",
+                },
+            )
+        conditions.append(CatalogueRecord.function_class == function_class)
+    if subject_class is not None:
+        if subject_class not in SUBJECT_CLASSES:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "INVALID_SUBJECT_CLASS",
+                    "message": f"subject_class must be one of {sorted(SUBJECT_CLASSES)}",
+                },
+            )
+        conditions.append(CatalogueRecord.subject_class == subject_class)
     if model:
         conditions.append(
             func.lower(DesignMetadata.generating_model).contains(model.lower(), autoescape=True)
@@ -883,6 +1011,8 @@ async def list_catalogue_records(
                 "status": r.status,
                 "visibility": r.visibility,
                 "molecule_type": r.molecule_type,
+                "function_class": r.function_class,
+                "subject_class": r.subject_class,
                 "hosting_decision": r.hosting_decision,
                 "biosafety_class": r.biosafety_class,
                 "record_kind": "submission" if record_class == "submission" else "catalogue",
