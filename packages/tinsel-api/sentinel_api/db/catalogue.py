@@ -76,6 +76,12 @@ FUNCTION_CLASSES = (
     "shell",
     "gene",
     "improver",
+    # A design method rather than a designed thing. Added in 018, after
+    # classifying the first twenty records left RFdiffusion and LigandMPNN
+    # with no honest value: each produces binders, scaffolds, sensors and
+    # enzymes alike, so naming any one of them would have been a claim the
+    # paper does not make. "What it does" is "it makes these things".
+    "method",
 )
 #: What the designed thing acts on. ``None`` is a real answer and the common
 #: one for a record whose point is a method rather than a target.

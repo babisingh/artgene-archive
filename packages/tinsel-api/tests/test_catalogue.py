@@ -478,3 +478,25 @@ class TestClassification:
             f"/api/v1/catalogue?{query}", headers=scoped_keys["agent"]
         )
         assert resp.status_code == 422
+
+    async def test_a_method_paper_can_say_so(
+        self, client: AsyncClient, scoped_keys, licences
+    ) -> None:
+        """`method` exists because two of the first twenty records needed it.
+
+        RFdiffusion and LigandMPNN each produce binders, scaffolds, sensors and
+        enzymes alike, so every other value would have been a claim the paper
+        does not make. A method is aimed at no single target, so the subject
+        stays empty beside it.
+        """
+        body = payload()
+        body["function_class"] = "method"
+        resp = await _create(client, scoped_keys["agent"], body)
+        assert resp.status_code == 201, resp.text
+        assert resp.json()["function_class"] == "method"
+        assert resp.json()["subject_class"] is None
+
+        listed = await client.get(
+            "/api/v1/catalogue?function_class=method", headers=scoped_keys["agent"]
+        )
+        assert listed.json()["count"] == 1
