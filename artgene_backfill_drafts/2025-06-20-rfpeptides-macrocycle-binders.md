@@ -89,4 +89,6 @@ sources:
 
 **Why it matters for provenance.** A head-to-tail cyclic peptide is not fully described by a linear coding sequence, because the bond that closes the ring and the designed backbone geometry are part of the molecule. A registry that assumes a linear sequence is the whole object will miss what makes a macrocycle a macrocycle.
 
+**In plain words.** A macrocycle is a short chain joined head to tail into a ring, which makes it tough and small enough to reach places a full protein cannot. The team designed rings to grip four chosen proteins. Seventy-seven were made by chemistry, many failed to close properly, and those that worked matched their crystal photographs almost exactly.
+
 Source: Stephen A. Rettie, David Juergens, Victor Adebomi and colleagues, with David Baker, Frank DiMaio and Gaurav Bhardwaj. Accurate de novo design of high-affinity protein-binding macrocycles using deep learning. Nature Chemical Biology, published online 20 June 2025, doi 10.1038/s41589-025-01929-w. https://doi.org/10.1038/s41589-025-01929-w

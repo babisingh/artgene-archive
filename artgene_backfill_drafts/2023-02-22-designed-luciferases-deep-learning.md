@@ -121,4 +121,6 @@ sources:
 
 **Why it matters for provenance.** LuxSit-i is a single designed protein whose gene was deposited, so it is fully described by its coding sequence and is a clean object for any registry of designed enzymes.
 
+**In plain words.** Some animals glow because of an enzyme that squeezes light out of a chemical. This team designed new glowing enzymes from scratch, built on shapes no living thing uses. They ordered 7,648 of their designs and tested them; three glowed. A second, narrower round did better, and the best of them works about as efficiently as the enzymes nature settled on.
+
 Source: Andy Hsien-Wei Yeh, Christoffer Norn, Yakov Kipnis and colleagues, including David Baker. De novo design of luciferases using deep learning. Nature, published 22 February 2023, doi 10.1038/s41586-023-05696-3. https://doi.org/10.1038/s41586-023-05696-3

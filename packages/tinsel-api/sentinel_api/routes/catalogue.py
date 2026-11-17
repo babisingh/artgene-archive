@@ -159,6 +159,7 @@ class GateAnswerIn(BaseModel):
 
 class CatalogueCreate(BaseModel):
     title: str
+    subtitle: str | None = None
     summary: str | None = None
     technical_summary: str | None = None
     molecule_type: str
@@ -252,6 +253,7 @@ class CatalogueOut(BaseModel):
     # catalogue: a citation of published work (AGC-). submission: deposited
     # directly by its authors (AG-).
     record_kind: str = "catalogue"
+    subtitle: str | None = None
     summary: str | None = None
     technical_summary: str | None = None
     created_at: datetime | None = None
@@ -274,6 +276,7 @@ class SummariesIn(BaseModel):
     absence, and a client cannot wipe a paragraph by forgetting it.
     """
 
+    subtitle: str | None = None
     summary: str | None = None
     technical_summary: str | None = None
     reason: str | None = None
@@ -469,6 +472,7 @@ async def _to_out(
 
     return CatalogueOut(
         record_kind="submission" if record_class == "submission" else "catalogue",
+        subtitle=None if redact else record.subtitle,
         summary=None if redact else record.summary,
         technical_summary=None if redact else record.technical_summary,
         created_at=record.created_at,
@@ -649,6 +653,7 @@ async def create_catalogue_record(
         id=registry_id,
         source_id=source.id,
         title=body.title,
+        subtitle=body.subtitle,
         summary=body.summary,
         technical_summary=body.technical_summary,
         molecule_type=body.molecule_type,
@@ -849,11 +854,12 @@ async def set_summaries(
     without the other.
     """
     record, source = await _load(db, registry_id)
-    previous = (record.summary, record.technical_summary)
+    previous = (record.subtitle, record.summary, record.technical_summary)
+    record.subtitle = body.subtitle
     record.summary = body.summary
     record.technical_summary = body.technical_summary
 
-    if previous != (body.summary, body.technical_summary):
+    if previous != (body.subtitle, body.summary, body.technical_summary):
         await _record_gate(
             db,
             registry_id,
@@ -1065,6 +1071,7 @@ async def list_catalogue_records(
             {
                 "registry_id": r.id,
                 "title": r.title,
+                "subtitle": r.subtitle,
                 "status": r.status,
                 "visibility": r.visibility,
                 "molecule_type": r.molecule_type,

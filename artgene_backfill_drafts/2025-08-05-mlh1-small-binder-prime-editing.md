@@ -69,4 +69,6 @@ sources:
 
 **Why it matters for provenance.** MLH1-SB is a small, fully encodable protein that becomes part of a delivered editing construct, so its coding sequence is the whole object and is straightforward to register, though the authors had not deposited it at preprint stage.
 
+**In plain words.** Prime editing rewrites a chosen piece of DNA, but the cell's proofreading machinery often undoes the change before it sticks. The team designed a small protein that holds that machinery out of the way. Nearly two thousand candidates were generated, sixty were tested, and the best of them raised the share of successful edits in cells and in mice.
+
 Source: Ju-Chan Park, Heesoo Uhm, Yong-Woo Kim, Ye Eun Oh and Sangsu Bae. AI-generated MLH1 small binder improves prime editing efficiency. Cell, published 5 August 2025, doi 10.1016/j.cell.2025.07.010. https://doi.org/10.1016/j.cell.2025.07.010

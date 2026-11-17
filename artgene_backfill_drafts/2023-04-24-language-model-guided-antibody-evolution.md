@@ -86,4 +86,6 @@ sources:
 
 **Why it matters for provenance.** A designed object defined as a parent antibody plus a few model-chosen substitutions cannot be registered by its own sequence alone, since the record only makes sense against the named parent. Any catalogue of such designs must store the parent identity and the specific edits together.
 
+**In plain words.** Antibodies are made to stick better by changing them a letter at a time and testing what happens, which normally takes rounds of lab work. Here a program that had only ever read protein sequences suggested which letters to change. It was never shown the antibody's target, its shape, or any measurement. Seventy-six of its suggestions were tried across seven antibodies, and some of the results stuck up to 160 times more tightly.
+
 Source: Brian L. Hie, Varun R. Shanker, Duo Xu, Theodora U. J. Bruun, Payton A. Weidenbacher, Shaogeng Tang, Wesley Wu, John E. Pak and Peter S. Kim. Efficient evolution of human antibodies from general protein language models. Nature Biotechnology, published online 24 April 2023, doi 10.1038/s41587-023-01763-2. https://doi.org/10.1038/s41587-023-01763-2

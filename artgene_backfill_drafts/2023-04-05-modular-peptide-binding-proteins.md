@@ -146,4 +146,6 @@ sources:
 
 **Why it matters for provenance.** A protein that can be designed to grip an arbitrary linear sequence is a recognition reagent that did not come from immunization or any natural repertoire, so a registry that traces binders to biological origin needs to account for designed ones.
 
+**In plain words.** A peptide is a short length of protein chain. The team built a gripper that reads such a chain three letters at a time, like a zip whose teeth match, so a longer peptide simply needs a longer gripper. Of 54 pairs tested, 16 gripped tightly and only where they were meant to, and seven crystal photographs showed the grip looked as it had been drawn.
+
 Source: Kejia Wu, Hua Bai, Ya-Ting Chang and colleagues. De novo design of modular peptide-binding proteins by superhelical matching. Nature, published 5 April 2023, doi 10.1038/s41586-023-05909-9. https://www.nature.com/articles/s41586-023-05909-9

@@ -96,4 +96,6 @@ sources:
 
 **Why it matters for provenance.** A LigandMPNN design is only fully specified together with the ligand, metal or nucleic acid it was built around; the protein coding sequence alone does not capture the bound partner that defines its function.
 
+**In plain words.** Programs that write protein sequences usually see only the protein, as though the metal, drug or piece of DNA it is holding were not there. This one sees them, and writes a sequence that fits around whatever the protein is gripping. More than a hundred of its designs worked in the lab, and four X-ray photographs showed the grip sitting where the program had put it.
+
 Source: Justas Dauparas, Gyu Rie Lee, Robert Pecoraro and colleagues, including David Baker. Atomic context-conditioned protein sequence design using LigandMPNN. Nature Methods, published 28 March 2025, doi 10.1038/s41592-025-02626-1. https://doi.org/10.1038/s41592-025-02626-1

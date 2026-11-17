@@ -83,4 +83,6 @@ sources:
 
 **Why it matters for provenance.** Short linear peptides written from a target sequence are cheap to make and trivially mutable, so a design and its close relatives proliferate easily. A public model like this one lowers the barrier to generating binders, which strengthens the case for recording designs by sequence while acknowledging how easily such records are sidestepped.
 
+**In plain words.** This method teaches a language model to write a short peptide that will stick to a target, given nothing but the target's sequence. Attached to a tag the cell uses to mark rubbish, those peptides drag their targets off to be destroyed. The targets included mutant huntingtin, the protein behind Huntington's disease, and proteins from two viruses.
+
 Source: Leo Tianlai Chen, Zachary Quinn, Madeleine Dumas, Christina Peng and colleagues, with Hector C. Aguilar and Pranam Chatterjee. Target sequence-conditioned design of peptide binders using masked language modeling. Nature Biotechnology, published online 13 August 2025, doi 10.1038/s41587-025-02761-2. https://doi.org/10.1038/s41587-025-02761-2

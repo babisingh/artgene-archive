@@ -511,11 +511,31 @@ class TestSummaries:
     other one reads, so either may be present without the other.
     """
 
+    async def test_the_subtitle_reaches_the_list(
+        self, client: AsyncClient, scoped_keys, licences
+    ) -> None:
+        """The list is the only place the subtitle is for, so it must be sent.
+
+        A browse row shows a title and a sentence. The summaries are far too
+        long for that and the list response does not carry them, so a subtitle
+        that never left the detail endpoint would be a column nothing reads.
+        """
+        body = payload()
+        body["subtitle"] = "A team fine-tuned a diffusion model for antibodies."
+        created = await _create(client, scoped_keys["agent"], body)
+        assert created.status_code == 201, created.text
+        assert created.json()["subtitle"].startswith("A team fine-tuned")
+
+        listed = await client.get("/api/v1/catalogue", headers=scoped_keys["agent"])
+        assert listed.status_code == 200
+        assert listed.json()["items"][0]["subtitle"].startswith("A team fine-tuned")
+
     async def test_a_record_may_start_with_neither(
         self, client: AsyncClient, scoped_keys, licences
     ) -> None:
         resp = await _create(client, scoped_keys["agent"])
         assert resp.status_code == 201, resp.text
+        assert resp.json()["subtitle"] is None
         assert resp.json()["summary"] is None
         assert resp.json()["technical_summary"] is None
 

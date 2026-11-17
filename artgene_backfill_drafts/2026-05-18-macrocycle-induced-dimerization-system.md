@@ -131,4 +131,6 @@ sources:
 
 **Why it matters for provenance.** The protein half is genetically encoded, but the macrocycle uses D amino acids and N-alkylation that no codon record can express. Any registry built around coding sequences would capture the receptor and miss the ligand that activates it.
 
+**In plain words.** Two proteins can be made to meet only when a particular chemical is present, which gives a way to switch a cell's behaviour on by adding a drug. The team designed both halves from scratch: a ring-shaped molecule small enough to cross into a cell, and a protein that grips one ring using two copies of itself. Adding the ring switched genes on in human cells.
+
 Source: Stephanie Hanna, Patrick J. Salveson, Basile Wicky and colleagues, including Barry L. Stoddard and David Baker. De novo design of a macrocycle-induced dimerization system for cellular control. Nature Communications, published 18 May 2026, doi 10.1038/s41467-026-71345-8. https://www.nature.com/articles/s41467-026-71345-8

@@ -324,6 +324,17 @@ class CatalogueRecord(Base):
             "copied from an abstract."
         ),
     )
+    subtitle: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment=(
+            "One or two lines saying what the work is, for a list where the "
+            "title alone is too terse and either summary is far too long. "
+            "Written for that job rather than cut from a longer paragraph, "
+            "because the opening sentence of an explainer rarely survives on "
+            "its own."
+        ),
+    )
     technical_summary: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,

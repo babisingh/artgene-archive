@@ -65,4 +65,6 @@ sources:
 
 **Why it matters for provenance.** The immunogen is a designed protein carried by a designed nucleotide sequence. No sequences were deposited, and reagents move only under a Material Transfer Agreement, so an external record must reconstruct both layers from the paper itself.
 
+**In plain words.** A vaccine can carry instructions rather than the thing itself and let the cell build it. Here the instructions describe a designed ball that assembles itself and studs its surface with sixty copies of a piece of a virus, which the immune system notices far more than a single loose piece. In mice it protected better than an mRNA vaccine carrying that piece on its own.
+
 Source: Grace G. Hendricks, Lilit Grigoryan and colleagues, Neil P. King corresponding. Computationally designed mRNA-launched protein nanoparticle immunogens elicit protective antibody and T cell responses in mice. Science Translational Medicine, 15 October 2025. doi 10.1126/scitranslmed.adu2085. https://doi.org/10.1126/scitranslmed.adu2085

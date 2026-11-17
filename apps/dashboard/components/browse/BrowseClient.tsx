@@ -247,7 +247,7 @@ export function BrowseClient() {
               Showing {from} to {to} of {total.toLocaleString("en-GB")}
               {total === 1 ? " record" : " records"}
             </p>
-            <ul className="record-grid">
+            <ul className="record-rows">
               {data?.items.map((item) => (
                 <RecordCard key={item.registry_id} item={item} />
               ))}

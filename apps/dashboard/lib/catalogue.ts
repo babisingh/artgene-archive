@@ -213,6 +213,8 @@ export type RecordKind = "catalogue" | "submission";
 export interface CatalogueListItem {
   registry_id: string;
   title: string;
+  /** One or two lines for the list row. Null until an editor writes one. */
+  subtitle: string | null;
   status: string;
   visibility: string;
   molecule_type: string;
@@ -299,6 +301,7 @@ export interface SequenceInfo {
 export interface CatalogueRecord {
   registry_id: string;
   title: string;
+  subtitle: string | null;
   /** The plain-words summary. Its companion keeps the paper's vocabulary. */
   summary: string | null;
   technical_summary: string | null;

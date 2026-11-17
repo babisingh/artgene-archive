@@ -71,4 +71,6 @@ sources:
 
 **Why it matters for provenance.** The device is several de novo modules joined in a specific geometry. The designed sequences are given only in the supporting information and were not deposited to a database, which limits how fully anyone else can register or reproduce the exact constructs.
 
+**In plain words.** Cortisol is the stress hormone, and measuring it usually means sending a sample away to a laboratory. The team designed two proteins that clasp each other only when cortisol is caught between them, and fixed half of a light-making enzyme to each. Cortisol arrives, the halves meet, the sample glows, and it glows brightly enough for a phone camera to read.
+
 Source: Julie Yi-Hsuan Chen, Xue Peng, Chenggang Xi and colleagues, Andy Hsien-Wei Yeh corresponding. De Novo Design of High-Performance Cortisol Luminescent Biosensors. Journal of the American Chemical Society, 28 July 2025. doi 10.1021/jacs.5c05004. https://doi.org/10.1021/jacs.5c05004
