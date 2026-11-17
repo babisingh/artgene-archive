@@ -56,6 +56,41 @@ from sentinel_api.db.models import Base
 #: ``catalogue`` record cites work published elsewhere, under AGC-.
 RECORD_CLASSES = ("certificate", "catalogue", "submission")
 MOLECULE_TYPES = ("protein", "dna", "rna", "genome", "regulatory_element", "grna_scaffold")
+#: What the designed thing *does*, and what it *acts on*. Two facts about the
+#: record, not two pictures: the archive draws a glyph for each, but the value
+#: is the claim and the drawing is one rendering of it.
+#:
+#: Both are deliberately coarse. They answer "what am I looking at" on a browse
+#: page at a glance, and nothing finer, because a reader who wants more has
+#: ``design_target`` below, which is prose and says everything. Neither can be
+#: derived from that prose, which is why these are columns and not a view.
+#:
+#: ``function_class`` carries the browse page. ``molecule_type`` cannot: it is
+#: ``protein`` for eighteen of the first twenty catalogue records, so it tells a
+#: reader almost nothing about which record is which.
+FUNCTION_CLASSES = (
+    "binder",
+    "enzyme",
+    "sensor",
+    "switch",
+    "shell",
+    "gene",
+    "improver",
+)
+#: What the designed thing acts on. ``None`` is a real answer and the common
+#: one for a record whose point is a method rather than a target.
+SUBJECT_CLASSES = (
+    "virion",
+    "bacterium",
+    "receptor",
+    "soluble_protein",
+    "disordered_chain",
+    "condensate",
+    "hormone_peptide",
+    "nucleic_acid_duplex",
+    "small_molecule",
+    "nanoparticle",
+)
 CATALOGUE_STATUSES = ("draft", "staged", "reviewed", "published", "restricted", "withdrawn")
 VISIBILITIES = ("private", "public")
 HOSTING_DECISIONS = ("hosted", "metadata_only", "withheld")
@@ -284,6 +319,23 @@ class CatalogueRecord(Base):
         ),
     )
     molecule_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    function_class: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+        comment=(
+            "What the designed thing does: binder, enzyme, sensor, switch, "
+            "shell, gene, improver. Nullable because it is assigned by a "
+            "reader, not computed, and a record is useful before anyone has."
+        ),
+    )
+    subject_class: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+        comment=(
+            "What it acts on. NULL is a real answer, not a gap: a method "
+            "paper has no single subject."
+        ),
+    )
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
     visibility: Mapped[str] = mapped_column(String(20), nullable=False, default="private")
     hosting_decision: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -317,12 +369,18 @@ class CatalogueRecord(Base):
 
     __table_args__ = (
         _in("molecule_type", MOLECULE_TYPES, "ck_catalogue_molecule_type"),
+        # NULL passes a CHECK of this shape, which is what nullable needs.
+        _in("function_class", FUNCTION_CLASSES, "ck_catalogue_function_class"),
+        _in("subject_class", SUBJECT_CLASSES, "ck_catalogue_subject_class"),
         _in("status", CATALOGUE_STATUSES, "ck_catalogue_status"),
         _in("visibility", VISIBILITIES, "ck_catalogue_visibility"),
         _in("hosting_decision", HOSTING_DECISIONS, "ck_catalogue_hosting_decision"),
         _in("biosafety_class", BIOSAFETY_CLASSES, "ck_catalogue_biosafety_class"),
         _in("license_resolution", LICENSE_RESOLUTIONS, "ck_catalogue_license_resolution"),
         CheckConstraint("id LIKE 'AGC-%' OR id LIKE 'AG-%'", name="ck_catalogue_id_prefix"),
+        # Browse filters by function, and every public query is already
+        # filtered by visibility, so the pair is what the index has to serve.
+        Index("ix_catalogue_function_class", "visibility", "function_class"),
     )
 
 

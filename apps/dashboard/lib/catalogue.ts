@@ -38,6 +38,91 @@ export const MOLECULE_LABELS: Record<string, string> = {
   grna_scaffold: "gRNA scaffold",
 };
 
+/**
+ * What a record does, and what it acts on. Mirrors FUNCTION_CLASSES and
+ * SUBJECT_CLASSES in sentinel_api.db.catalogue.
+ *
+ * These carry the browse page, because molecule_type cannot: it reads
+ * "protein" for eighteen of the first twenty catalogue records. Both are
+ * nullable on a record, and null is a real answer rather than a gap — a method
+ * paper has no single subject.
+ */
+export const FUNCTION_CLASSES = [
+  "binder",
+  "enzyme",
+  "sensor",
+  "switch",
+  "shell",
+  "gene",
+  "improver",
+] as const;
+
+export type FunctionClass = (typeof FUNCTION_CLASSES)[number];
+
+export const FUNCTION_LABELS: Record<string, string> = {
+  binder: "Binder",
+  enzyme: "Enzyme",
+  sensor: "Sensor",
+  switch: "Switch",
+  shell: "Shell",
+  gene: "Gene",
+  improver: "Improver",
+};
+
+/** One line each, for a filter bar or a tooltip. */
+export const FUNCTION_DESCRIPTIONS: Record<string, string> = {
+  binder: "Made to stick to something chosen in advance",
+  enzyme: "Made to carry out a chemical reaction",
+  sensor: "Made to report that something is present",
+  switch: "Made to turn another thing on or off",
+  shell: "Made to carry or display a cargo",
+  gene: "A stretch of sequence written to encode something",
+  improver: "An existing thing made better rather than a new one",
+};
+
+export const SUBJECT_CLASSES = [
+  "virion",
+  "bacterium",
+  "receptor",
+  "soluble_protein",
+  "disordered_chain",
+  "condensate",
+  "hormone_peptide",
+  "nucleic_acid_duplex",
+  "small_molecule",
+  "nanoparticle",
+] as const;
+
+export type SubjectClass = (typeof SUBJECT_CLASSES)[number];
+
+export const SUBJECT_LABELS: Record<string, string> = {
+  virion: "Enveloped virion",
+  bacterium: "Rod bacterium",
+  receptor: "Receptor in a membrane",
+  soluble_protein: "Soluble protein",
+  disordered_chain: "Disordered chain",
+  condensate: "Condensate",
+  hormone_peptide: "Hormone peptide",
+  nucleic_acid_duplex: "Nucleic-acid duplex",
+  small_molecule: "Small molecule",
+  nanoparticle: "Assembled nanoparticle",
+};
+
+/**
+ * Where the drawing for a class lives under /public.
+ *
+ * The API speaks snake_case and the files are named in kebab-case, so the one
+ * conversion lives here rather than at every call site. Returns null for a
+ * record that has not been classified, which is a blank plate and not an error.
+ */
+export function glyphPath(
+  set: "function" | "subject" | "medium",
+  name: string | null | undefined,
+): string | null {
+  if (!name) return null;
+  return `/glyphs/${set}/${name.replace(/_/g, "-")}.svg`;
+}
+
 export const HOST_ORGANISMS = [
   "ECOLI",
   "YEAST",
@@ -128,6 +213,9 @@ export interface CatalogueListItem {
   status: string;
   visibility: string;
   molecule_type: string;
+  /** Null until a reader has classified the record. */
+  function_class: string | null;
+  subject_class: string | null;
   hosting_decision: string;
   biosafety_class: string;
   record_kind: RecordKind;
@@ -210,6 +298,9 @@ export interface CatalogueRecord {
   title: string;
   summary: string | null;
   molecule_type: string;
+  /** Null until a reader has classified the record. */
+  function_class: string | null;
+  subject_class: string | null;
   status: string;
   visibility: string;
   record_kind: RecordKind;
@@ -361,6 +452,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export interface CatalogueQuery {
   q?: string;
   molecule_type?: string;
+  function_class?: string;
+  subject_class?: string;
   model?: string;
   validated?: boolean;
   kind?: string;
@@ -372,6 +465,8 @@ export function catalogueQueryString(query: CatalogueQuery): string {
   const params = new URLSearchParams();
   if (query.q) params.set("q", query.q);
   if (query.molecule_type) params.set("molecule_type", query.molecule_type);
+  if (query.function_class) params.set("function_class", query.function_class);
+  if (query.subject_class) params.set("subject_class", query.subject_class);
   if (query.model) params.set("model", query.model);
   if (query.validated) params.set("validated", "true");
   if (query.kind) params.set("kind", query.kind);
