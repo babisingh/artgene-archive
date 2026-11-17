@@ -577,6 +577,117 @@
   }
   .record-class .sep { color: var(--ink-4); }
 
+  /* --------------------------------------------------------------
+     The by-line: three names and a count, or the full list
+     -------------------------------------------------------------- */
+  .authors { margin: 14px 0 0; }
+  .authors-line {
+    margin: 0 0 10px;
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--ink-2);
+    max-width: 70ch;
+  }
+  .author-aff {
+    font-size: 10px;
+    color: var(--ink-4);
+    padding-left: 1px;
+  }
+  .author-corr { color: var(--accent); font-size: 11px; }
+  /* The reset in base strips list markers, which would leave every author's
+     superscript pointing at an unnumbered list. The numbers are the whole
+     mechanism here, so they are asked for explicitly. */
+  .authors-aff {
+    list-style: decimal outside;
+    margin: 0 0 10px;
+    padding-left: 22px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--ink-3);
+    max-width: 70ch;
+  }
+  .authors-corr {
+    margin: 0 0 10px;
+    font-size: 13px;
+    color: var(--ink-3);
+  }
+
+  /* --------------------------------------------------------------
+     What the paper reports: the two registers, and the numbers
+     -------------------------------------------------------------- */
+  .record-report {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 40px;
+    align-items: flex-start;
+  }
+  /* The text takes the room; the numbers take what is left, and both drop to
+     one column on a narrow screen. */
+  .record-report-text { flex: 999 1 460px; min-width: 0; }
+
+  .summary-block + .summary-block { margin-top: 30px; }
+  /* Small type carries the honesty notes, so it has to clear 4.5:1 rather
+     than fade politely into the paper. Measured, not eyeballed. */
+  .summary-note {
+    margin: -6px 0 14px;
+    font-size: 13px;
+    color: var(--ink-3);
+  }
+  .summary-plain-block .summary-note { color: #6b4f3d; }
+  .summary-technical {
+    margin: 0 0 14px;
+    font-size: 16.5px;
+    line-height: 1.68;
+    color: var(--ink);
+    max-width: 68ch;
+  }
+  /* The plain-words half is set a little larger and warmer, because the
+     reader it is for is the one most likely to give up on a wall of text. */
+  .summary-plain-block {
+    background: var(--accent-soft);
+    border-radius: var(--radius-lg);
+    padding: 24px 26px;
+  }
+  .summary-plain {
+    margin: 0 0 14px;
+    font-size: 17.5px;
+    line-height: 1.7;
+    color: #3b2a1f;
+    max-width: 62ch;
+  }
+  .summary-plain:last-child, .summary-technical:last-child { margin-bottom: 0; }
+
+  .at-a-glance {
+    flex: 1 1 240px;
+    min-width: 220px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-lg);
+    background: var(--paper-2);
+    padding: 22px 22px 6px;
+  }
+  .at-a-glance-head {
+    margin: 0 0 18px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    color: var(--ink-3);
+    text-transform: uppercase;
+  }
+  .glance-item { margin-bottom: 18px; }
+  .glance-label {
+    margin: 0 0 3px;
+    font-size: 12.5px;
+    color: var(--ink-3);
+  }
+  .glance-value {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 28px;
+    line-height: 1.1;
+    color: var(--ink);
+  }
+  .glance-value-sm { font-size: 15px; font-family: var(--sans); line-height: 1.45; }
+
   .pager {
     display: flex;
     align-items: center;

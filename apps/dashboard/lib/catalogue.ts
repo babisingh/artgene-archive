@@ -299,7 +299,9 @@ export interface SequenceInfo {
 export interface CatalogueRecord {
   registry_id: string;
   title: string;
+  /** The plain-words summary. Its companion keeps the paper's vocabulary. */
   summary: string | null;
+  technical_summary: string | null;
   molecule_type: string;
   /** Null until a reader has classified the record. */
   function_class: string | null;

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { KindBadge } from "../Accession";
 import { Plate } from "../Plate";
+import { AuthorList } from "./AuthorList";
 import {
   CatalogueError,
   HOST_LABELS,
@@ -246,11 +247,7 @@ export function RecordClient({ id }: { id: string }) {
             </p>
           ) : null}
 
-          {record.summary ? (
-            <p className="lede" style={{ maxWidth: 680 }}>
-              {record.summary}
-            </p>
-          ) : null}
+          {source ? <AuthorList authors={source.authors} /> : null}
         </div>
       </div>
 
@@ -267,103 +264,85 @@ export function RecordClient({ id }: { id: string }) {
         </div>
       ) : null}
 
-      {/* --- Source and citation ------------------------------------------ */}
-      <section className="record-section">
-        <h2 className="h2">Source and citation</h2>
-        {record.record_kind === "catalogue" ? (
-          <p className="small muted" style={{ maxWidth: 620 }}>
-            This sequence was reported elsewhere. The publication below is the
-            primary record, and this entry describes what the archive read in
-            it.
-          </p>
-        ) : (
-          <p className="small muted" style={{ maxWidth: 620 }}>
-            This sequence was deposited with the archive by its authors, so the
-            archive holds the primary copy and this entry is the record to cite.
-          </p>
-        )}
-
-        {source ? (
-          <>
-            <dl className="kv">
-              <Row label="Title">{source.title}</Row>
-              <Row label="Authors">
-                {source.authors.length === 0
-                  ? null
-                  : source.authors.map((author, index) => (
-                      <span key={`${author.full_name}-${index}`}>
-                        {index > 0 ? "; " : ""}
-                        {author.orcid ? (
-                          <a
-                            className="link"
-                            href={orcidUrl(author.orcid)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title={`ORCID ${author.orcid}`}
-                          >
-                            {author.full_name}
-                          </a>
-                        ) : (
-                          author.full_name
-                        )}
-                        {author.affiliation ? (
-                          <span className="muted"> ({author.affiliation})</span>
-                        ) : null}
-                        {author.is_corresponding ? (
-                          <span className="muted"> corresponding</span>
-                        ) : null}
-                      </span>
-                    ))}
-              </Row>
-              <Row label="Venue">{source.container}</Row>
-              <Row label="Date">{formatDate(source.published_on)}</Row>
-              <Row label="Version">{source.version}</Row>
-              <Row label="Peer reviewed">
-                {source.peer_reviewed ? "Yes" : "Not stated as peer reviewed"}
-              </Row>
-              <Row label="DOI">
-                {source.doi ? (
-                  <a
-                    className="link mono"
-                    href={`https://doi.org/${source.doi}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {source.doi}
-                  </a>
-                ) : null}
-              </Row>
-              <Row label="Link">
-                {source.url ? (
-                  <a
-                    className="link"
-                    href={source.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {source.url}
-                  </a>
-                ) : null}
-              </Row>
-              <Row label="Article licence">
-                {source.article_license
-                  ? (LICENSE_LABELS[source.article_license] ?? source.article_license)
-                  : null}
-              </Row>
-            </dl>
-
-            <div style={{ marginTop: 20 }}>
-              <p className="label">Cite this record</p>
-              <p className="cite">{citation}</p>
-              <div style={{ marginTop: 10 }}>
-                <CopyButton text={citation} />
+      {/* --- What the paper reports --------------------------------------- */}
+      {record.technical_summary || record.summary || hitRate ? (
+        <section className="record-section record-report">
+          <div className="record-report-text">
+            {record.technical_summary ? (
+              <div className="summary-block">
+                <h2 className="h2">In the paper&rsquo;s words</h2>
+                <p className="summary-note">
+                  The archive&rsquo;s reading of the publication, in its own
+                  vocabulary.
+                </p>
+                {record.technical_summary.split("\n\n").map((para, i) => (
+                  <p className="summary-technical" key={i}>
+                    {para}
+                  </p>
+                ))}
               </div>
-            </div>
-          </>
-        ) : (
-          <p className="muted">The archive holds no source details for this record.</p>
-        )}
-      </section>
+            ) : null}
+
+            {record.summary ? (
+              <div className="summary-block summary-plain-block">
+                <h2 className="h2">In plain words</h2>
+                <p className="summary-note">No background assumed.</p>
+                {record.summary.split("\n\n").map((para, i) => (
+                  <p className="summary-plain" key={i}>
+                    {para}
+                  </p>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          {hitRate || design ? (
+            <aside className="at-a-glance" aria-label="At a glance">
+              <p className="at-a-glance-head">At a glance</p>
+              {hitRate?.n_designed !== null && hitRate?.n_designed !== undefined ? (
+                <div className="glance-item">
+                  <p className="glance-label">Designed</p>
+                  <p className="glance-value">
+                    {hitRate.n_designed.toLocaleString("en-GB")}
+                  </p>
+                </div>
+              ) : null}
+              {hitRate?.n_tested !== null && hitRate?.n_tested !== undefined ? (
+                <div className="glance-item">
+                  <p className="glance-label">Tested at the bench</p>
+                  <p className="glance-value">
+                    {hitRate.n_tested.toLocaleString("en-GB")}
+                  </p>
+                </div>
+              ) : null}
+              {hitRate?.n_functional !== null && hitRate?.n_functional !== undefined ? (
+                <div className="glance-item">
+                  <p className="glance-label">Worked</p>
+                  <p className="glance-value">
+                    {hitRate.n_functional.toLocaleString("en-GB")}
+                  </p>
+                </div>
+              ) : null}
+              {design?.expression_host ? (
+                <div className="glance-item">
+                  <p className="glance-label">Made in</p>
+                  <p className="glance-value glance-value-sm">
+                    {HOST_LABELS[design.expression_host] ?? design.expression_host}
+                  </p>
+                </div>
+              ) : null}
+              {design?.assays && design.assays.length > 0 ? (
+                <div className="glance-item">
+                  <p className="glance-label">Measured by</p>
+                  <p className="glance-value glance-value-sm">
+                    {design.assays.join(", ")}
+                  </p>
+                </div>
+              ) : null}
+            </aside>
+          ) : null}
+        </section>
+      ) : null}
 
       {/* --- Design ------------------------------------------------------- */}
       <section className="record-section">
@@ -501,6 +480,76 @@ export function RecordClient({ id }: { id: string }) {
           </dl>
         </section>
       ) : null}
+
+      {/* --- Source and citation ------------------------------------------ */}
+      <section className="record-section">
+        <h2 className="h2">Provenance</h2>
+        {record.record_kind === "catalogue" ? (
+          <p className="small muted" style={{ maxWidth: 620 }}>
+            This sequence was reported elsewhere. The publication below is the
+            primary record, and this entry describes what the archive read in
+            it.
+          </p>
+        ) : (
+          <p className="small muted" style={{ maxWidth: 620 }}>
+            This sequence was deposited with the archive by its authors, so the
+            archive holds the primary copy and this entry is the record to cite.
+          </p>
+        )}
+
+        {source ? (
+          <>
+            <dl className="kv">
+              <Row label="Title">{source.title}</Row>
+              <Row label="Venue">{source.container}</Row>
+              <Row label="Date">{formatDate(source.published_on)}</Row>
+              <Row label="Version">{source.version}</Row>
+              <Row label="Peer reviewed">
+                {source.peer_reviewed ? "Yes" : "Not stated as peer reviewed"}
+              </Row>
+              <Row label="DOI">
+                {source.doi ? (
+                  <a
+                    className="link mono"
+                    href={`https://doi.org/${source.doi}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {source.doi}
+                  </a>
+                ) : null}
+              </Row>
+              <Row label="Link">
+                {source.url ? (
+                  <a
+                    className="link"
+                    href={source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {source.url}
+                  </a>
+                ) : null}
+              </Row>
+              <Row label="Article licence">
+                {source.article_license
+                  ? (LICENSE_LABELS[source.article_license] ?? source.article_license)
+                  : null}
+              </Row>
+            </dl>
+
+            <div style={{ marginTop: 20 }}>
+              <p className="label">Cite this record</p>
+              <p className="cite">{citation}</p>
+              <div style={{ marginTop: 10 }}>
+                <CopyButton text={citation} />
+              </div>
+            </div>
+          </>
+        ) : (
+          <p className="muted">The archive holds no source details for this record.</p>
+        )}
+      </section>
 
       {/* --- Record dates and corrections --------------------------------- */}
       <section className="record-section">
