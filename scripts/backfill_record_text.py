@@ -44,8 +44,15 @@ import urllib.request
 
 DRAFTS = pathlib.Path(__file__).resolve().parent.parent / "artgene_backfill_drafts"
 
-# The body paragraphs that make up the technical summary, in order.
-TECHNICAL_SECTIONS = ("What was done.", "What they made and measured.")
+# The body paragraphs that make up the technical summary, in order: the gap
+# this paper closes, the method and the numbers, and what the result is worth.
+# "What it shows." carries the third, so a reader reaches the point of the
+# work without having to infer it from the measurements.
+TECHNICAL_SECTIONS = (
+    "What was done.",
+    "What they made and measured.",
+    "What it shows.",
+)
 PLAIN_SECTION = "In plain words."
 
 
