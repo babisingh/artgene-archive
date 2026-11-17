@@ -13,6 +13,8 @@ archive:
   container: Nature Chemical Biology
   biosafety_class: none
   molecule_type: protein
+  function_class: binder
+  subject_class: soluble_protein
   generating_model: RFpeptides, RFdiffusion extended with cyclic relative positional encoding for backbone generation and ProteinMPNN for sequence design, with RoseTTAFold2 and AfCycDesign used to filter candidates
   model_availability: open-weights
   design_target: de novo macrocyclic peptide binders to four protein targets, MCL1, MDM2, GABARAP and the Acinetobacter baumannii surface protein Rhombotarget A

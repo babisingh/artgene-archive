@@ -26,6 +26,37 @@ So:
 A plate is assembled from all three: subject engraving as the ground, function
 emblem as the figure, hallmark stamped in the corner.
 
+### What the twenty records actually use
+
+Classifying each of the twenty one at a time, rather than counting which
+targets get a mention somewhere, gives this. The earlier per-drawing counts in
+`manifest.json` were taken the looser way and were wrong; these are the real
+ones.
+
+| function | records | | subject | records |
+|---|---|---|---|---|
+| binder | 10 | | soluble_protein | 6 |
+| shell | 2 | | small_molecule | 3 |
+| switch | 2 | | disordered_chain | 2 |
+| enzyme | 1 | | virion | 2 |
+| gene | 1 | | bacterium | 1 |
+| improver | 1 | | condensate | 1 |
+| sensor | 1 | | hormone_peptide | 1 |
+| *none* | 2 | | receptor | 1 |
+| | | | *none* | 3 |
+
+Two things that fell out of it, both worth knowing before the sets are treated
+as settled:
+
+- **`nanoparticle` and `nucleic_acid_duplex` are used by no record.** Both were
+  drawn because a target of that kind is *mentioned* in a paper, but neither is
+  what any single record is best classified as. They are kept because records
+  that need them are plausible, not because anything needs them today.
+- **Two records have no function at all.** RFdiffusion and LigandMPNN are
+  method papers: each produces binders, scaffolds, sensors and enzymes alike,
+  so no one value is true of either. A `method` value in `FUNCTION_CLASSES`
+  would fit them, and nothing else in the set does.
+
 ## Colour
 
 Every glyph paints through CSS custom properties with sane fallbacks, so an

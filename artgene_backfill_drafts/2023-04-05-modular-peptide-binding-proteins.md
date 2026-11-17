@@ -13,6 +13,11 @@ archive:
   container: Nature
   biosafety_class: none
   molecule_type: protein
+  function_class: binder
+  subject_class: disordered_chain
+  classification_note: >-
+    The targets are extended polyproline II peptides rather than folded
+    domains, so the disordered chain is the closer drawing.
   generating_model: "Geometric hashing to match protein backbones to peptide docking arrangements, with Rosetta FastDesign for sequence design; no version number stated"
   model_availability: open-weights
   design_target: repeat proteins that bind tripeptide-repeat peptides in polyproline II conformation through ladders of side chain to backbone hydrogen bonds

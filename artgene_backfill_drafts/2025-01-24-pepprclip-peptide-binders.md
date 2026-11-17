@@ -13,13 +13,15 @@ archive:
   container: Science Advances
   biosafety_class: none
   molecule_type: protein
+  function_class: binder
+  subject_class: soluble_protein
   generating_model: PepPrCLIP, which perturbs ESM-2-650M peptide embeddings with Gaussian noise to generate candidates and ranks them with a CLIP-style contrastive peptide-target model
   model_availability: open-weights
   design_target: short linear peptides that bind a user-specified target protein, deployed as inhibitory peptides and as guide peptides fused to the CHIP E3 ubiquitin ligase for targeted degradation
   n_designed: unknown
   n_tested: 36
   n_functional: unknown
-  counts_note: The pipeline ranks roughly 100,000 candidates per target. Across three targets, 36 PepPrCLIP peptides were selected and tested: 20 against the enzyme UltraID, of which 19 inhibited it and 4 by more than 75 percent; 6 against beta-catenin, of which 4 reduced Wnt reporter activity and 2 were confirmed degraders binding at 150 and 200 nM; and 10 against the SS18-SSX1 fusion oncoprotein, of which SS_PpC_4 drove more than 40 percent degradation.
+  counts_note: 'The pipeline ranks roughly 100,000 candidates per target. Across three targets, 36 PepPrCLIP peptides were selected and tested: 20 against the enzyme UltraID, of which 19 inhibited it and 4 by more than 75 percent; 6 against beta-catenin, of which 4 reduced Wnt reporter activity and 2 were confirmed degraders binding at 150 and 200 nM; and 10 against the SS18-SSX1 fusion oncoprotein, of which SS_PpC_4 drove more than 40 percent degradation.'
   assays: [binding, activity, degradation, biolayer-interferometry, elisa, immunoblot, flow-cytometry, luciferase-reporter]
   expression_host: ECOLI
   sequences_deposited: yes

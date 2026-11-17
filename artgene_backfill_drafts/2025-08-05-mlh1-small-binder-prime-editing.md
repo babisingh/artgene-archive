@@ -13,6 +13,8 @@ archive:
   container: Cell
   biosafety_class: none
   molecule_type: protein
+  function_class: binder
+  subject_class: soluble_protein
   generating_model: RFdiffusion for de novo binder backbone generation, with AlphaFold 3 used as a filtering and competition-test scoring system
   model_availability: open-weights
   design_target: a de novo small protein binder to the MLH1 and PMS2 dimeric interface that inhibits mismatch repair and so increases prime editing efficiency
