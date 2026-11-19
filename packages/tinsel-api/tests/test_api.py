@@ -579,9 +579,9 @@ class TestStoredKeySpelling:
         missing = self.EXPECTED_GATE2_KEYS - set(gate2)
         assert not missing, (
             f"gate2 is missing {sorted(missing)}. If these were renamed in "
-            "Gate2Result, the stored keys and the TypeScript client in "
-            "apps/dashboard/lib/api.ts need renaming too, via a migration. "
-            "See RENAME_PLAN.md."
+            "Gate2Result, the stored keys need renaming too, via a migration. "
+            "The dashboard no longer reads consequence_report at all, so a "
+            "rename costs a migration and nothing else. See RENAME_PLAN.md."
         )
 
     async def test_old_camel_case_keys_are_gone(

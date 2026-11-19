@@ -1,10 +1,11 @@
 /**
  * Client for the catalogue and submission routes.
  *
- * Separate from lib/api.ts on purpose. That client flattens every error body
- * into one generic sentence, which is fine for an operator console and wrong
- * for a public form: a submitter needs to be told which field the API
- * objected to, in the API's own words.
+ * This is the only client in the dashboard. It replaced lib/api.ts, which
+ * spoke to the certificate registry and flattened every error body into one
+ * generic sentence: fine for an operator console, wrong for a public form,
+ * where a submitter needs to be told which field the API objected to, in the
+ * API's own words. Hence toError below, which keeps all three error shapes.
  *
  * Every request goes to the Next proxy at /api/proxy/<path>, never to the API
  * directly. The proxy attaches a read-only key server-side for the allowlisted
@@ -617,9 +618,11 @@ export function formatLength(sequence: SequenceInfo): string {
 // untouched. The server key it attaches to public reads carries read:public
 // and cannot see a draft, let alone move one.
 //
-// The key is the operator's, held in sessionStorage for the life of a tab, per
-// the convention lib/api.ts already describes. It is never written to a cookie
-// or to localStorage, so closing the tab ends the session.
+// The key is the operator's, held in sessionStorage for the life of a tab. It
+// is never written to a cookie or to localStorage, so closing the tab ends the
+// session, and never to a NEXT_PUBLIC_* variable: Next inlines those into the
+// client bundle at build time, which would publish the key to anyone who views
+// source.
 // ---------------------------------------------------------------------------
 
 export const CATALOGUE_STATUSES = [
