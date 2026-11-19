@@ -144,7 +144,12 @@ Three rules follow:
    Everything else returns 401 and requires the caller's own key.
 2. **The agent cannot publish.** It drafts; a human moves a record to
    `published`. This is the editorial control, expressed as a permission rather
-   than as a convention.
+   than as a convention. The place that happens is `/review` on the dashboard,
+   which holds an operator key in `sessionStorage` for the life of a tab and
+   walks a record through `draft`, `staged`, `reviewed`, `published`. The page
+   is not in the nav and carries `noindex`, but it is not a secret: there is
+   nothing behind it to protect, because the scope check on each request is
+   what does the protecting.
 3. **Every write records the key id** that authorised it, so the audit log
    answers "who" and not only "what".
 

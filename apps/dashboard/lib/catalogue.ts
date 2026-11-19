@@ -609,3 +609,139 @@ export function formatLength(sequence: SequenceInfo): string {
   const unit = sequence.molecule_type === "protein" ? "residues" : "bases";
   return `${sequence.length.toLocaleString("en-GB")} ${unit}`;
 }
+
+// ---------------------------------------------------------------------------
+// Review: moving a record through the lifecycle
+//
+// Everything below needs the caller's own key, which the proxy forwards
+// untouched. The server key it attaches to public reads carries read:public
+// and cannot see a draft, let alone move one.
+//
+// The key is the operator's, held in sessionStorage for the life of a tab, per
+// the convention lib/api.ts already describes. It is never written to a cookie
+// or to localStorage, so closing the tab ends the session.
+// ---------------------------------------------------------------------------
+
+export const CATALOGUE_STATUSES = [
+  "draft",
+  "staged",
+  "reviewed",
+  "published",
+  "restricted",
+  "withdrawn",
+] as const;
+
+export type CatalogueStatus = (typeof CATALOGUE_STATUSES)[number];
+
+export const STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
+  staged: "Staged",
+  reviewed: "Reviewed",
+  published: "Published",
+  restricted: "Restricted",
+  withdrawn: "Withdrawn",
+};
+
+/** One line each, for the queue headings. */
+export const STATUS_MEANINGS: Record<string, string> = {
+  draft: "Filed by Genome Watch, and not yet read by you.",
+  staged: "You have read it. It is waiting to be checked.",
+  reviewed: "Checked, and ready to go public.",
+  published: "Live on the site, and readable by anyone.",
+  restricted: "The citation stays. The sequence data does not.",
+  withdrawn: "Out of circulation. Nothing moves out of here.",
+};
+
+/**
+ * What each status may become next.
+ *
+ * This mirrors TRANSITIONS in sentinel_api/routes/catalogue.py, and the server
+ * is the one that decides: a button this map offers wrongly earns a 409 saying
+ * so, rather than a quiet success. It is here to keep the page from offering
+ * moves that were never going to work.
+ */
+export const NEXT_STATUSES: Record<string, CatalogueStatus[]> = {
+  draft: ["staged", "withdrawn"],
+  staged: ["reviewed", "draft", "restricted", "withdrawn"],
+  reviewed: ["published", "staged", "restricted", "withdrawn"],
+  published: ["restricted", "withdrawn"],
+  restricted: ["reviewed", "withdrawn"],
+  withdrawn: [],
+};
+
+/** The one step that carries a record forward, where there is one. */
+export const FORWARD_STATUS: Record<string, CatalogueStatus | undefined> = {
+  draft: "staged",
+  staged: "reviewed",
+  reviewed: "published",
+  published: undefined,
+  restricted: "reviewed",
+  withdrawn: undefined,
+};
+
+/** The verb on the button, phrased as the thing it does. */
+export const STATUS_VERBS: Record<string, string> = {
+  draft: "Send back to draft",
+  staged: "Stage it",
+  reviewed: "Mark it reviewed",
+  published: "Publish it",
+  restricted: "Restrict it",
+  withdrawn: "Withdraw it",
+};
+
+/**
+ * Moves that are worth a second press.
+ *
+ * Publishing puts a record in front of the public. Withdrawing is terminal:
+ * TRANSITIONS lets nothing out of it. Restricting pulls the sequence data.
+ * None of the three is a click to make by accident.
+ */
+export const CONFIRM_STATUSES: ReadonlySet<string> = new Set([
+  "published",
+  "withdrawn",
+  "restricted",
+]);
+
+function keyed(key: string, init: RequestInit = {}): RequestInit {
+  return {
+    ...init,
+    headers: { ...(init.headers ?? {}), "X-API-Key": key },
+  };
+}
+
+/**
+ * Every record this key may see, newest first, for sorting into queues.
+ *
+ * One request rather than one per status: the whole catalogue is small, and a
+ * caller who may see drafts may see all of them. `count` is the real total, so
+ * the page can say plainly when it is showing a page rather than everything.
+ */
+export function fetchQueue(
+  key: string,
+  limit = 200,
+): Promise<CatalogueListResponse> {
+  return request<CatalogueListResponse>(`catalogue?limit=${limit}`, keyed(key));
+}
+
+/**
+ * Move one record, and get it back in its new state.
+ *
+ * `reason` goes into the record's integrity ledger beside who moved it, so it
+ * is worth writing. The server records the transition either way.
+ */
+export function changeStatus(
+  key: string,
+  registryId: string,
+  status: CatalogueStatus,
+  reason?: string,
+): Promise<CatalogueRecord> {
+  const trimmed = reason?.trim();
+  return request<CatalogueRecord>(
+    `catalogue/${encodeURIComponent(registryId)}/status`,
+    keyed(key, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, reason: trimmed ? trimmed : null }),
+    }),
+  );
+}
