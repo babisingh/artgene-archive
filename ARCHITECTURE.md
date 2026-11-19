@@ -158,6 +158,14 @@ hash equality. A slow KDF is not needed and would be a cost on every request.
 Rotation works by issuing a new key, overlapping validity, then setting
 `revoked_at`; `require_api_key` already honours revocation.
 
+Keys are issued by `packages/tinsel-api/scripts/issue_key.py`, which prints the
+raw key once and stores only its hash. It carries three named scope sets:
+`review` (read, draft and publish, which is what `/review` needs and no more),
+`operator` (everything, `admin` included) and `agent` (what Genome Watch holds).
+Before it existed there was no way to issue a key at all: `seed_prod.py` creates
+one key, on first boot, with no scopes, so the key the archive ran on could not
+publish a record and nothing could.
+
 ## 4. Data model
 
 A thin shared identity table, two class tables, and typed satellites. This is
