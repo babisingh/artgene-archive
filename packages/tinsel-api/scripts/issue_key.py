@@ -44,8 +44,8 @@ from datetime import UTC, datetime, timedelta
 from sentinel_api.db.connection import async_session_factory
 from sentinel_api.db.models import APIKey, Organisation
 from sentinel_api.scopes import (
-    ALL_SCOPES,
     AGENT_SCOPES,
+    ALL_SCOPES,
     CATALOGUE_DRAFT,
     CATALOGUE_PUBLISH,
     OPERATOR_SCOPES,
