@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 
+import { publishedRecords, recordUrl, SITE } from "../lib/record-server";
+
 /**
  * The map search engines read: the public pages, and every published record.
  *
@@ -14,43 +16,15 @@ import type { MetadataRoute } from "next";
  */
 export const dynamic = "force-dynamic";
 
-const SITE = (process.env.SITE_URL ?? "https://artgene-archive.org").replace(/\/+$/, "");
-const API_URL = (process.env.API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
-const READ_KEY = process.env.PUBLIC_READ_API_KEY ?? process.env.API_KEY ?? "";
-
-/** The API's largest page, and a ceiling well under a sitemap's 50,000 entries. */
-const PAGE = 200;
-const MOST = 10_000;
-
 /** The pages anyone can open. /review is an operator's page and is left out. */
 const PUBLIC_PAGES = ["/", "/sequences", "/submit", "/about", "/data"];
-
-type Listed = { registry_id: string; published_at?: string | null };
-type ListPage = { count?: number; items?: Listed[] };
-
-async function publishedRecords(): Promise<Listed[]> {
-  const records: Listed[] = [];
-  for (let offset = 0; offset < MOST; offset += PAGE) {
-    const response = await fetch(`${API_URL}/api/v1/catalogue/?limit=${PAGE}&offset=${offset}`, {
-      headers: READ_KEY ? { "x-api-key": READ_KEY } : {},
-      cache: "no-store",
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (!response.ok) throw new Error(`the catalogue answered ${response.status}`);
-    const page = (await response.json()) as ListPage;
-    const items = page.items ?? [];
-    records.push(...items);
-    if (items.length < PAGE || (page.count !== undefined && records.length >= page.count)) break;
-  }
-  return records;
-}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const pages: MetadataRoute.Sitemap = PUBLIC_PAGES.map((path) => ({
     url: path === "/" ? `${SITE}/` : `${SITE}${path}`,
   }));
 
-  let records: Listed[] = [];
+  let records: Awaited<ReturnType<typeof publishedRecords>> = [];
   try {
     records = await publishedRecords();
   } catch (error) {
@@ -59,11 +33,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     ...pages,
-    ...records
-      .filter((record) => /^AGC?-\d{4}-\d{6}$/.test(record.registry_id))
-      .map((record) => ({
-        url: `${SITE}/sequences/${record.registry_id}`,
-        ...(record.published_at ? { lastModified: record.published_at } : {}),
-      })),
+    ...records.map((record) => ({
+      url: recordUrl(record.registry_id),
+      ...(record.published_at ? { lastModified: record.published_at } : {}),
+    })),
   ];
 }

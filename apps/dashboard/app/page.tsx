@@ -1,6 +1,74 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { SearchBox } from "../components/SearchBox";
 import { CatalogueSnapshot } from "../components/home/CatalogueSnapshot";
+import { asJsonLd, SITE } from "../lib/record-server";
+
+// The words people search with, in the title and the line under it in results.
+const TITLE = "ArtGene Archive: AI-generated protein and gene sequences";
+const DESCRIPTION =
+  "A public catalogue of AI-designed protein and gene sequences from papers, preprints and author deposits, each screened for biosafety before it is listed.";
+
+export const metadata: Metadata = {
+  title: { absolute: TITLE },
+  description: DESCRIPTION,
+  alternates: { canonical: `${SITE}/` },
+  openGraph: {
+    type: "website",
+    siteName: "ArtGene Archive",
+    title: TITLE,
+    description: DESCRIPTION,
+    url: `${SITE}/`,
+  },
+};
+
+const GENETHROPIC = "https://genethropic.com/#organization";
+
+/**
+ * What the archive is and who runs it, for search engines and Google Dataset
+ * Search: the catalogue every record page names as its home, and Genethropic,
+ * whose site describes the archive as its project. Built only from what this
+ * page says.
+ */
+const HOME_MARKUP = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": GENETHROPIC,
+      name: "Genethropic",
+      url: "https://genethropic.com/",
+      sameAs: ["https://www.linkedin.com/company/145506780/"],
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${SITE}/#website`,
+      name: "ArtGene Archive",
+      url: `${SITE}/`,
+      publisher: { "@id": GENETHROPIC },
+    },
+    {
+      "@type": "DataCatalog",
+      "@id": `${SITE}/#catalogue`,
+      name: "ArtGene Archive",
+      url: `${SITE}/`,
+      description:
+        "A public catalogue of protein and gene sequences designed by AI models, from papers, preprints and authors' own deposits. Every record says where the sequence came from, which model designed it and whether it was tested at the bench, and every sequence is screened for biosafety before it is listed.",
+      keywords: [
+        "AI-generated protein sequences",
+        "AI-designed proteins",
+        "AI-generated gene sequences",
+        "AI-designed DNA",
+        "protein design",
+        "generative biology",
+        "biosafety",
+      ],
+      inLanguage: "en",
+      isAccessibleForFree: true,
+      publisher: { "@id": GENETHROPIC },
+    },
+  ],
+};
 
 const STEPS: { n: string; title: string; body: string }[] = [
   {
@@ -28,7 +96,12 @@ const STEPS: { n: string; title: string; body: string }[] = [
 export default function HomePage() {
   return (
     <div className="wrap page">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: asJsonLd(HOME_MARKUP) }}
+      />
       <section>
+        <p className="kicker">AI-generated protein and gene sequences</p>
         <h1 className="h1">
           A public archive for sequences that <em>nature</em> never wrote.
         </h1>

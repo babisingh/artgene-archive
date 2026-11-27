@@ -4,6 +4,8 @@ import {
   FUNCTION_LABELS,
   MOLECULE_LABELS,
   SUBJECT_LABELS,
+  type CatalogueListItem,
+  type CatalogueListResponse,
   type CatalogueRecord,
 } from "./catalogue";
 
@@ -50,6 +52,48 @@ export const publicRecord = cache(async (id: string): Promise<CatalogueRecord | 
   }
 });
 
+/** The API's largest page, and a ceiling well under a sitemap's 50,000 entries. */
+const PAGE = 200;
+const MOST = 10_000;
+
+/**
+ * Every published record, as the catalogue lists them to an anonymous visitor:
+ * GET /catalogue with the read-only key, which returns published records and
+ * nothing else. Throws when the API cannot be reached; each caller decides what
+ * to show instead.
+ */
+export async function publishedRecords(): Promise<CatalogueListItem[]> {
+  const records: CatalogueListItem[] = [];
+  for (let offset = 0; offset < MOST; offset += PAGE) {
+    const response = await fetch(`${API_URL}/api/v1/catalogue/?limit=${PAGE}&offset=${offset}`, {
+      headers: READ_KEY ? { "x-api-key": READ_KEY } : {},
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!response.ok) throw new Error(`the catalogue answered ${response.status}`);
+    const page = (await response.json()) as Partial<CatalogueListResponse>;
+    const items = page.items ?? [];
+    records.push(...items);
+    if (items.length < PAGE || (page.count !== undefined && records.length >= page.count)) break;
+  }
+  return records.filter((record) => ACCESSION.test(record.registry_id));
+}
+
+/**
+ * Whether a record may be put forward beyond its own page: as a dataset to
+ * search engines, or by title in the guide for AI assistants. A record whose
+ * sequence is withheld, or whose biosafety class is restricted, stays findable
+ * on the site and in the sitemap, and is promoted nowhere else.
+ */
+export function promotable(
+  record: Pick<CatalogueListItem, "hosting_decision" | "biosafety_class"> & {
+    sequence?: { withheld?: boolean } | null;
+  },
+): boolean {
+  if (record.sequence?.withheld || record.hosting_decision === "withheld") return false;
+  return record.biosafety_class !== "restricted";
+}
+
 export function recordUrl(id: string): string {
   return `${SITE}/sequences/${id}`;
 }
@@ -88,12 +132,11 @@ function licenseUrl(license: string | null | undefined): string | null {
  *
  * Built only from what the page itself shows the public: the title, the two
  * summaries, the paper, its authors. Never a sequence (the record carries
- * none), and nothing at all for a record whose sequence is withheld or whose
- * biosafety class is restricted: those stay findable on the site and in the
- * sitemap, and are not promoted as datasets.
+ * none), and nothing at all for a record that is not promotable: one whose
+ * sequence is withheld or whose biosafety class is restricted.
  */
 export function datasetMarkup(record: CatalogueRecord): Record<string, unknown> | null {
-  if (record.sequence?.withheld || record.biosafety_class === "restricted") return null;
+  if (!promotable(record)) return null;
 
   const parts = [record.subtitle, record.summary, record.technical_summary]
     .filter((part): part is string => Boolean(part && part.trim()))
