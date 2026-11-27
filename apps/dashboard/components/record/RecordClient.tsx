@@ -132,11 +132,19 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-export function RecordClient({ id }: { id: string }) {
+export function RecordClient({
+  id,
+  initialRecord,
+}: {
+  id: string;
+  /** The record as the server read it, so the page arrives already filled in. */
+  initialRecord?: CatalogueRecord;
+}) {
   const { data, isPending, isError, error } = useQuery({
     queryKey: ["record", id],
     queryFn: () => fetchRecord(id),
     retry: false,
+    initialData: initialRecord,
   });
 
   if (isPending) {
