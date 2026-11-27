@@ -56,6 +56,9 @@ export function SiteFooter() {
                 <a href="mailto:b@genethropic.com">b@genethropic.com</a>
               </li>
               <li>
+                <a href="https://genethropic.com/">Run by Genethropic</a>
+              </li>
+              <li>
                 <a
                   href="https://github.com/babisingh/artgene-archive"
                   target="_blank"
