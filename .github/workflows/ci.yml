@@ -22,20 +22,32 @@ jobs:
 
       - name: Install workspace packages
         run: |
-          # mypy and bandit are named here rather than in a package extra
-          # because they check the workspace as a whole, not one package.
-          # mypy was missing until 2026-11-12, so the type check step exited
-          # 127 ("command not found") on every run it had ever made. A step
-          # that fails before it runs reports the same red as a step that
-          # found something, which is how 49 type errors accumulated unseen.
-          uv pip install \
-            -e packages/tinsel-core[test] \
-            -e packages/tinsel-gates[test] \
-            -e packages/tinsel-api[dev] \
-            aiosqlite \
-            bandit \
-            mypy \
-            --system
+          # --locked installs exactly what uv.lock pins, and fails if the lock
+          # has drifted from the pyproject files, so CI type checks and tests
+          # against the versions the app actually runs on. `uv pip install`
+          # stood here until 2026-11-27: it resolves fresh from the index and
+          # never reads the lockfile, which put 43 of the 62 locked packages at
+          # a version no developer had. One was sqlalchemy, at 2.1.9 against a
+          # locked 2.0.49, where `Select` became variadic, which is how an
+          # annotation that type checked locally turned main red in #52. That
+          # resolution also moved on its own: 2.1.8 a fortnight earlier, with
+          # nothing in the repository changed.
+          #
+          # --python 3.12 holds uv to the interpreter setup-python just
+          # installed. requires-python is only >=3.12, so without it uv is
+          # free to pick up something newer from a future runner image.
+          #
+          # bandit and mypy sit in the `dev` group of the root pyproject rather
+          # than being named here, so they are pinned too. mypy was absent from
+          # this install until 2026-11-12, so the type check step exited 127
+          # ("command not found") on every run it had ever made. A step that
+          # fails before it runs reports the same red as a step that found
+          # something, which is how 49 type errors accumulated unseen.
+          uv sync --locked --all-packages --all-extras --python 3.12
+          # uv syncs into .venv rather than onto the system python, so put its
+          # entries on PATH for the steps below instead of activating it in
+          # each one.
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Lint (ruff)
         run: ruff check packages/
@@ -52,7 +64,7 @@ jobs:
       # transitive dependency should be visible without blocking an unrelated
       # change.
       - name: Audit Python dependencies
-        run: pip install pip-audit && pip-audit --strict || true
+        run: uv pip install pip-audit && pip-audit --strict || true
         continue-on-error: true
 
       - name: Type check (mypy)
@@ -109,11 +121,11 @@ jobs:
 
       - name: Install workspace packages
         run: |
-          uv pip install \
-            -e packages/tinsel-core \
-            -e packages/tinsel-gates \
-            -e packages/tinsel-api[dev] \
-            --system
+          # Identical to the step in test-python, which carries the reasoning:
+          # the lockfile is what alembic should run against, and one install
+          # path means the two jobs cannot drift from each other either.
+          uv sync --locked --all-packages --all-extras --python 3.12
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       # Generated rather than written here: SENTINEL_ENV=production refuses to
       # start on the development default key, and a 64-character hex literal in
