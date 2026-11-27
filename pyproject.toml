@@ -58,8 +58,15 @@ testpaths = [
 ]
 
 [dependency-groups]
+# bandit and mypy check the workspace as a whole rather than one package, so
+# they are not a dependency of any single member and do not belong in a member
+# extra. This group is that home. Naming them here rather than in the CI
+# workflow also puts them in uv.lock, so CI runs the same versions a developer
+# gets from `uv sync`.
 dev = [
     "aiosqlite>=0.22.1",
     "anyio>=4.13.0",
+    "bandit>=1.9",
     "httpx>=0.28.1",
+    "mypy>=2.4",
 ]
